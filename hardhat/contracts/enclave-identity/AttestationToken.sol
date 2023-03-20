@@ -30,7 +30,7 @@ contract AttestationToken {
         if (_quote.userdata != keccak256(bytes.concat(challenge, _registration)))
             revert MismatchedRegistration();
         // TODO: verify issuance
-        (address registrant) = abi.decode(_registration, (address));
+        address registrant = abi.decode(_registration, (address));
         AttestationTokenId attid = AttestationTokenId.wrap(_quote.measurementHash);
         attestations[registrant][attid] = true;
         return attid;

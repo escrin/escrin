@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 // import "hardhat/console.sol";
 
-import "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 
 import {AttestationToken, AttestationTokenId} from "./AttestationToken.sol";
 
@@ -24,7 +24,7 @@ contract Lockbox {
     }
 
     function createKey(AttestationTokenId attid, bytes calldata pers) external {
-        if(lockbox[attid] != 0) return;
+        if (lockbox[attid] != 0) return;
         lockbox[attid] = block.chainid == 0x5aff || block.chainid == 0x5afe
             ? bytes32(Sapphire.randomBytes(32, pers))
             : blockhash(block.number);

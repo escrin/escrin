@@ -1,14 +1,42 @@
 {
-  "name": "escrin",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "name": "@escrin/contracts",
+  "version": "0.0.0",
+  "license": "MIT",
   "keywords": [],
   "author": "Nick Hynes <nhynes@enshrine.ai>",
-  "license": "MIT",
+  "main": "./lib/cjs/src/index.js",
+  "module": "./lib/esm/src/index.js",
+  "types": "./lib/cjs/src/index.d.ts",
+  "engines": {
+    "node": ">=16",
+    "pnpm": ">=7"
+  },
+  "files": [
+    "contracts",
+    "lib",
+    "src"
+  ],
+  "exports": {
+    "default": "./lib/esm/src/index.js",
+    "node": {
+      "import": "./lib/esm/src/index.js",
+      "require": "./lib/cjs/src/index.js"
+    }
+  },
+  "scripts": {
+    "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' 'tsconfig/*.json' 'test/**/*.ts' 'contracts/**/*.sol'",
+    "lint:solhint": "solhint 'contracts/**/*.sol'",
+    "lint": "npm-run-all lint:**",
+    "format:prettier": "prettier --write --plugin-search-dir=. --cache '*.json' 'tsconfig/*.json' 'test/**/*.ts' 'contracts/**/*.sol'",
+    "format:solhint": "solhint --fix 'contracts/**/*.sol'",
+    "format": "npm-run-all format:**",
+    "build:compile": "hardhat compile",
+    "build:cjs": "tsc -p tsconfig/cjs.json",
+    "build:esm": "tsc -p tsconfig/esm.json",
+    "build": "npm-run-all build:compile --parallel build:cjs build:esm",
+    "test": "hardhat test",
+    "prepublishOnly": "pnpm build"
+  },
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/bytes": "^5.7.0",
@@ -29,6 +57,10 @@
     "hardhat": "^2.13.0",
     "hardhat-gas-reporter": "^1.0.8",
     "hardhat-watcher": "^2.5.0",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.8.5",
+    "prettier-plugin-solidity": "^1.1.3",
+    "solhint": "^3.4.1",
     "solidity-coverage": "^0.8.0",
     "ts-node": ">=8.0.0",
     "typechain": "^8.1.0",
