@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig/cjs.json",
-  "include": ["src", "scripts", "test", "typechain-types"],
+  "include": ["src", "scripts", "test", "typechain-types", "deploy"],
   "files": ["hardhat.config.ts"],
   "compilerOptions": {
     "noEmit": true

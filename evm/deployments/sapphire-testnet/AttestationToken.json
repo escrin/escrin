@@ -1,0 +1,250 @@
+{
+  "address": "0xbD060c29c5D64CD22C39A212bD6a1413a3E6a8af",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "ChallengeExpired",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "MismatchedRegistration",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "measurementHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "userdata",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "otherStuff",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct AttestationToken.Quote",
+          "name": "_quote",
+          "type": "tuple"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_registration",
+          "type": "bytes"
+        }
+      ],
+      "name": "attest",
+      "outputs": [
+        {
+          "internalType": "AttestationTokenId",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "AttestationTokenId",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "attestations",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "challenge",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "challengeExpiry",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_whom",
+          "type": "address"
+        },
+        {
+          "internalType": "AttestationTokenId",
+          "name": "_attid",
+          "type": "bytes32"
+        }
+      ],
+      "name": "isAttested",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "refreshChallenge",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x8a1106e6f1f52671f12add0065e1a6334b9f5f0c15b879f81e314db06646df4d",
+  "receipt": {
+    "to": null,
+    "from": "0x56e5F834F88F9f7631E9d6a43254e173478cE06a",
+    "contractAddress": "0xbD060c29c5D64CD22C39A212bD6a1413a3E6a8af",
+    "transactionIndex": 0,
+    "gasUsed": "217476",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x58d322e717db4cd243e32efeec016ecd47d064d20bd845af22d344ba8ac95b45",
+    "transactionHash": "0x8a1106e6f1f52671f12add0065e1a6334b9f5f0c15b879f81e314db06646df4d",
+    "logs": [],
+    "blockNumber": 600414,
+    "cumulativeGasUsed": "217476",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "9b1711514e363a992afa1e9316c7fc47",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"ChallengeExpired\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"MismatchedRegistration\",\"type\":\"error\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"measurementHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"userdata\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"otherStuff\",\"type\":\"bytes\"}],\"internalType\":\"struct AttestationToken.Quote\",\"name\":\"_quote\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"_registration\",\"type\":\"bytes\"}],\"name\":\"attest\",\"outputs\":[{\"internalType\":\"AttestationTokenId\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"AttestationTokenId\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"attestations\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"challenge\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"challengeExpiry\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_whom\",\"type\":\"address\"},{\"internalType\":\"AttestationTokenId\",\"name\":\"_attid\",\"type\":\"bytes32\"}],\"name\":\"isAttested\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"refreshChallenge\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"errors\":{\"ChallengeExpired()\":[{\"notice\":\"The challenge has expired.\"}],\"MismatchedRegistration()\":[{\"notice\":\"The quote did not link to the registration data.\"}]},\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/enclave-identity/AttestationToken.sol\":\"AttestationToken\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"contracts/enclave-identity/AttestationToken.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.9;\\n\\n// import \\\"hardhat/console.sol\\\";\\n\\ntype AttestationTokenId is bytes32;\\n\\n/// The quote did not link to the registration data.\\nerror MismatchedRegistration();\\n/// The challenge has expired.\\nerror ChallengeExpired();\\n\\ncontract AttestationToken {\\n    struct Quote {\\n        bytes32 measurementHash;\\n        bytes32 userdata;\\n        bytes otherStuff;\\n    }\\n\\n    mapping(address => mapping(AttestationTokenId => bool)) public attestations;\\n\\n    bytes32 public challenge;\\n    uint256 public challengeExpiry;\\n\\n    function attest(\\n        Quote calldata _quote,\\n        bytes calldata _registration\\n    ) external returns (AttestationTokenId) {\\n        if (block.timestamp > challengeExpiry) revert ChallengeExpired();\\n        if (_quote.userdata != keccak256(bytes.concat(challenge, _registration)))\\n            revert MismatchedRegistration();\\n        // TODO: verify issuance\\n        address registrant = abi.decode(_registration, (address));\\n        AttestationTokenId attid = AttestationTokenId.wrap(_quote.measurementHash);\\n        attestations[registrant][attid] = true;\\n        return attid;\\n    }\\n\\n    function refreshChallenge() external {\\n        challenge = keccak256(abi.encode(4)); // verified random\\n        challengeExpiry = type(uint256).max;\\n    }\\n\\n    function isAttested(address _whom, AttestationTokenId _attid) external view returns (bool) {\\n        return attestations[_whom][_attid];\\n    }\\n}\\n\",\"keccak256\":\"0xa7f900d5e8f347f48c4f9253909e8e335131063542d8d9ab9da1227975454330\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x60808060405234610016576102ef908161001c8239f35b600080fdfe608060408181526004918236101561001657600080fd5b600092833560e01c918263232518fb146101555750816331d1e0631461013f57816335015bb4146100df57508063cdd67030146100c1578063d2ef7398146100a35763f2cb7bad1461006757600080fd5b3461009f5760ff8160209361007b3661028e565b6001600160a01b039091168252818652828220908252855220549151911615158152f35b5080fd5b503461009f578160031936011261009f576020906001549051908152f35b503461009f578160031936011261009f576020906002549051908152f35b90503461013b578260031936011261013b578151906020820192818452602083528083019183831067ffffffffffffffff84111761012857505251902060015560001960025580f35b634e487b7160e01b865260419052602485fd5b8280fd5b50503461009f5760ff8160209361007b3661028e565b9083853461028b57600319828136011261009f5783359067ffffffffffffffff9081831161028757606090833603011261013b5760243581811161028757366023820112156102875780860135968288116102835760248201928883019136602484011161027f576002544211610271575060015487518060209b8c820193845280888c84013781018a81018a9052038b81018252605f01601f191681019283118184101761025e57828952519020602486013503610250575003861361013b57356001600160a01b038116949085900361013b57938252818552828220930135808252928452819020805460ff1916600117905551908152f35b6390fa26ab60e01b81528790fd5b634e487b7160e01b885260418a52602488fd5b63f06506c560e01b81528890fd5b8680fd5b8480fd5b8380fd5b80fd5b60409060031901126102b4576004356001600160a01b03811681036102b4579060243590565b600080fdfea26469706673582212203d73190190cf0d35d52749adc3adb71f4a8ecfb3ab7736c1f5283c031ed7c82264736f6c63430008120033",
+  "deployedBytecode": "0x608060408181526004918236101561001657600080fd5b600092833560e01c918263232518fb146101555750816331d1e0631461013f57816335015bb4146100df57508063cdd67030146100c1578063d2ef7398146100a35763f2cb7bad1461006757600080fd5b3461009f5760ff8160209361007b3661028e565b6001600160a01b039091168252818652828220908252855220549151911615158152f35b5080fd5b503461009f578160031936011261009f576020906001549051908152f35b503461009f578160031936011261009f576020906002549051908152f35b90503461013b578260031936011261013b578151906020820192818452602083528083019183831067ffffffffffffffff84111761012857505251902060015560001960025580f35b634e487b7160e01b865260419052602485fd5b8280fd5b50503461009f5760ff8160209361007b3661028e565b9083853461028b57600319828136011261009f5783359067ffffffffffffffff9081831161028757606090833603011261013b5760243581811161028757366023820112156102875780860135968288116102835760248201928883019136602484011161027f576002544211610271575060015487518060209b8c820193845280888c84013781018a81018a9052038b81018252605f01601f191681019283118184101761025e57828952519020602486013503610250575003861361013b57356001600160a01b038116949085900361013b57938252818552828220930135808252928452819020805460ff1916600117905551908152f35b6390fa26ab60e01b81528790fd5b634e487b7160e01b885260418a52602488fd5b63f06506c560e01b81528890fd5b8680fd5b8480fd5b8380fd5b80fd5b60409060031901126102b4576004356001600160a01b03811681036102b4579060243590565b600080fdfea26469706673582212203d73190190cf0d35d52749adc3adb71f4a8ecfb3ab7736c1f5283c031ed7c82264736f6c63430008120033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "errors": {
+      "ChallengeExpired()": [
+        {
+          "notice": "The challenge has expired."
+        }
+      ],
+      "MismatchedRegistration()": [
+        {
+          "notice": "The quote did not link to the registration data."
+        }
+      ]
+    },
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 392,
+        "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
+        "label": "attestations",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_mapping(t_address,t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool))"
+      },
+      {
+        "astId": 394,
+        "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
+        "label": "challenge",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_bytes32"
+      },
+      {
+        "astId": 396,
+        "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
+        "label": "challengeExpiry",
+        "offset": 0,
+        "slot": "2",
+        "type": "t_uint256"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_bytes32": {
+        "encoding": "inplace",
+        "label": "bytes32",
+        "numberOfBytes": "32"
+      },
+      "t_mapping(t_address,t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool))": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => mapping(AttestationTokenId => bool))",
+        "numberOfBytes": "32",
+        "value": "t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool)"
+      },
+      "t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool)": {
+        "encoding": "mapping",
+        "key": "t_userDefinedValueType(AttestationTokenId)372",
+        "label": "mapping(AttestationTokenId => bool)",
+        "numberOfBytes": "32",
+        "value": "t_bool"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      },
+      "t_userDefinedValueType(AttestationTokenId)372": {
+        "encoding": "inplace",
+        "label": "AttestationTokenId",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}
