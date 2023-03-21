@@ -1,6 +1,6 @@
 {
-  "name": "@escrin/contracts",
-  "version": "0.0.0",
+  "name": "@escrin/evm",
+  "version": "0.1.0",
   "license": "MIT",
   "keywords": [],
   "author": "Nick Hynes <nhynes@enshrine.ai>",
@@ -14,7 +14,8 @@
   "files": [
     "contracts",
     "lib",
-    "src"
+    "src",
+    "typechain-types"
   ],
   "exports": {
     "default": "./lib/esm/src/index.js",
