@@ -5,17 +5,17 @@ pragma solidity ^0.8.9;
 
 import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 
-import {AttestationToken, AttestationTokenId} from "./AttestationToken.sol";
+import {AttestationToken, TcbId} from "./AttestationToken.sol";
 
 contract Lockbox {
     error NoAttestationToken();
 
     AttestationToken public immutable attestationToken;
 
-    mapping(AttestationTokenId => bytes32) private lockbox;
+    mapping(TcbId => bytes32) private lockbox;
 
-    modifier onlyAttested(AttestationTokenId _attid) {
-        if (!attestationToken.isAttested(msg.sender, _attid)) revert NoAttestationToken();
+    modifier onlyAttested(TcbId _tcbId) {
+        if (!attestationToken.isAttested(msg.sender, _tcbId)) revert NoAttestationToken();
         _;
     }
 
@@ -23,14 +23,14 @@ contract Lockbox {
         attestationToken = _attestationToken;
     }
 
-    function createKey(AttestationTokenId attid, bytes calldata pers) external {
-        if (lockbox[attid] != 0) return;
-        lockbox[attid] = block.chainid == 0x5aff || block.chainid == 0x5afe
+    function createKey(TcbId tcbId, bytes calldata pers) external {
+        if (lockbox[tcbId] != 0) return;
+        lockbox[tcbId] = block.chainid == 0x5aff || block.chainid == 0x5afe
             ? bytes32(Sapphire.randomBytes(32, pers))
             : blockhash(block.number);
     }
 
-    function getKey(AttestationTokenId attid) external view onlyAttested(attid) returns (bytes32) {
-        return lockbox[attid];
+    function getKey(TcbId tcbId) external view onlyAttested(tcbId) returns (bytes32) {
+        return lockbox[tcbId];
     }
 }
