@@ -7,10 +7,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 type TcbId is bytes32;
 
 /// The quote did not link to the registration bundle.
-error MismatchedRegistration();
+error MismatchedRegistration(); // kPomqw==
 /// The registration has expired.
-error RegistrationExpired();
-error InvalidQuote();
+error RegistrationExpired(); // D+WbwA==
+error InvalidQuote(); // +GGAMA==
 
 contract AttestationToken is Ownable {
     struct Quote {
@@ -19,8 +19,8 @@ contract AttestationToken is Ownable {
     }
 
     struct Registration {
-        uint256 currentBlockNumber;
-        bytes32 currentBlockHash;
+        uint256 baseBlockNumber;
+        bytes32 baseBlockHash;
         uint256 expiry;
         address registrant;
         uint256 tokenExpiry;
@@ -51,17 +51,16 @@ contract AttestationToken is Ownable {
         return _getTcbId(quote);
     }
 
-    function _getTcbId(Quote memory quote) internal view returns (TcbId) {
-        return TcbId.wrap(keccak256(abi.encode(quote.measurementHash, "mock tcb", block.chainid)));
-    }
-
     function isAttested(address _whom, TcbId _tcbId) external view returns (bool) {
-        Attestation storage att = attestations[_whom][_tcbId];
-        return att.expiry > block.timestamp;
+        return attestations[_whom][_tcbId].expiry > block.timestamp;
     }
 
     function setTrustedSender(address _whom) external onlyOwner {
         trustedSender = _whom;
+    }
+
+    function _getTcbId(Quote memory quote) internal view returns (TcbId) {
+        return TcbId.wrap(keccak256(abi.encode(quote.measurementHash, "mock tcb", block.chainid)));
     }
 
     function _parseQuote(bytes calldata _quote) internal view returns (Quote memory quote) {
@@ -75,7 +74,7 @@ contract AttestationToken is Ownable {
     ) internal view {
         if (keccak256(abi.encode(_reg)) != _expectedHash) revert MismatchedRegistration();
         if (
-            blockhash(_reg.currentBlockNumber) != _reg.currentBlockHash ||
+            blockhash(_reg.baseBlockNumber) != _reg.baseBlockHash ||
             block.timestamp >= _reg.expiry
         ) revert RegistrationExpired();
     }

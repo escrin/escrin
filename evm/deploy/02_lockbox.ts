@@ -4,10 +4,10 @@ import { DeployFunction } from 'hardhat-deploy/types';
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
-  const attk = await deployments.get('AttestationToken');
+  const attok = await deployments.get('AttestationToken');
   await hre.deployments.deploy('Lockbox', {
     from: deployer,
-    args: [attk.address],
+    args: [attok.address],
     log: true,
     autoMine: true,
   });

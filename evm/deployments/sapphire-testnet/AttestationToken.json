@@ -1,9 +1,9 @@
 {
-  "address": "0xbD060c29c5D64CD22C39A212bD6a1413a3E6a8af",
+  "address": "0x4629af7E8e790DFB172375B07C0F906F9BF3Cab7",
   "abi": [
     {
       "inputs": [],
-      "name": "ChallengeExpired",
+      "name": "InvalidQuote",
       "type": "error"
     },
     {
@@ -12,7 +12,25 @@
       "type": "error"
     },
     {
+      "inputs": [],
+      "name": "RegistrationExpired",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
       "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "requester",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "TcbId",
+          "name": "tcbId",
+          "type": "bytes32"
+        },
         {
           "components": [
             {
@@ -24,27 +42,80 @@
               "internalType": "bytes32",
               "name": "userdata",
               "type": "bytes32"
-            },
-            {
-              "internalType": "bytes",
-              "name": "otherStuff",
-              "type": "bytes"
             }
           ],
+          "indexed": false,
           "internalType": "struct AttestationToken.Quote",
-          "name": "_quote",
+          "name": "quote",
           "type": "tuple"
+        }
+      ],
+      "name": "Attested",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
         },
         {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "bytes",
-          "name": "_registration",
+          "name": "_quote",
           "type": "bytes"
+        },
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "currentBlockNumber",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "currentBlockHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "expiry",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "registrant",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenExpiry",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct AttestationToken.Registration",
+          "name": "_reg",
+          "type": "tuple"
         }
       ],
       "name": "attest",
       "outputs": [
         {
-          "internalType": "AttestationTokenId",
+          "internalType": "TcbId",
           "name": "",
           "type": "bytes32"
         }
@@ -60,7 +131,7 @@
           "type": "address"
         },
         {
-          "internalType": "AttestationTokenId",
+          "internalType": "TcbId",
           "name": "",
           "type": "bytes32"
         }
@@ -68,35 +139,28 @@
       "name": "attestations",
       "outputs": [
         {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
+          "internalType": "uint256",
+          "name": "expiry",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "challenge",
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "_quote",
+          "type": "bytes"
+        }
+      ],
+      "name": "getTcbId",
       "outputs": [
         {
-          "internalType": "bytes32",
+          "internalType": "TcbId",
           "name": "",
           "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "challengeExpiry",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -110,8 +174,8 @@
           "type": "address"
         },
         {
-          "internalType": "AttestationTokenId",
-          "name": "_attid",
+          "internalType": "TcbId",
+          "name": "_tcbId",
           "type": "bytes32"
         }
       ],
@@ -128,49 +192,113 @@
     },
     {
       "inputs": [],
-      "name": "refreshChallenge",
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_whom",
+          "type": "address"
+        }
+      ],
+      "name": "setTrustedSender",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     }
   ],
-  "transactionHash": "0x8a1106e6f1f52671f12add0065e1a6334b9f5f0c15b879f81e314db06646df4d",
+  "transactionHash": "0xab02af118c02cf1418f6290aaecd360c27b5f30efe96065c0fbf50a0d6f848a2",
   "receipt": {
     "to": null,
     "from": "0x56e5F834F88F9f7631E9d6a43254e173478cE06a",
-    "contractAddress": "0xbD060c29c5D64CD22C39A212bD6a1413a3E6a8af",
+    "contractAddress": "0x4629af7E8e790DFB172375B07C0F906F9BF3Cab7",
     "transactionIndex": 0,
-    "gasUsed": "217476",
-    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "blockHash": "0x58d322e717db4cd243e32efeec016ecd47d064d20bd845af22d344ba8ac95b45",
-    "transactionHash": "0x8a1106e6f1f52671f12add0065e1a6334b9f5f0c15b879f81e314db06646df4d",
-    "logs": [],
-    "blockNumber": 600414,
-    "cumulativeGasUsed": "217476",
+    "gasUsed": "428090",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000040000000000000000000000000000020000000000000000000800040000000000000001000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000010000000000000000",
+    "blockHash": "0x7958444f04234ef7ab8cc932bb7cafb96ecab3d8922519f671fda0bf6f151974",
+    "transactionHash": "0xab02af118c02cf1418f6290aaecd360c27b5f30efe96065c0fbf50a0d6f848a2",
+    "logs": [
+      {
+        "transactionIndex": 0,
+        "blockNumber": 704574,
+        "transactionHash": "0xab02af118c02cf1418f6290aaecd360c27b5f30efe96065c0fbf50a0d6f848a2",
+        "address": "0x4629af7E8e790DFB172375B07C0F906F9BF3Cab7",
+        "topics": [
+          "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x00000000000000000000000056e5f834f88f9f7631e9d6a43254e173478ce06a"
+        ],
+        "data": "0x",
+        "logIndex": 0,
+        "blockHash": "0x7958444f04234ef7ab8cc932bb7cafb96ecab3d8922519f671fda0bf6f151974"
+      }
+    ],
+    "blockNumber": 704574,
+    "cumulativeGasUsed": "428090",
     "status": 1,
     "byzantium": true
   },
   "args": [],
-  "numDeployments": 1,
-  "solcInputHash": "9b1711514e363a992afa1e9316c7fc47",
-  "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"ChallengeExpired\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"MismatchedRegistration\",\"type\":\"error\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"measurementHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"userdata\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"otherStuff\",\"type\":\"bytes\"}],\"internalType\":\"struct AttestationToken.Quote\",\"name\":\"_quote\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"_registration\",\"type\":\"bytes\"}],\"name\":\"attest\",\"outputs\":[{\"internalType\":\"AttestationTokenId\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"AttestationTokenId\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"attestations\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"challenge\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"challengeExpiry\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_whom\",\"type\":\"address\"},{\"internalType\":\"AttestationTokenId\",\"name\":\"_attid\",\"type\":\"bytes32\"}],\"name\":\"isAttested\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"refreshChallenge\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"errors\":{\"ChallengeExpired()\":[{\"notice\":\"The challenge has expired.\"}],\"MismatchedRegistration()\":[{\"notice\":\"The quote did not link to the registration data.\"}]},\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/enclave-identity/AttestationToken.sol\":\"AttestationToken\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"contracts/enclave-identity/AttestationToken.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.9;\\n\\n// import \\\"hardhat/console.sol\\\";\\n\\ntype AttestationTokenId is bytes32;\\n\\n/// The quote did not link to the registration data.\\nerror MismatchedRegistration();\\n/// The challenge has expired.\\nerror ChallengeExpired();\\n\\ncontract AttestationToken {\\n    struct Quote {\\n        bytes32 measurementHash;\\n        bytes32 userdata;\\n        bytes otherStuff;\\n    }\\n\\n    mapping(address => mapping(AttestationTokenId => bool)) public attestations;\\n\\n    bytes32 public challenge;\\n    uint256 public challengeExpiry;\\n\\n    function attest(\\n        Quote calldata _quote,\\n        bytes calldata _registration\\n    ) external returns (AttestationTokenId) {\\n        if (block.timestamp > challengeExpiry) revert ChallengeExpired();\\n        if (_quote.userdata != keccak256(bytes.concat(challenge, _registration)))\\n            revert MismatchedRegistration();\\n        // TODO: verify issuance\\n        address registrant = abi.decode(_registration, (address));\\n        AttestationTokenId attid = AttestationTokenId.wrap(_quote.measurementHash);\\n        attestations[registrant][attid] = true;\\n        return attid;\\n    }\\n\\n    function refreshChallenge() external {\\n        challenge = keccak256(abi.encode(4)); // verified random\\n        challengeExpiry = type(uint256).max;\\n    }\\n\\n    function isAttested(address _whom, AttestationTokenId _attid) external view returns (bool) {\\n        return attestations[_whom][_attid];\\n    }\\n}\\n\",\"keccak256\":\"0xa7f900d5e8f347f48c4f9253909e8e335131063542d8d9ab9da1227975454330\",\"license\":\"MIT\"}},\"version\":1}",
-  "bytecode": "0x60808060405234610016576102ef908161001c8239f35b600080fdfe608060408181526004918236101561001657600080fd5b600092833560e01c918263232518fb146101555750816331d1e0631461013f57816335015bb4146100df57508063cdd67030146100c1578063d2ef7398146100a35763f2cb7bad1461006757600080fd5b3461009f5760ff8160209361007b3661028e565b6001600160a01b039091168252818652828220908252855220549151911615158152f35b5080fd5b503461009f578160031936011261009f576020906001549051908152f35b503461009f578160031936011261009f576020906002549051908152f35b90503461013b578260031936011261013b578151906020820192818452602083528083019183831067ffffffffffffffff84111761012857505251902060015560001960025580f35b634e487b7160e01b865260419052602485fd5b8280fd5b50503461009f5760ff8160209361007b3661028e565b9083853461028b57600319828136011261009f5783359067ffffffffffffffff9081831161028757606090833603011261013b5760243581811161028757366023820112156102875780860135968288116102835760248201928883019136602484011161027f576002544211610271575060015487518060209b8c820193845280888c84013781018a81018a9052038b81018252605f01601f191681019283118184101761025e57828952519020602486013503610250575003861361013b57356001600160a01b038116949085900361013b57938252818552828220930135808252928452819020805460ff1916600117905551908152f35b6390fa26ab60e01b81528790fd5b634e487b7160e01b885260418a52602488fd5b63f06506c560e01b81528890fd5b8680fd5b8480fd5b8380fd5b80fd5b60409060031901126102b4576004356001600160a01b03811681036102b4579060243590565b600080fdfea26469706673582212203d73190190cf0d35d52749adc3adb71f4a8ecfb3ab7736c1f5283c031ed7c82264736f6c63430008120033",
-  "deployedBytecode": "0x608060408181526004918236101561001657600080fd5b600092833560e01c918263232518fb146101555750816331d1e0631461013f57816335015bb4146100df57508063cdd67030146100c1578063d2ef7398146100a35763f2cb7bad1461006757600080fd5b3461009f5760ff8160209361007b3661028e565b6001600160a01b039091168252818652828220908252855220549151911615158152f35b5080fd5b503461009f578160031936011261009f576020906001549051908152f35b503461009f578160031936011261009f576020906002549051908152f35b90503461013b578260031936011261013b578151906020820192818452602083528083019183831067ffffffffffffffff84111761012857505251902060015560001960025580f35b634e487b7160e01b865260419052602485fd5b8280fd5b50503461009f5760ff8160209361007b3661028e565b9083853461028b57600319828136011261009f5783359067ffffffffffffffff9081831161028757606090833603011261013b5760243581811161028757366023820112156102875780860135968288116102835760248201928883019136602484011161027f576002544211610271575060015487518060209b8c820193845280888c84013781018a81018a9052038b81018252605f01601f191681019283118184101761025e57828952519020602486013503610250575003861361013b57356001600160a01b038116949085900361013b57938252818552828220930135808252928452819020805460ff1916600117905551908152f35b6390fa26ab60e01b81528790fd5b634e487b7160e01b885260418a52602488fd5b63f06506c560e01b81528890fd5b8680fd5b8480fd5b8380fd5b80fd5b60409060031901126102b4576004356001600160a01b03811681036102b4579060243590565b600080fdfea26469706673582212203d73190190cf0d35d52749adc3adb71f4a8ecfb3ab7736c1f5283c031ed7c82264736f6c63430008120033",
+  "numDeployments": 2,
+  "solcInputHash": "77dbd8e0404c1524a90808314a7da569",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"InvalidQuote\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"MismatchedRegistration\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"RegistrationExpired\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"TcbId\",\"name\":\"tcbId\",\"type\":\"bytes32\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"measurementHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"userdata\",\"type\":\"bytes32\"}],\"indexed\":false,\"internalType\":\"struct AttestationToken.Quote\",\"name\":\"quote\",\"type\":\"tuple\"}],\"name\":\"Attested\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_quote\",\"type\":\"bytes\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"currentBlockNumber\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"currentBlockHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"expiry\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"registrant\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenExpiry\",\"type\":\"uint256\"}],\"internalType\":\"struct AttestationToken.Registration\",\"name\":\"_reg\",\"type\":\"tuple\"}],\"name\":\"attest\",\"outputs\":[{\"internalType\":\"TcbId\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"TcbId\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"attestations\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"expiry\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_quote\",\"type\":\"bytes\"}],\"name\":\"getTcbId\",\"outputs\":[{\"internalType\":\"TcbId\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_whom\",\"type\":\"address\"},{\"internalType\":\"TcbId\",\"name\":\"_tcbId\",\"type\":\"bytes32\"}],\"name\":\"isAttested\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_whom\",\"type\":\"address\"}],\"name\":\"setTrustedSender\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"owner()\":{\"details\":\"Returns the address of the current owner.\"},\"renounceOwnership()\":{\"details\":\"Leaves the contract without owner. It will not be possible to call `onlyOwner` functions anymore. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby removing any functionality that is only available to the owner.\"},\"transferOwnership(address)\":{\"details\":\"Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.\"}},\"version\":1},\"userdoc\":{\"errors\":{\"MismatchedRegistration()\":[{\"notice\":\"The quote did not link to the registration bundle.\"}],\"RegistrationExpired()\":[{\"notice\":\"The registration has expired.\"}]},\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/enclave-identity/AttestationToken.sol\":\"AttestationToken\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"@openzeppelin/contracts/access/Ownable.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)\\n\\npragma solidity ^0.8.0;\\n\\nimport \\\"../utils/Context.sol\\\";\\n\\n/**\\n * @dev Contract module which provides a basic access control mechanism, where\\n * there is an account (an owner) that can be granted exclusive access to\\n * specific functions.\\n *\\n * By default, the owner account will be the one that deploys the contract. This\\n * can later be changed with {transferOwnership}.\\n *\\n * This module is used through inheritance. It will make available the modifier\\n * `onlyOwner`, which can be applied to your functions to restrict their use to\\n * the owner.\\n */\\nabstract contract Ownable is Context {\\n    address private _owner;\\n\\n    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);\\n\\n    /**\\n     * @dev Initializes the contract setting the deployer as the initial owner.\\n     */\\n    constructor() {\\n        _transferOwnership(_msgSender());\\n    }\\n\\n    /**\\n     * @dev Throws if called by any account other than the owner.\\n     */\\n    modifier onlyOwner() {\\n        _checkOwner();\\n        _;\\n    }\\n\\n    /**\\n     * @dev Returns the address of the current owner.\\n     */\\n    function owner() public view virtual returns (address) {\\n        return _owner;\\n    }\\n\\n    /**\\n     * @dev Throws if the sender is not the owner.\\n     */\\n    function _checkOwner() internal view virtual {\\n        require(owner() == _msgSender(), \\\"Ownable: caller is not the owner\\\");\\n    }\\n\\n    /**\\n     * @dev Leaves the contract without owner. It will not be possible to call\\n     * `onlyOwner` functions anymore. Can only be called by the current owner.\\n     *\\n     * NOTE: Renouncing ownership will leave the contract without an owner,\\n     * thereby removing any functionality that is only available to the owner.\\n     */\\n    function renounceOwnership() public virtual onlyOwner {\\n        _transferOwnership(address(0));\\n    }\\n\\n    /**\\n     * @dev Transfers ownership of the contract to a new account (`newOwner`).\\n     * Can only be called by the current owner.\\n     */\\n    function transferOwnership(address newOwner) public virtual onlyOwner {\\n        require(newOwner != address(0), \\\"Ownable: new owner is the zero address\\\");\\n        _transferOwnership(newOwner);\\n    }\\n\\n    /**\\n     * @dev Transfers ownership of the contract to a new account (`newOwner`).\\n     * Internal function without access restriction.\\n     */\\n    function _transferOwnership(address newOwner) internal virtual {\\n        address oldOwner = _owner;\\n        _owner = newOwner;\\n        emit OwnershipTransferred(oldOwner, newOwner);\\n    }\\n}\\n\",\"keccak256\":\"0xa94b34880e3c1b0b931662cb1c09e5dfa6662f31cba80e07c5ee71cd135c9673\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/Context.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)\\n\\npragma solidity ^0.8.0;\\n\\n/**\\n * @dev Provides information about the current execution context, including the\\n * sender of the transaction and its data. While these are generally available\\n * via msg.sender and msg.data, they should not be accessed in such a direct\\n * manner, since when dealing with meta-transactions the account sending and\\n * paying for execution may not be the actual sender (as far as an application\\n * is concerned).\\n *\\n * This contract is only required for intermediate, library-like contracts.\\n */\\nabstract contract Context {\\n    function _msgSender() internal view virtual returns (address) {\\n        return msg.sender;\\n    }\\n\\n    function _msgData() internal view virtual returns (bytes calldata) {\\n        return msg.data;\\n    }\\n}\\n\",\"keccak256\":\"0xe2e337e6dde9ef6b680e07338c493ebea1b5fd09b43424112868e9cc1706bca7\",\"license\":\"MIT\"},\"contracts/enclave-identity/AttestationToken.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.9;\\n\\nimport {Ownable} from \\\"@openzeppelin/contracts/access/Ownable.sol\\\";\\n// import \\\"hardhat/console.sol\\\";\\n\\ntype TcbId is bytes32;\\n\\n/// The quote did not link to the registration bundle.\\nerror MismatchedRegistration();\\n/// The registration has expired.\\nerror RegistrationExpired();\\nerror InvalidQuote();\\n\\ncontract AttestationToken is Ownable {\\n    struct Quote {\\n        bytes32 measurementHash;\\n        bytes32 userdata;\\n    }\\n\\n    struct Registration {\\n        uint256 currentBlockNumber;\\n        bytes32 currentBlockHash;\\n        uint256 expiry;\\n        address registrant;\\n        uint256 tokenExpiry;\\n    }\\n\\n    struct Attestation {\\n        uint256 expiry;\\n    }\\n\\n    event Attested(address indexed requester, TcbId indexed tcbId, Quote quote);\\n\\n    mapping(address => mapping(TcbId => Attestation)) public attestations;\\n\\n    /// Mock attestation component.\\n    address private trustedSender;\\n\\n    function attest(bytes calldata _quote, Registration calldata _reg) external returns (TcbId) {\\n        Quote memory quote = _parseQuote(_quote);\\n        _validateRegistration(quote.userdata, _reg);\\n        TcbId tcbId = _getTcbId(quote);\\n        attestations[_reg.registrant][tcbId] = Attestation({expiry: _reg.tokenExpiry});\\n        emit Attested(_reg.registrant, tcbId, quote);\\n        return tcbId;\\n    }\\n\\n    function getTcbId(bytes calldata _quote) external view returns (TcbId) {\\n        Quote memory quote = _parseQuote(_quote);\\n        return _getTcbId(quote);\\n    }\\n\\n    function _getTcbId(Quote memory quote) internal view returns (TcbId) {\\n        return TcbId.wrap(keccak256(abi.encode(quote.measurementHash, \\\"mock tcb\\\", block.chainid)));\\n    }\\n\\n    function isAttested(address _whom, TcbId _tcbId) external view returns (bool) {\\n        Attestation storage att = attestations[_whom][_tcbId];\\n        return att.expiry > block.timestamp;\\n    }\\n\\n    function setTrustedSender(address _whom) external onlyOwner {\\n        trustedSender = _whom;\\n    }\\n\\n    function _parseQuote(bytes calldata _quote) internal view returns (Quote memory quote) {\\n        quote = abi.decode(_quote, (Quote));\\n        if (msg.sender != trustedSender) revert InvalidQuote(); // mock verification\\n    }\\n\\n    function _validateRegistration(\\n        bytes32 _expectedHash,\\n        Registration calldata _reg\\n    ) internal view {\\n        if (keccak256(abi.encode(_reg)) != _expectedHash) revert MismatchedRegistration();\\n        if (\\n            blockhash(_reg.currentBlockNumber) != _reg.currentBlockHash ||\\n            block.timestamp >= _reg.expiry\\n        ) revert RegistrationExpired();\\n    }\\n}\\n\",\"keccak256\":\"0x9437c6f8a8b7330008b1c94b40b59db518e3832a600bec348eaa0bae59f4dfca\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x6080806040523461005b5760008054336001600160a01b0319821681178355916001600160a01b03909116907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09080a361064690816100618239f35b600080fdfe6080604081815260048036101561001557600080fd5b600092833560e01c90816331d1e06314610425575080633ee1b8511461029c578063676604351461024f578063715018a6146101f55780638da5cb5b146101cd578063c36c09e214610185578063f2cb7bad146101405763f2fde38b1461007b57600080fd5b3461013c57602036600319011261013c57610094610464565b9061009d6104ad565b6001600160a01b039182169283156100ea57505082546001600160a01b0319811683178455167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e08380a380f35b906020608492519162461bcd60e51b8352820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201526564647265737360d01b6064820152fd5b8280fd5b50503461018157806003193601126101815760209181906001600160a01b03610167610464565b168152600184528181206024358252845220549051908152f35b5080fd5b83346101ca5760203660031901126101ca5761019f610464565b6101a76104ad565b60018060a01b03166bffffffffffffffffffffffff60a01b600254161760025580f35b80fd5b505034610181578160031936011261018157905490516001600160a01b039091168152602090f35b83346101ca57806003193601126101ca5761020e6104ad565b80546001600160a01b03198116825581906001600160a01b03167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e08280a380f35b5091346101ca5760203660031901126101ca5782359067ffffffffffffffff82116101ca575061029061028a6020946102959336910161047f565b906105ac565b610569565b9051908152f35b50903461013c5760c036600319011261013c5767ffffffffffffffff918035838111610421576102cf903690830161047f565b60a036602319011261041d576102e4916105ac565b6020948582019283519185518881019360243580865260443590818a850152606435928360608601526084359760018060a01b039889811680910361041957608087015260a435958660a082015260a0815261033f81610537565b51902003610409574014908115916103fe575b506103ef5761036085610569565b978751938a850191858310908311176103dc57509287899796937f4aba888be81e9be91c53016251f8de1b2f461c58bb2c33475ced60bd1cfef84c9693829683528352836103ac610553565b16815260018c528181208982528c5220905190556103c8610553565b16938251915182525188820152a351908152f35b634e487b7160e01b845260419052602483fd5b8651623f966f60e61b81528390fd5b905042101538610352565b89516390fa26ab60e01b81528690fd5b8780fd5b8580fd5b8480fd5b8490843461013c578060031936011261013c576020926001600160a01b0361044b610464565b1681526001845281812060243582528452205442108152f35b600435906001600160a01b038216820361047a57565b600080fd5b9181601f8401121561047a5782359167ffffffffffffffff831161047a576020838186019501011161047a57565b6000546001600160a01b031633036104c157565b606460405162461bcd60e51b815260206004820152602060248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152fd5b6040810190811067ffffffffffffffff82111761052157604052565b634e487b7160e01b600052604160045260246000fd5b60c0810190811067ffffffffffffffff82111761052157604052565b6084356001600160a01b038116810361047a5790565b516040516020810191825260606040820152600860808201526736b7b1b5903a31b160c11b60a082015246606082015260a081526105a681610537565b51902090565b90816040916000602084516105c081610505565b82815201528101031261047a576020604051916105dc83610505565b80358352013560208201526002549091906001600160a01b031633036105fe57565b604051630f86180360e41b8152600490fdfea2646970667358221220d172e4cf17b3589cc562e1f00df1ce45d303e5c744d5cf3c744e0be5092871ce64736f6c63430008120033",
+  "deployedBytecode": "0x6080604081815260048036101561001557600080fd5b600092833560e01c90816331d1e06314610425575080633ee1b8511461029c578063676604351461024f578063715018a6146101f55780638da5cb5b146101cd578063c36c09e214610185578063f2cb7bad146101405763f2fde38b1461007b57600080fd5b3461013c57602036600319011261013c57610094610464565b9061009d6104ad565b6001600160a01b039182169283156100ea57505082546001600160a01b0319811683178455167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e08380a380f35b906020608492519162461bcd60e51b8352820152602660248201527f4f776e61626c653a206e6577206f776e657220697320746865207a65726f206160448201526564647265737360d01b6064820152fd5b8280fd5b50503461018157806003193601126101815760209181906001600160a01b03610167610464565b168152600184528181206024358252845220549051908152f35b5080fd5b83346101ca5760203660031901126101ca5761019f610464565b6101a76104ad565b60018060a01b03166bffffffffffffffffffffffff60a01b600254161760025580f35b80fd5b505034610181578160031936011261018157905490516001600160a01b039091168152602090f35b83346101ca57806003193601126101ca5761020e6104ad565b80546001600160a01b03198116825581906001600160a01b03167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e08280a380f35b5091346101ca5760203660031901126101ca5782359067ffffffffffffffff82116101ca575061029061028a6020946102959336910161047f565b906105ac565b610569565b9051908152f35b50903461013c5760c036600319011261013c5767ffffffffffffffff918035838111610421576102cf903690830161047f565b60a036602319011261041d576102e4916105ac565b6020948582019283519185518881019360243580865260443590818a850152606435928360608601526084359760018060a01b039889811680910361041957608087015260a435958660a082015260a0815261033f81610537565b51902003610409574014908115916103fe575b506103ef5761036085610569565b978751938a850191858310908311176103dc57509287899796937f4aba888be81e9be91c53016251f8de1b2f461c58bb2c33475ced60bd1cfef84c9693829683528352836103ac610553565b16815260018c528181208982528c5220905190556103c8610553565b16938251915182525188820152a351908152f35b634e487b7160e01b845260419052602483fd5b8651623f966f60e61b81528390fd5b905042101538610352565b89516390fa26ab60e01b81528690fd5b8780fd5b8580fd5b8480fd5b8490843461013c578060031936011261013c576020926001600160a01b0361044b610464565b1681526001845281812060243582528452205442108152f35b600435906001600160a01b038216820361047a57565b600080fd5b9181601f8401121561047a5782359167ffffffffffffffff831161047a576020838186019501011161047a57565b6000546001600160a01b031633036104c157565b606460405162461bcd60e51b815260206004820152602060248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e65726044820152fd5b6040810190811067ffffffffffffffff82111761052157604052565b634e487b7160e01b600052604160045260246000fd5b60c0810190811067ffffffffffffffff82111761052157604052565b6084356001600160a01b038116810361047a5790565b516040516020810191825260606040820152600860808201526736b7b1b5903a31b160c11b60a082015246606082015260a081526105a681610537565b51902090565b90816040916000602084516105c081610505565b82815201528101031261047a576020604051916105dc83610505565b80358352013560208201526002549091906001600160a01b031633036105fe57565b604051630f86180360e41b8152600490fdfea2646970667358221220d172e4cf17b3589cc562e1f00df1ce45d303e5c744d5cf3c744e0be5092871ce64736f6c63430008120033",
   "devdoc": {
     "kind": "dev",
-    "methods": {},
+    "methods": {
+      "owner()": {
+        "details": "Returns the address of the current owner."
+      },
+      "renounceOwnership()": {
+        "details": "Leaves the contract without owner. It will not be possible to call `onlyOwner` functions anymore. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby removing any functionality that is only available to the owner."
+      },
+      "transferOwnership(address)": {
+        "details": "Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner."
+      }
+    },
     "version": 1
   },
   "userdoc": {
     "errors": {
-      "ChallengeExpired()": [
-        {
-          "notice": "The challenge has expired."
-        }
-      ],
       "MismatchedRegistration()": [
         {
-          "notice": "The quote did not link to the registration data."
+          "notice": "The quote did not link to the registration bundle."
+        }
+      ],
+      "RegistrationExpired()": [
+        {
+          "notice": "The registration has expired."
         }
       ]
     },
@@ -181,28 +309,28 @@
   "storageLayout": {
     "storage": [
       {
-        "astId": 392,
+        "astId": 376,
+        "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
+        "label": "_owner",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_address"
+      },
+      {
+        "astId": 556,
         "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
         "label": "attestations",
         "offset": 0,
-        "slot": "0",
-        "type": "t_mapping(t_address,t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool))"
-      },
-      {
-        "astId": 394,
-        "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
-        "label": "challenge",
-        "offset": 0,
         "slot": "1",
-        "type": "t_bytes32"
+        "type": "t_mapping(t_address,t_mapping(t_userDefinedValueType(TcbId)509,t_struct(Attestation)538_storage))"
       },
       {
-        "astId": 396,
+        "astId": 559,
         "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
-        "label": "challengeExpiry",
+        "label": "trustedSender",
         "offset": 0,
         "slot": "2",
-        "type": "t_uint256"
+        "type": "t_address"
       }
     ],
     "types": {
@@ -211,38 +339,43 @@
         "label": "address",
         "numberOfBytes": "20"
       },
-      "t_bool": {
-        "encoding": "inplace",
-        "label": "bool",
-        "numberOfBytes": "1"
-      },
-      "t_bytes32": {
-        "encoding": "inplace",
-        "label": "bytes32",
-        "numberOfBytes": "32"
-      },
-      "t_mapping(t_address,t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool))": {
+      "t_mapping(t_address,t_mapping(t_userDefinedValueType(TcbId)509,t_struct(Attestation)538_storage))": {
         "encoding": "mapping",
         "key": "t_address",
-        "label": "mapping(address => mapping(AttestationTokenId => bool))",
+        "label": "mapping(address => mapping(TcbId => struct AttestationToken.Attestation))",
         "numberOfBytes": "32",
-        "value": "t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool)"
+        "value": "t_mapping(t_userDefinedValueType(TcbId)509,t_struct(Attestation)538_storage)"
       },
-      "t_mapping(t_userDefinedValueType(AttestationTokenId)372,t_bool)": {
+      "t_mapping(t_userDefinedValueType(TcbId)509,t_struct(Attestation)538_storage)": {
         "encoding": "mapping",
-        "key": "t_userDefinedValueType(AttestationTokenId)372",
-        "label": "mapping(AttestationTokenId => bool)",
+        "key": "t_userDefinedValueType(TcbId)509",
+        "label": "mapping(TcbId => struct AttestationToken.Attestation)",
         "numberOfBytes": "32",
-        "value": "t_bool"
+        "value": "t_struct(Attestation)538_storage"
+      },
+      "t_struct(Attestation)538_storage": {
+        "encoding": "inplace",
+        "label": "struct AttestationToken.Attestation",
+        "members": [
+          {
+            "astId": 537,
+            "contract": "contracts/enclave-identity/AttestationToken.sol:AttestationToken",
+            "label": "expiry",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256"
+          }
+        ],
+        "numberOfBytes": "32"
       },
       "t_uint256": {
         "encoding": "inplace",
         "label": "uint256",
         "numberOfBytes": "32"
       },
-      "t_userDefinedValueType(AttestationTokenId)372": {
+      "t_userDefinedValueType(TcbId)509": {
         "encoding": "inplace",
-        "label": "AttestationTokenId",
+        "label": "TcbId",
         "numberOfBytes": "32"
       }
     }
