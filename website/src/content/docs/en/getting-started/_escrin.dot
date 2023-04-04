@@ -1,0 +1,20 @@
+digraph {
+    node [shape=rect]
+
+    user [label=<User>, shape=egg]
+    dapp [label=<Dapp Contract<br/>(Home Network)>, shape=hexagon]
+    job [label=<Workload<br/>(enclaved)>, shape=parallelogram,penwidth=3]
+    ipfs [label=<De/centralized<br/>Data Storage>, shape=cylinder]
+    km [label=<Decentralized<br/>Secret Keeper>]
+    policy_eth [label=<Policy Contract<br/>(any network)>, shape=hexagon]
+    policy_web2 [label=<Web2 API>, shape=pentagon]
+
+    user -> dapp [label=<1. User Interaction>]
+    dapp -> job [label=<2. Trigger a Job>]
+    job -> policy_eth [label=<3a. apply policy<br/>from blockchain networks>, dir=both]
+    job -> policy_web2 [label=<3b. apply policy<br/>from the internet>, dir=both]
+    job -> ipfs [dir=both, label=<5. compute over<br/>encrypted data>]
+    km -> job [label=<4. trade policy proof<br/>for secret keys>, dir=back]
+
+    {rank=same;ipfs;km;job}
+}
