@@ -10,3 +10,9 @@ deployments/local
 # Hardhat files
 cache
 artifacts
+
+**/.terraform/*
+*.tfstate*
+*.tfplan
+*.tfvars
+*.tfvars.json
