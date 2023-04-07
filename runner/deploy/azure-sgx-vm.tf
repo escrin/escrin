@@ -6,7 +6,27 @@ variable "ssh_private_key_path" {
   type = string
 }
 
-variable "ssh_public_key" {
+variable "ssh_public_key_path" {
+  type = string
+}
+
+variable "estuary_api_key" {
+  type = string
+}
+
+variable "wallet_private_key" {
+  type = string
+}
+
+variable "bacalhau_branch" {
+  type = string
+}
+
+variable "lilypad_branch" {
+  type = string
+}
+
+variable "lilypad_events_addr" {
   type = string
 }
 
@@ -66,7 +86,7 @@ resource "azurerm_linux_virtual_machine" "escrin" {
 
   admin_ssh_key {
     username   = "ubuntu"
-    public_key = var.ssh_public_key
+    public_key = file(var.ssh_public_key_path)
   }
 
   network_interface_ids = [azurerm_network_interface.escrin.id]
@@ -75,29 +95,68 @@ resource "azurerm_linux_virtual_machine" "escrin" {
   eviction_policy = "Deallocate"
 
 
-  provisioner "remote-exec" {
-    inline = [
-      "sudo apt-get update",
-      "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release",
-      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
-      "sudo apt-get update",
-      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      host        = "${azurerm_public_ip.escrin.ip_address}"
-      private_key = file(var.ssh_private_key_path)
-    }
-  }
-
   os_disk {
     name              = "escrin-osdisk"
     caching           = "ReadWrite"
     storage_account_type = "Standard_LRS"
     disk_size_gb      = 30
+  }
+}
+
+resource "null_resource" "install_deps" {
+  depends_on = [
+    azurerm_linux_virtual_machine.escrin
+  ]
+
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    host        = "${azurerm_public_ip.escrin.ip_address}"
+    private_key = file(var.ssh_private_key_path)
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update",
+      "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release",
+      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/docker-archive-keyring.gpg > /dev/null",
+      "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+      "wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | gpg --dearmor | sudo tee /usr/share/keyrings/intel-sgx-archive-keyring.gpg >/dev/null",
+      "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/intel-sgx-archive-keyring.gpg] https://download.01.org/intel-sgx/sgx_repo/ubuntu $(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/intelsgx.list",
+      "sudo apt-get update",
+      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io libsgx-dcap-ql",
+      "sudo usermod -aG docker $USER"
+    ]
+  }
+}
+
+resource "null_resource" "run_containers" {
+  depends_on = [
+    null_resource.install_deps
+  ]
+
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    host        = "${azurerm_public_ip.escrin.ip_address}"
+    private_key = file(var.ssh_private_key_path)
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkdir -p /opt/escrin && sudo chmod a+rwx /opt/escrin"
+    ]
+  }
+
+  provisioner "file" {
+    source      = "./docker-compose.yaml"
+    destination = "/opt/escrin/docker-compose.yaml"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "cd /opt/escrin && export BACALHAU_BRANCH=${var.bacalhau_branch} LILYPAD_BRANCH=${var.lilypad_branch} ESTUARY_API_KEY=${var.estuary_api_key} WALLET_PRIVATE_KEY=${var.wallet_private_key} LILYPAD_EVENTS_ADDR=${var.lilypad_events_addr} && docker compose pull && docker compose up --detach --no-build"
+    ]
   }
 }
 

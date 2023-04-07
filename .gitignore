@@ -12,6 +12,8 @@ cache
 artifacts
 
 **/.terraform/*
+.terraform.lock.hcl
+*.terra
 *.tfstate*
 *.tfplan
 *.tfvars

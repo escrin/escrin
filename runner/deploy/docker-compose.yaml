@@ -1,0 +1,38 @@
+version: '3'
+
+x-base:
+  service: &service
+    restart: always
+    pull_policy: always
+
+services:
+  bacalhau:
+    image: ghcr.io/escrin/escrin/bacalhau:${BACALHAU_BRANCH}
+    build:
+      context: ..
+      dockerfile: bacalhau.Dockerfile
+      args:
+        BACALHAU_BRANCH: ${BACALHAU_BRANCH}
+    command: serve --job-selection-accept-networked --node-type compute,requester --peer none
+    environment:
+      ESTUARY_API_KEY: ${ESTUARY_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    <<: *service
+
+  lilypad:
+    image: ghcr.io/escrin/escrin/lilypad:${LILYPAD_BRANCH}
+    build:
+      context: ..
+      dockerfile: lilypad.Dockerfile
+      args:
+        LILYPAD_BRANCH: ${LILYPAD_BRANCH}
+    environment:
+      DEPLOYED_CONTRACT_ADDRESS: ${LILYPAD_EVENTS_ADDR}
+      WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY}
+      CHAIN_ID: ${CHAIN_ID:-3141}
+      RPC_ENDPOINT: ${RPC_ENDPOINT:-wss://wss.hyperspace.node.glif.io/apigw/lotus/rpc/v1}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    restart: always
+    depends_on:
+      - bacalhau
+    <<: *service

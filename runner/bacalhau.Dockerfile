@@ -4,7 +4,6 @@ ARG BACALHAU_BRANCH=main
 
 RUN git clone https://github.com/escrin/bacalhau --branch ${BACALHAU_BRANCH} --depth 1 /bacalhau
 
-
 WORKDIR /bacalhau
 
 RUN make build-bacalhau
