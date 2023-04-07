@@ -10,23 +10,7 @@ variable "ssh_public_key_path" {
   type = string
 }
 
-variable "estuary_api_key" {
-  type = string
-}
-
-variable "wallet_private_key" {
-  type = string
-}
-
-variable "bacalhau_branch" {
-  type = string
-}
-
-variable "lilypad_branch" {
-  type = string
-}
-
-variable "lilypad_events_addr" {
+variable "envfile_path" {
   type = string
 }
 
@@ -47,6 +31,82 @@ resource "azurerm_subnet" "escrin" {
   resource_group_name  = azurerm_resource_group.escrin.name
   virtual_network_name = azurerm_virtual_network.escrin.name
   address_prefixes     = ["10.0.1.0/24"]
+}
+
+
+resource "azurerm_network_security_group" "escrin" {
+  name                = "escrin-nsg"
+  location            = azurerm_resource_group.escrin.location
+  resource_group_name = azurerm_resource_group.escrin.name
+
+  security_rule {
+    name                       = "allow_ssh"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+    destination_port_range     = "22"
+  }
+
+  security_rule {
+    name                       = "allow_ipfs_p2p"
+    priority                   = 101
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+    destination_port_range     = "4001"
+  }
+
+  security_rule {
+    name                       = "allow_ipfs_p2p_udp"
+    priority                   = 102
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Udp"
+    source_address_prefix      = "*"
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+    destination_port_range     = "4001"
+  }
+
+  security_rule {
+    name                       = "allow_ipfs_gateway"
+    priority                   = 103
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_address_prefixes = [
+      "173.245.48.0/20",
+      "103.21.244.0/22",
+      "103.22.200.0/22",
+      "103.31.4.0/22",
+      "141.101.64.0/18",
+      "108.162.192.0/18",
+      "190.93.240.0/20",
+      "188.114.96.0/20",
+      "197.234.240.0/22",
+      "198.41.128.0/17",
+      "162.158.0.0/15",
+      "104.16.0.0/13",
+      "104.24.0.0/14",
+      "172.64.0.0/13",
+      "131.0.72.0/22"
+    ]
+    source_port_range          = "*"
+    destination_address_prefix = "*"
+    destination_port_range     = "80"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "escrin" {
+  subnet_id                 = azurerm_subnet.escrin.id
+  network_security_group_id = azurerm_network_security_group.escrin.id
 }
 
 resource "azurerm_public_ip" "escrin" {
@@ -153,9 +213,14 @@ resource "null_resource" "run_containers" {
     destination = "/opt/escrin/docker-compose.yaml"
   }
 
+  provisioner "file" {
+    source      = var.envfile_path
+    destination = "/opt/escrin/.env"
+  }
+
   provisioner "remote-exec" {
     inline = [
-      "cd /opt/escrin && export BACALHAU_BRANCH=${var.bacalhau_branch} LILYPAD_BRANCH=${var.lilypad_branch} ESTUARY_API_KEY=${var.estuary_api_key} WALLET_PRIVATE_KEY=${var.wallet_private_key} LILYPAD_EVENTS_ADDR=${var.lilypad_events_addr} && docker compose pull && docker compose up --detach --no-build"
+      "cd /opt/escrin && sudo docker compose pull && sudo docker compose up --detach --no-build"
     ]
   }
 }

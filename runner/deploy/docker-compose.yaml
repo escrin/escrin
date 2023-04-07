@@ -4,19 +4,40 @@ x-base:
   service: &service
     restart: always
     pull_policy: always
+  log_level: &log_level ${LOG_LEVEL:-info}
+
+volumes:
+  ipfs-data:
 
 services:
+  ipfs:
+    image: ipfs/kubo:v0.19.1
+    ports:
+      - '8080:8080'
+      - '4001:4001'
+      - '4001:4001/udp'
+      - '127.0.0.1:5001:5001'
+    volumes:
+      - ipfs-data:/data/ipfs
+    command: daemon
+
   bacalhau:
+    privileged: true
     image: ghcr.io/escrin/escrin/bacalhau:${BACALHAU_BRANCH}
     build:
       context: ..
       dockerfile: bacalhau.Dockerfile
       args:
         BACALHAU_BRANCH: ${BACALHAU_BRANCH}
-    command: serve --job-selection-accept-networked --node-type compute,requester --peer none
+    command: serve --job-selection-accept-networked --node-type compute,requester --peer none --ipfs-connect /dns/ipfs/tcp/5001
     environment:
       ESTUARY_API_KEY: ${ESTUARY_API_KEY}
-      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      LOG_LEVEL: *log_level
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp:/tmp
+    links:
+      - ipfs
     <<: *service
 
   lilypad:
@@ -29,10 +50,13 @@ services:
     environment:
       DEPLOYED_CONTRACT_ADDRESS: ${LILYPAD_EVENTS_ADDR}
       WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY}
+      GAS_KEY: ${GAS_KEY}
       CHAIN_ID: ${CHAIN_ID:-3141}
       RPC_ENDPOINT: ${RPC_ENDPOINT:-wss://wss.hyperspace.node.glif.io/apigw/lotus/rpc/v1}
-      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      BACALHAU_API_HOST: bacalhau
+      BACALHAU_API_PORT: 1234
+      LOG_LEVEL: *log_level
     restart: always
-    depends_on:
+    links:
       - bacalhau
     <<: *service
