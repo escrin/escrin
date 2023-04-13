@@ -129,6 +129,16 @@ resource "azurerm_network_interface" "escrin" {
   }
 }
 
+
+resource "azurerm_managed_disk" "escrin_data_disk" {
+  name                 = "escrin-data-disk"
+  location             = azurerm_resource_group.escrin.location
+  resource_group_name  = azurerm_resource_group.escrin.name
+  storage_account_type = "Standard_LRS"
+  create_option        = "Empty"
+  disk_size_gb         = 20
+}
+
 resource "azurerm_linux_virtual_machine" "escrin" {
   name                = "escrin-vm"
   location            = azurerm_resource_group.escrin.location
@@ -163,6 +173,13 @@ resource "azurerm_linux_virtual_machine" "escrin" {
   }
 }
 
+resource "azurerm_virtual_machine_data_disk_attachment" "escrin_data_disk_attachment" {
+  managed_disk_id    = azurerm_managed_disk.escrin_data_disk.id
+  virtual_machine_id = azurerm_linux_virtual_machine.escrin.id
+  caching            = "ReadOnly"
+  lun                = 0
+}
+
 resource "null_resource" "install_deps" {
   depends_on = [
     azurerm_linux_virtual_machine.escrin
@@ -177,6 +194,7 @@ resource "null_resource" "install_deps" {
 
   provisioner "remote-exec" {
     inline = [
+      "sudo mkfs.ext4 /dev/sdc && sudo mkdir /data && echo '/dev/sdc /data ext4 defaults 0 0' | sudo tee -a /etc/fstab && sudo mount -a",
       "sudo apt-get update",
       "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release",
       "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/docker-archive-keyring.gpg > /dev/null",

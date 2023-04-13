@@ -13,7 +13,7 @@ x-base:
       args:
         LILYPAD_BRANCH: ${LILYPAD_BRANCH}
     volumes:
-      - lilypad-dbs:/opt/lilypad
+      - lilypad-dbs:/data/lilypad-dbs
     environment: &lilypad-envs
       BACALHAU_API_HOST: bacalhau
       BACALHAU_API_PORT: 1234
@@ -23,10 +23,19 @@ x-base:
       - bacalhau
     <<: *service
 
-
 volumes:
-  ipfs-data:
   lilypad-dbs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/lilypad-dbs
+  ipfs-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/ipfs
 
 services:
   ipfs:
@@ -73,7 +82,7 @@ services:
       RPC_ENDPOINT: wss://wss.node.glif.io/apigw/lotus/rpc/v1
       GAS_KEY: ${GAS_KEY_FILECOIN}
       WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY_FILECOIN}
-      SQLITE_FILE_LOCATION: /opt/lilypad/filecoin.sqlite3
+      SQLITE_FILE_LOCATION: /data/lilypad-dbs/filecoin.sqlite3
       CHAIN_ID: 314
       <<: *lilypad-envs
 
@@ -84,7 +93,7 @@ services:
       RPC_ENDPOINT: wss://sapphire.oasis.io/ws
       GAS_KEY: ${GAS_KEY_SAPPHIRE}
       WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY_SAPPHIRE}
-      SQLITE_FILE_LOCATION: /opt/lilypad/sapphire.sqlite3
+      SQLITE_FILE_LOCATION: /data/lilypad-dbs/sapphire.sqlite3
       CHAIN_ID: 23294
       <<: *lilypad-envs
 
@@ -95,6 +104,6 @@ services:
       GAS_KEY: ${GAS_KEY_HYPERSPACE}
       WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY_HYPERSPACE}
       RPC_ENDPOINT: wss://wss.hyperspace.node.glif.io/apigw/lotus/rpc/v1
-      SQLITE_FILE_LOCATION: /opt/lilypad/hyperspace.sqlite3
+      SQLITE_FILE_LOCATION: /data/lilypad-dbs/hyperspace.sqlite3
       CHAIN_ID: 3141
       <<: *lilypad-envs
