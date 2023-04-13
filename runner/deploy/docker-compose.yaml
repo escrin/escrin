@@ -5,15 +5,34 @@ x-base:
     restart: always
     pull_policy: always
   log_level: &log_level ${LOG_LEVEL:-info}
+  lilypad: &lilypad
+    image: ghcr.io/escrin/escrin/lilypad:${LILYPAD_BRANCH}
+    build:
+      context: ..
+      dockerfile: lilypad.Dockerfile
+      args:
+        LILYPAD_BRANCH: ${LILYPAD_BRANCH}
+    volumes:
+      - lilypad-dbs:/opt/lilypad
+    environment: &lilypad-envs
+      BACALHAU_API_HOST: bacalhau
+      BACALHAU_API_PORT: 1234
+      LOG_LEVEL: *log_level
+    restart: always
+    links:
+      - bacalhau
+    <<: *service
+
 
 volumes:
   ipfs-data:
+  lilypad-dbs:
 
 services:
   ipfs:
     image: ipfs/kubo:v0.19.1
     ports:
-      - '8080:8080'
+      - '80:8080'
       - '4001:4001'
       - '4001:4001/udp'
       - '127.0.0.1:5001:5001'
@@ -47,23 +66,35 @@ services:
       - ipfs
     <<: *service
 
-  lilypad:
-    image: ghcr.io/escrin/escrin/lilypad:${LILYPAD_BRANCH}
-    build:
-      context: ..
-      dockerfile: lilypad.Dockerfile
-      args:
-        LILYPAD_BRANCH: ${LILYPAD_BRANCH}
+  lilypad-filecoin:
+    <<: *lilypad
     environment:
-      DEPLOYED_CONTRACT_ADDRESS: ${LILYPAD_EVENTS_ADDR}
-      WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY}
-      GAS_KEY: ${GAS_KEY}
-      CHAIN_ID: ${CHAIN_ID:-3141}
-      RPC_ENDPOINT: ${RPC_ENDPOINT:-wss://wss.hyperspace.node.glif.io/apigw/lotus/rpc/v1}
-      BACALHAU_API_HOST: bacalhau
-      BACALHAU_API_PORT: 1234
-      LOG_LEVEL: *log_level
-    restart: always
-    links:
-      - bacalhau
-    <<: *service
+      DEPLOYED_CONTRACT_ADDRESS: ${LILYPAD_EVENTS_ADDR_FILECOIN}
+      RPC_ENDPOINT: wss://wss.node.glif.io/apigw/lotus/rpc/v1
+      GAS_KEY: ${GAS_KEY_FILECOIN}
+      WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY_FILECOIN}
+      SQLITE_FILE_LOCATION: /opt/lilypad/filecoin.sqlite3
+      CHAIN_ID: 314
+      <<: *lilypad-envs
+
+  lilypad-sapphire:
+    <<: *lilypad
+    environment:
+      DEPLOYED_CONTRACT_ADDRESS: ${LILYPAD_EVENTS_ADDR_SAPPHIRE}
+      RPC_ENDPOINT: wss://sapphire.oasis.io/ws
+      GAS_KEY: ${GAS_KEY_SAPPHIRE}
+      WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY_SAPPHIRE}
+      SQLITE_FILE_LOCATION: /opt/lilypad/sapphire.sqlite3
+      CHAIN_ID: 23294
+      <<: *lilypad-envs
+
+  lilypad-hyperspace:
+    <<: *lilypad
+    environment:
+      DEPLOYED_CONTRACT_ADDRESS: ${LILYPAD_EVENTS_ADDR_HYPERSPACE}
+      GAS_KEY: ${GAS_KEY_HYPERSPACE}
+      WALLET_PRIVATE_KEY: ${WALLET_PRIVATE_KEY_HYPERSPACE}
+      RPC_ENDPOINT: wss://wss.hyperspace.node.glif.io/apigw/lotus/rpc/v1
+      SQLITE_FILE_LOCATION: /opt/lilypad/hyperspace.sqlite3
+      CHAIN_ID: 3141
+      <<: *lilypad-envs
