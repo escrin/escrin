@@ -1,0 +1,136 @@
+{
+  "address": "0x52892d19DeFDDE7C25504212B3bA8E99D8e0552e",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "contract AttestationToken",
+          "name": "_attestationToken",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "NoAttestationToken",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "attestationToken",
+      "outputs": [
+        {
+          "internalType": "contract AttestationToken",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "TcbId",
+          "name": "tcbId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "pers",
+          "type": "bytes"
+        }
+      ],
+      "name": "createKey",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "TcbId",
+          "name": "tcbId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getKey",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x64641ac39fbad241a4d763e02b9db94b6ead777c6eac8662ad652867daeda28b",
+  "receipt": {
+    "to": null,
+    "from": "0x3BA9F711C9808902f6a200d3715ba8a7e4D8b63f",
+    "contractAddress": "0x52892d19DeFDDE7C25504212B3bA8E99D8e0552e",
+    "transactionIndex": 0,
+    "gasUsed": "268963",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0xa630c0b2e524fc572b76a2e142b179808a4260e7f96eb8f557fb83b6fb34a499",
+    "transactionHash": "0x64641ac39fbad241a4d763e02b9db94b6ead777c6eac8662ad652867daeda28b",
+    "logs": [],
+    "blockNumber": 334379,
+    "cumulativeGasUsed": "268963",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0x127c49aE10e3c18be057106F4d16946E3Ae43975"
+  ],
+  "numDeployments": 1,
+  "solcInputHash": "831b8522fbcf01b5a2caff22e02c4053",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"contract AttestationToken\",\"name\":\"_attestationToken\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"NoAttestationToken\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"attestationToken\",\"outputs\":[{\"internalType\":\"contract AttestationToken\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"TcbId\",\"name\":\"tcbId\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"pers\",\"type\":\"bytes\"}],\"name\":\"createKey\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"TcbId\",\"name\":\"tcbId\",\"type\":\"bytes32\"}],\"name\":\"getKey\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/enclave-identity/Lockbox.sol\":\"Lockbox\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol\":{\"content\":\"// SPDX-License-Identifier: Apache-2.0\\npragma solidity ^0.8.8;\\n\\n/**\\n * @title Sapphire\\n * @dev Convenient wrapper methods for Sapphire's cryptographic primitives.\\n */\\nlibrary Sapphire {\\n    address private constant RANDOM_BYTES =\\n        0x0100000000000000000000000000000000000001;\\n    address private constant DERIVE_KEY =\\n        0x0100000000000000000000000000000000000002;\\n    address private constant ENCRYPT =\\n        0x0100000000000000000000000000000000000003;\\n    address private constant DECRYPT =\\n        0x0100000000000000000000000000000000000004;\\n    address private constant GENERAGE_SIGNING_KEYPAIR =\\n        0x0100000000000000000000000000000000000005;\\n    address private constant SIGN_DIGEST =\\n        0x0100000000000000000000000000000000000006;\\n    address private constant VERIFY_DIGEST =\\n        0x0100000000000000000000000000000000000007;\\n    address private constant CURVE25519_PUBLIC_KEY =\\n        0x0100000000000000000000000000000000000008;\\n\\n    type Curve25519PublicKey is bytes32;\\n    type Curve25519SecretKey is bytes32;\\n\\n    enum SigningAlg {\\n        // Ed25519 signature over the provided message using SHA-512/265 with a domain separator.\\n        // Can be used to sign transactions for the Oasis consensus layer and SDK paratimes.\\n        Ed25519Oasis,\\n        // Ed25519 signature over the provided message.\\n        Ed25519Pure,\\n        // Ed25519 signature over the provided prehashed SHA-512 digest.\\n        Ed25519PrehashedSha512,\\n        // Secp256k1 signature over the provided message using SHA-512/256 with a domain separator.\\n        // Can be used to sign transactions for the Oasis consensus layer and SDK paratimes.\\n        Secp256k1Oasis,\\n        // Secp256k1 over the provided Keccak256 digest.\\n        // Can be used to sign transactions for Ethereum-compatible networks.\\n        Secp256k1PrehashedKeccak256,\\n        // Secp256k1 signature over the provided SHA-256 digest.\\n        Secp256k1PrehashedSha256,\\n        // Sr25519 signature over the provided message.\\n        Sr25519\\n    }\\n\\n    /**\\n     * @dev Returns cryptographically secure random bytes.\\n     * @param numBytes The number of bytes to return.\\n     * @param pers An optional personalization string to increase domain separation.\\n     * @return The random bytes. If the number of bytes requested is too large (over 1024), a smaller amount (1024) will be returned.\\n     */\\n    function randomBytes(uint256 numBytes, bytes memory pers)\\n        internal\\n        view\\n        returns (bytes memory)\\n    {\\n        (bool success, bytes memory entropy) = RANDOM_BYTES.staticcall(\\n            abi.encode(numBytes, pers)\\n        );\\n        require(success, \\\"randomBytes: failed\\\");\\n        return entropy;\\n    }\\n\\n    /**\\n     * @dev Generates a Curve25519 keypair.\\n     * @param pers An optional personalization string used to add domain separation.\\n     * @return pk The Curve25519 public key. Useful for key exchange.\\n     * @return sk The Curve25519 secret key. Pairs well with {`deriveSymmetricKey`}.\\n     */\\n    function generateCurve25519KeyPair(bytes memory pers)\\n        internal\\n        view\\n        returns (Curve25519PublicKey pk, Curve25519SecretKey sk)\\n    {\\n        bytes memory scalar = randomBytes(32, pers);\\n        // Twiddle some bits, as per RFC 7748 \\u00a75.\\n        scalar[0] &= 0xf8; // Make it a multiple of 8 to avoid small subgroup attacks.\\n        scalar[31] &= 0x7f; // Clamp to < 2^255 - 19\\n        scalar[31] |= 0x40; // Clamp to >= 2^254\\n        (bool success, bytes memory pkBytes) = CURVE25519_PUBLIC_KEY.staticcall(\\n            scalar\\n        );\\n        require(success, \\\"gen curve25519 pk: failed\\\");\\n        return (\\n            Curve25519PublicKey.wrap(bytes32(pkBytes)),\\n            Curve25519SecretKey.wrap(bytes32(scalar))\\n        );\\n    }\\n\\n    /**\\n     * @dev Derive a symmetric key from a pair of keys using x25519.\\n     * @param peerPublicKey The peer's public key.\\n     * @param secretKey Your secret key.\\n     * @return A derived symmetric key.\\n     */\\n    function deriveSymmetricKey(\\n        Curve25519PublicKey peerPublicKey,\\n        Curve25519SecretKey secretKey\\n    ) internal view returns (bytes32) {\\n        (bool success, bytes memory symmetric) = DERIVE_KEY.staticcall(\\n            abi.encode(peerPublicKey, secretKey)\\n        );\\n        require(success, \\\"deriveSymmetricKey: failed\\\");\\n        return bytes32(symmetric);\\n    }\\n\\n    /**\\n     * @dev Encrypt and authenticate the plaintext and additional data using DeoxysII.\\n     * @param key The key to use for encryption.\\n     * @param nonce The nonce. Note that only the first 15 bytes of this parameter are used.\\n     * @param plaintext The plaintext to encrypt and authenticate.\\n     * @param additionalData The additional data to authenticate.\\n     * @return The ciphertext with appended auth tag.\\n     */\\n    function encrypt(\\n        bytes32 key,\\n        bytes32 nonce,\\n        bytes memory plaintext,\\n        bytes memory additionalData\\n    ) internal view returns (bytes memory) {\\n        (bool success, bytes memory ciphertext) = ENCRYPT.staticcall(\\n            abi.encode(key, nonce, plaintext, additionalData)\\n        );\\n        require(success, \\\"encrypt: failed\\\");\\n        return ciphertext;\\n    }\\n\\n    /**\\n     * @dev Decrypt and authenticate the ciphertext and additional data using DeoxysII. Reverts if the auth tag is incorrect.\\n     * @param key The key to use for decryption.\\n     * @param nonce The nonce. Note that only the first 15 bytes of this parameter are used.\\n     * @param ciphertext The ciphertext with tag to decrypt and authenticate.\\n     * @param additionalData The additional data to authenticate against the ciphertext.\\n     * @return The original plaintext.\\n     */\\n    function decrypt(\\n        bytes32 key,\\n        bytes32 nonce,\\n        bytes memory ciphertext,\\n        bytes memory additionalData\\n    ) internal view returns (bytes memory) {\\n        (bool success, bytes memory plaintext) = DECRYPT.staticcall(\\n            abi.encode(key, nonce, ciphertext, additionalData)\\n        );\\n        require(success, \\\"decrypt: failed\\\");\\n        return plaintext;\\n    }\\n\\n    /**\\n     * @dev Generate a public/private key pair using the specified method and seed.\\n     * @param alg The signing alg for which to generate a keypair.\\n     * @param seed The seed to use for generating the key pair. You can use the `randomBytes` method if you don't already have a seed.\\n     * @return publicKey The public half of the keypair.\\n     * @return secretKey The secret half of the keypair.\\n     */\\n    function generateSigningKeyPair(SigningAlg alg, bytes memory seed)\\n        internal\\n        view\\n        returns (bytes memory publicKey, bytes memory secretKey)\\n    {\\n        (bool success, bytes memory keypair) = GENERAGE_SIGNING_KEYPAIR\\n            .staticcall(abi.encode(alg, seed));\\n        require(success, \\\"gen signing keypair: failed\\\");\\n        return abi.decode(keypair, (bytes, bytes));\\n    }\\n\\n    /**\\n     * @dev Sign a message within the provided context using the specified algorithm, and return the signature.\\n     * @param alg The signing algorithm to use.\\n     * @param secretKey The secret key to use for signing. The key must be valid for use with the requested algorithm.\\n     * @param digest The hash of the message to sign.\\n     * @return signature The resulting signature.\\n     */\\n    function signDigest(\\n        uint256 alg,\\n        bytes memory secretKey,\\n        bytes memory digest\\n    ) internal view returns (bytes memory signature) {\\n        (bool success, bytes memory sig) = SIGN_DIGEST.staticcall(\\n            abi.encode(alg, secretKey, digest)\\n        );\\n        require(success, \\\"signDigest: failed\\\");\\n        return sig;\\n    }\\n\\n    /**\\n     * @dev Verifies that the provided digest was signed with using the secret key corresponding to the provided private key and the specified signing algorithm.\\n     * @param alg The signing algorithm by which the signature was generated.\\n     * @param publicKey The public key against which to check the signature.\\n     * @param digest The hash of the message that was signed.\\n     * @param signature The signature to check.\\n     * @return verified Whether the signature is valid for the given parameters.\\n     */\\n    function verifyDigestSignature(\\n        SigningAlg alg,\\n        bytes memory publicKey,\\n        bytes memory digest,\\n        bytes memory signature\\n    ) internal view returns (bool verified) {\\n        (bool success, bytes memory v) = VERIFY_DIGEST.staticcall(\\n            abi.encode(alg, publicKey, digest, signature)\\n        );\\n        require(success, \\\"verifyDigestSignature: failed\\\");\\n        return abi.decode(v, (bool));\\n    }\\n}\\n\",\"keccak256\":\"0x60fea1b8516d0bd32a6597955b8fb51a38f80e2a9952f8d8351b78a3f1bf6666\",\"license\":\"Apache-2.0\"},\"@openzeppelin/contracts/access/Ownable.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)\\n\\npragma solidity ^0.8.0;\\n\\nimport \\\"../utils/Context.sol\\\";\\n\\n/**\\n * @dev Contract module which provides a basic access control mechanism, where\\n * there is an account (an owner) that can be granted exclusive access to\\n * specific functions.\\n *\\n * By default, the owner account will be the one that deploys the contract. This\\n * can later be changed with {transferOwnership}.\\n *\\n * This module is used through inheritance. It will make available the modifier\\n * `onlyOwner`, which can be applied to your functions to restrict their use to\\n * the owner.\\n */\\nabstract contract Ownable is Context {\\n    address private _owner;\\n\\n    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);\\n\\n    /**\\n     * @dev Initializes the contract setting the deployer as the initial owner.\\n     */\\n    constructor() {\\n        _transferOwnership(_msgSender());\\n    }\\n\\n    /**\\n     * @dev Throws if called by any account other than the owner.\\n     */\\n    modifier onlyOwner() {\\n        _checkOwner();\\n        _;\\n    }\\n\\n    /**\\n     * @dev Returns the address of the current owner.\\n     */\\n    function owner() public view virtual returns (address) {\\n        return _owner;\\n    }\\n\\n    /**\\n     * @dev Throws if the sender is not the owner.\\n     */\\n    function _checkOwner() internal view virtual {\\n        require(owner() == _msgSender(), \\\"Ownable: caller is not the owner\\\");\\n    }\\n\\n    /**\\n     * @dev Leaves the contract without owner. It will not be possible to call\\n     * `onlyOwner` functions anymore. Can only be called by the current owner.\\n     *\\n     * NOTE: Renouncing ownership will leave the contract without an owner,\\n     * thereby removing any functionality that is only available to the owner.\\n     */\\n    function renounceOwnership() public virtual onlyOwner {\\n        _transferOwnership(address(0));\\n    }\\n\\n    /**\\n     * @dev Transfers ownership of the contract to a new account (`newOwner`).\\n     * Can only be called by the current owner.\\n     */\\n    function transferOwnership(address newOwner) public virtual onlyOwner {\\n        require(newOwner != address(0), \\\"Ownable: new owner is the zero address\\\");\\n        _transferOwnership(newOwner);\\n    }\\n\\n    /**\\n     * @dev Transfers ownership of the contract to a new account (`newOwner`).\\n     * Internal function without access restriction.\\n     */\\n    function _transferOwnership(address newOwner) internal virtual {\\n        address oldOwner = _owner;\\n        _owner = newOwner;\\n        emit OwnershipTransferred(oldOwner, newOwner);\\n    }\\n}\\n\",\"keccak256\":\"0xa94b34880e3c1b0b931662cb1c09e5dfa6662f31cba80e07c5ee71cd135c9673\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/Context.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)\\n\\npragma solidity ^0.8.0;\\n\\n/**\\n * @dev Provides information about the current execution context, including the\\n * sender of the transaction and its data. While these are generally available\\n * via msg.sender and msg.data, they should not be accessed in such a direct\\n * manner, since when dealing with meta-transactions the account sending and\\n * paying for execution may not be the actual sender (as far as an application\\n * is concerned).\\n *\\n * This contract is only required for intermediate, library-like contracts.\\n */\\nabstract contract Context {\\n    function _msgSender() internal view virtual returns (address) {\\n        return msg.sender;\\n    }\\n\\n    function _msgData() internal view virtual returns (bytes calldata) {\\n        return msg.data;\\n    }\\n}\\n\",\"keccak256\":\"0xe2e337e6dde9ef6b680e07338c493ebea1b5fd09b43424112868e9cc1706bca7\",\"license\":\"MIT\"},\"contracts/enclave-identity/AttestationToken.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.9;\\n\\nimport {Ownable} from \\\"@openzeppelin/contracts/access/Ownable.sol\\\";\\n// import \\\"hardhat/console.sol\\\";\\n\\ntype TcbId is bytes32;\\n\\n/// The quote did not link to the registration bundle.\\nerror MismatchedRegistration(); // kPomqw==\\n/// The registration has expired.\\nerror RegistrationExpired(); // D+WbwA==\\nerror InvalidQuote(); // +GGAMA==\\n\\ncontract AttestationToken is Ownable {\\n    struct Quote {\\n        bytes32 measurementHash;\\n        bytes32 userdata;\\n    }\\n\\n    struct Registration {\\n        uint256 baseBlockNumber;\\n        bytes32 baseBlockHash;\\n        uint256 expiry;\\n        address registrant;\\n        uint256 tokenExpiry;\\n    }\\n\\n    struct Attestation {\\n        uint256 expiry;\\n    }\\n\\n    event Attested(address indexed requester, TcbId indexed tcbId, Quote quote);\\n\\n    mapping(address => mapping(TcbId => Attestation)) public attestations;\\n\\n    /// Mock attestation component.\\n    address private trustedSender;\\n\\n    function attest(bytes calldata _quote, Registration calldata _reg) external returns (TcbId) {\\n        Quote memory quote = _parseQuote(_quote);\\n        _validateRegistration(quote.userdata, _reg);\\n        TcbId tcbId = _getTcbId(quote);\\n        attestations[_reg.registrant][tcbId] = Attestation({expiry: _reg.tokenExpiry});\\n        emit Attested(_reg.registrant, tcbId, quote);\\n        return tcbId;\\n    }\\n\\n    function getTcbId(bytes calldata _quote) external view returns (TcbId) {\\n        Quote memory quote = _parseQuote(_quote);\\n        return _getTcbId(quote);\\n    }\\n\\n    function isAttested(address _whom, TcbId _tcbId) external view returns (bool) {\\n        return attestations[_whom][_tcbId].expiry > block.timestamp;\\n    }\\n\\n    function setTrustedSender(address _whom) external onlyOwner {\\n        trustedSender = _whom;\\n    }\\n\\n    function _getTcbId(Quote memory quote) internal view returns (TcbId) {\\n        return TcbId.wrap(keccak256(abi.encode(quote.measurementHash, \\\"mock tcb\\\", block.chainid)));\\n    }\\n\\n    function _parseQuote(bytes calldata _quote) internal view returns (Quote memory quote) {\\n        quote = abi.decode(_quote, (Quote));\\n        if (msg.sender != trustedSender) revert InvalidQuote(); // mock verification\\n    }\\n\\n    function _validateRegistration(\\n        bytes32 _expectedHash,\\n        Registration calldata _reg\\n    ) internal view {\\n        if (keccak256(abi.encode(_reg)) != _expectedHash) revert MismatchedRegistration();\\n        if (\\n            blockhash(_reg.baseBlockNumber) != _reg.baseBlockHash ||\\n            block.timestamp >= _reg.expiry\\n        ) revert RegistrationExpired();\\n    }\\n}\\n\",\"keccak256\":\"0x186e2fcaa7b12d7d2542d29b62b0012c67e9017a2ebe3b6a7837ef1e4b23975d\",\"license\":\"MIT\"},\"contracts/enclave-identity/Lockbox.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.9;\\n\\n// import \\\"hardhat/console.sol\\\";\\n\\nimport {Sapphire} from \\\"@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol\\\";\\n\\nimport {AttestationToken, TcbId} from \\\"./AttestationToken.sol\\\";\\n\\ncontract Lockbox {\\n    error NoAttestationToken(); // zUKkBQ==\\n\\n    AttestationToken public immutable attestationToken;\\n\\n    mapping(TcbId => bytes32) private lockbox;\\n\\n    modifier onlyAttested(TcbId _tcbId) {\\n        if (!attestationToken.isAttested(msg.sender, _tcbId)) revert NoAttestationToken();\\n        _;\\n    }\\n\\n    constructor(AttestationToken _attestationToken) {\\n        attestationToken = _attestationToken;\\n    }\\n\\n    function createKey(TcbId tcbId, bytes calldata pers) external {\\n        if (lockbox[tcbId] != 0) return;\\n        lockbox[tcbId] = block.chainid == 0x5aff || block.chainid == 0x5afe\\n            ? bytes32(Sapphire.randomBytes(32, pers))\\n            : blockhash(block.number);\\n    }\\n\\n    function getKey(TcbId tcbId) external view onlyAttested(tcbId) returns (bytes32) {\\n        return lockbox[tcbId];\\n    }\\n}\\n\",\"keccak256\":\"0x163b6bea8367216428c4b84ad4e39b939f57ec51b9ea023fe1d2109ed4a048fa\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x60a03461007057601f61046038819003918201601f19168301916001600160401b038311848410176100755780849260209460405283398101031261007057516001600160a01b0381168103610070576080526040516103d4908161008c8239608051818181605901526101240152f35b600080fd5b634e487b7160e01b600052604160045260246000fdfe608060408181526004918236101561001657600080fd5b600092833560e01c91826312aaac70146100ee575081635fb431bc1461008c575063a741fc7f1461004657600080fd5b34610088578160031936011261008857517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b5080fd5b919050346100ea57366003190112610088576024359067ffffffffffffffff908183116100e657366023840112156100e657828101359182116100e65736602483850101116100e65760246100e393019035610215565b80f35b8380fd5b8280fd5b8484913461008857602093846003193601126100ea576331d1e06360e01b825233828201528035602483018190529185816044817f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03165afa9081156101b7578491610181575b501561017357508152808352819020549051908152f35b835163cd42a40560e01b8152fd5b90508581813d83116101b0575b61019881836101c1565b810103126100e6575180151581036100e6578661015c565b503d61018e565b85513d86823e3d90fd5b90601f8019910116810190811067ffffffffffffffff8211176101e357604052565b634e487b7160e01b600052604160045260246000fd5b67ffffffffffffffff81116101e357601f01601f191660200190565b9190600090838252602090828252604093848420546103965783615aff4614801561038b575b1561037f575061024a816101f9565b91610257865193846101c1565b818352368282011161037b578185928592838601378301015282845183810192848452868083015280519081606084015285845b83811061036357505050906102bd60808284868381999784010152601f801991011681010360608101845201826101c1565b51906001600160981b015afa3d1561035b573d906102da826101f9565b916102e7865193846101c1565b82523d848484013e5b1561032157805190820151839291828110610310575b50945b8252522055565b60001990830360031b1b1638610306565b835162461bcd60e51b81526004810183905260136024820152721c985b991bdb509e5d195cce8819985a5b1959606a1b6044820152606490fd5b6060906102f0565b8281018201518582016080015288955087910161028b565b8480fd5b92915050434094610309565b50615afe461461023b565b50505050505056fea264697066735822122026821d08da8cdcc5756f600f6ea42a033793500fc7e8573a07e0e3d14fe0287f64736f6c63430008120033",
+  "deployedBytecode": "0x608060408181526004918236101561001657600080fd5b600092833560e01c91826312aaac70146100ee575081635fb431bc1461008c575063a741fc7f1461004657600080fd5b34610088578160031936011261008857517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b5080fd5b919050346100ea57366003190112610088576024359067ffffffffffffffff908183116100e657366023840112156100e657828101359182116100e65736602483850101116100e65760246100e393019035610215565b80f35b8380fd5b8280fd5b8484913461008857602093846003193601126100ea576331d1e06360e01b825233828201528035602483018190529185816044817f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03165afa9081156101b7578491610181575b501561017357508152808352819020549051908152f35b835163cd42a40560e01b8152fd5b90508581813d83116101b0575b61019881836101c1565b810103126100e6575180151581036100e6578661015c565b503d61018e565b85513d86823e3d90fd5b90601f8019910116810190811067ffffffffffffffff8211176101e357604052565b634e487b7160e01b600052604160045260246000fd5b67ffffffffffffffff81116101e357601f01601f191660200190565b9190600090838252602090828252604093848420546103965783615aff4614801561038b575b1561037f575061024a816101f9565b91610257865193846101c1565b818352368282011161037b578185928592838601378301015282845183810192848452868083015280519081606084015285845b83811061036357505050906102bd60808284868381999784010152601f801991011681010360608101845201826101c1565b51906001600160981b015afa3d1561035b573d906102da826101f9565b916102e7865193846101c1565b82523d848484013e5b1561032157805190820151839291828110610310575b50945b8252522055565b60001990830360031b1b1638610306565b835162461bcd60e51b81526004810183905260136024820152721c985b991bdb509e5d195cce8819985a5b1959606a1b6044820152606490fd5b6060906102f0565b8281018201518582016080015288955087910161028b565b8480fd5b92915050434094610309565b50615afe461461023b565b50505050505056fea264697066735822122026821d08da8cdcc5756f600f6ea42a033793500fc7e8573a07e0e3d14fe0287f64736f6c63430008120033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 771,
+        "contract": "contracts/enclave-identity/Lockbox.sol:Lockbox",
+        "label": "lockbox",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_mapping(t_userDefinedValueType(TcbId)509,t_bytes32)"
+      }
+    ],
+    "types": {
+      "t_bytes32": {
+        "encoding": "inplace",
+        "label": "bytes32",
+        "numberOfBytes": "32"
+      },
+      "t_mapping(t_userDefinedValueType(TcbId)509,t_bytes32)": {
+        "encoding": "mapping",
+        "key": "t_userDefinedValueType(TcbId)509",
+        "label": "mapping(TcbId => bytes32)",
+        "numberOfBytes": "32",
+        "value": "t_bytes32"
+      },
+      "t_userDefinedValueType(TcbId)509": {
+        "encoding": "inplace",
+        "label": "TcbId",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}

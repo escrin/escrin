@@ -1,4 +1,5 @@
 import { HardhatUserConfig, task } from 'hardhat/config';
+import '@oasisprotocol/sapphire-hardhat';
 import '@nomicfoundation/hardhat-toolbox';
 import 'hardhat-watcher';
 import 'hardhat-deploy';
@@ -11,14 +12,15 @@ const accounts = process.env.PRIVATE_KEY
   : [];
 
 task('accounts').setAction(async (_, hre) => {
-  const signers = await hre.ethers.getSigners();
-  const balances = await Promise.all(signers.map((s) => hre.ethers.provider.getBalance(s.address)));
+  const { ethers } = hre;
+  const signers = await ethers.getSigners();
+  const balances = await Promise.all(signers.map((s) => ethers.provider.getBalance(s.address)));
   for (let i = 0; i < signers.length; i++) {
     let num: string | number;
     try {
       num = balances[i].toNumber();
     } catch {
-      num = balances[i].toString();
+      num = ethers.utils.formatEther(balances[i]);
     }
     console.log(signers[i].address, num);
   }
