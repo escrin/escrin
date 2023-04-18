@@ -3,13 +3,13 @@ pragma solidity ^0.8.9;
 
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-import {ITaskAcceptorV1} from "./ITaskAcceptor.sol";
+import {ITaskAcceptorV1} from "../acceptor/ITaskAcceptor.sol";
 
 // import "hardhat/console.sol";
 
 error NotTaskAcceptor();
 
-contract TaskAcceptorHaver {
+contract TaskAcceptorV1Proxy {
     event TaskAcceptorChanged(address to);
 
     ITaskAcceptorV1 private taskAcceptor_;
@@ -32,7 +32,7 @@ contract TaskAcceptorHaver {
         if (!_isTaskAcceptor(_contract)) revert NotTaskAcceptor();
     }
 
-    function _isTaskAcceptor(address _taskAcceptor) internal view returns (bool) {
-        return !ERC165Checker.supportsInterface(_taskAcceptor, type(ITaskAcceptorV1).interfaceId);
+    function _isTaskAcceptor(address _contract) internal view returns (bool) {
+        return !ERC165Checker.supportsInterface(_contract, type(ITaskAcceptorV1).interfaceId);
     }
 }

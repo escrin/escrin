@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {TaskIdSelector} from "../TaskIdSelector.sol";
-import {BaseTaskAcceptorV1} from "./Base.sol";
-import {TaskAcceptorHaver} from "./Haver.sol";
+import {TaskAcceptorV1Proxy} from "../widgets/TaskAcceptorProxy.sol";
+import {BaseTaskAcceptorV1} from "./BaseTaskAcceptor.sol";
+import {TaskIdSelector} from "./TaskIdSelector.sol";
 
-contract DelegatedTaskAcceptor is BaseTaskAcceptorV1, TaskAcceptorHaver {
-    constructor(address _upstream) TaskAcceptorHaver(_upstream) {
+abstract contract DelegatedTaskAcceptorV1 is BaseTaskAcceptorV1, TaskAcceptorV1Proxy {
+    constructor(address _upstream) TaskAcceptorV1Proxy(_upstream) {
         return;
     }
 

@@ -3,10 +3,10 @@ pragma solidity ^0.8.9;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {TaskIdSelector, TaskIdSelectorOps} from "../TaskIdSelector.sol";
-import {BaseTaskAcceptorV1} from "./Base.sol";
+import {BaseTaskAcceptorV1} from "./BaseTaskAcceptor.sol";
+import {TaskIdSelector, TaskIdSelectorOps} from "./TaskIdSelector.sol";
 
-contract TrustedSenderAcceptor is BaseTaskAcceptorV1 {
+abstract contract TrustedSenderAcceptor is BaseTaskAcceptorV1 {
     using TaskIdSelectorOps for TaskIdSelector;
 
     address public immutable taskHub;
