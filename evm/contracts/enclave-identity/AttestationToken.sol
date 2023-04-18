@@ -73,9 +73,7 @@ contract AttestationToken is Ownable {
         Registration calldata _reg
     ) internal view {
         if (keccak256(abi.encode(_reg)) != _expectedHash) revert MismatchedRegistration();
-        if (
-            blockhash(_reg.baseBlockNumber) != _reg.baseBlockHash ||
-            block.timestamp >= _reg.expiry
-        ) revert RegistrationExpired();
+        if (blockhash(_reg.baseBlockNumber) != _reg.baseBlockHash || block.timestamp >= _reg.expiry)
+            revert RegistrationExpired();
     }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@escrin/evm",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "license": "MIT",
   "keywords": [],
   "author": "Nick Hynes <nhynes@enshrine.ai>",
@@ -35,6 +35,10 @@
     "build:cjs": "tsc -p tsconfig/cjs.json",
     "build:esm": "tsc -p tsconfig/esm.json",
     "build": "npm-run-all build:compile --parallel build:cjs build:esm",
+    "watch:hardhat": "hardhat watch compile",
+    "watch:tsc:cjs": "tsc -p tsconfig/cjs.json --watch --preserveWatchOutput",
+    "watch:tsc:esm": "tsc -p tsconfig/esm.json --watch --preserveWatchOutput",
+    "watch": "npm-run-all --parallel 'watch:**'",
     "test": "hardhat test",
     "prepublishOnly": "pnpm build"
   },
