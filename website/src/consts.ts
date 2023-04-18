@@ -37,12 +37,9 @@ export const SIDEBAR: Sidebar = {
 	en: {
 		'Getting Started': [
 			{ text: 'What is Escrin?', link: 'en/getting-started/introduction' },
-			{ text: 'My First Function', link: 'en/coming-soon' },
-			{ text: 'My Second Function', link: 'en/coming-soon' },
+			{ text: 'My First Task', link: 'en/getting-started/my-first-task' },
+			{ text: 'My Second Task', link: 'en/coming-soon' },
 			{ text: 'Next Steps', link: 'en/coming-soon' },
-			// { text: 'My First Function', link: 'en/getting-started/hello-world' },
-			// { text: 'My Second Function', link: 'en/getting-started/hello-real-world' },
-			// { text: 'Next Steps', link: 'en/getting-started/next-steps' },
 		],
 		'How-To Guides': [
 			{ text: 'DAO Off-Chain Agent', link: 'en/coming-soon' },
