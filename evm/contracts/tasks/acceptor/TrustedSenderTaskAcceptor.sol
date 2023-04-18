@@ -3,17 +3,14 @@ pragma solidity ^0.8.9;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {BaseTaskAcceptorV1} from "./BaseTaskAcceptor.sol";
-import {TaskIdSelector, TaskIdSelectorOps} from "./TaskIdSelector.sol";
+import {TaskAcceptorV1, TaskIdSelectorOps} from "./TaskAcceptor.sol";
 
-abstract contract TrustedSenderAcceptor is BaseTaskAcceptorV1 {
+abstract contract TrustedSenderAcceptor is TaskAcceptorV1 {
     using TaskIdSelectorOps for TaskIdSelector;
 
-    address public immutable taskHub;
     address public immutable trustedSender;
 
-    constructor(address _taskHub, address _trustedSender) {
-        taskHub = _taskHub;
+    constructor(address _trustedSender) {
         trustedSender = _trustedSender;
     }
 
@@ -23,7 +20,7 @@ abstract contract TrustedSenderAcceptor is BaseTaskAcceptorV1 {
         bytes calldata,
         address _submitter
     ) internal virtual override returns (TaskIdSelector memory) {
-        if (msg.sender != taskHub || _submitter != trustedSender) return TaskIdSelectorOps.none();
+        if (_submitter != trustedSender) return TaskIdSelectorOps.none();
         return TaskIdSelectorOps.all();
     }
 }

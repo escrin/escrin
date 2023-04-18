@@ -1,32 +1,38 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {ITaskAcceptorV1} from "./ITaskAcceptor.sol";
-import {TaskIdSelector} from "./TaskIdSelector.sol";
+import {ITaskAcceptorV1, TaskIdSelectorOps} from "./ITaskAcceptor.sol";
 
 /// The input task ids were not sorted.
 error SubmisionTaskIdsNotSorted();
 /// The set of accepted task ids was not sorted.
 error AcceptedTaskIdsNotSorted();
 
-abstract contract BaseTaskAcceptorV1 is ITaskAcceptorV1 {
+abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
+    using TaskIdSelectorOps for TaskIdSelector;
+
     function acceptTaskResults(
         uint256[] calldata _taskIds,
         bytes calldata _proof,
-        bytes calldata _report,
-        address _submitter
+        bytes calldata _report
     ) external virtual returns (TaskIdSelector memory sel) {
-        _beforeTaskResultsAccepted(_taskIds, _proof, _report, _submitter);
-        if (!_isSorted(_taskIds)) revert SubmisionTaskIdsNotSorted();
-        sel = _acceptTaskResults(_taskIds, _proof, _report, _submitter);
-        if (!_isSorted(sel.taskIds)) revert AcceptedTaskIdsNotSorted();
-        _afterTaskResultsAccepted(_taskIds, _report, _submitter, sel);
+        if (!_isSortedSet(_taskIds)) revert SubmisionTaskIdsNotSorted();
+        _beforeTaskResultsAccepted(_taskIds, _proof, _report, msg.sender);
+        sel = _acceptTaskResults(_taskIds, _proof, _report, msg.sender);
+        if (!_isSortedSet(sel.taskIds)) revert AcceptedTaskIdsNotSorted();
+        _afterTaskResultsAccepted(_taskIds, _report, msg.sender, sel);
     }
 
     function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
         return _interfaceId == type(ITaskAcceptorV1).interfaceId;
     }
 
+    /// Accepts one or more elements of a task runner's task results submission, returning the seto tasks that were accepted.
+    /// @param _taskIds a sorted set of taskIds completed in this submission
+    /// @param _proof some proof of having completed the identiied tasks that the acceptor can verify.
+    /// @param _report Some data provided by the submitter that the requester may or may not trust
+    /// @param _submitter The account that submitted the task results.
+    /// @return A selection of the accepted task results, which may be empty.
     function _acceptTaskResults(
         uint256[] calldata _taskIds,
         bytes calldata _proof,
@@ -34,6 +40,7 @@ abstract contract BaseTaskAcceptorV1 is ITaskAcceptorV1 {
         address _submitter
     ) internal virtual returns (TaskIdSelector memory);
 
+    /// Runs before tasks are accepted.
     function _beforeTaskResultsAccepted(
         uint256[] calldata /* _taskIds */,
         bytes calldata /* _proof */,
@@ -52,7 +59,7 @@ abstract contract BaseTaskAcceptorV1 is ITaskAcceptorV1 {
         return;
     }
 
-    function _isSorted(uint256[] memory _input) internal pure returns (bool) {
+    function _isSortedSet(uint256[] memory _input) internal pure returns (bool) {
         for (uint256 i = 1; i < _input.length - 1; ++i)
             if (_input[i] <= _input[i - 1]) return false;
         return true;

@@ -8,4 +8,8 @@ interface ITaskHubV1 is IERC165 {
 
     /// Alerts any listening task runners that there are new tasks available.
     function notify() external;
+
+    /// Alerts any listening task runners that there are new tasks available.
+    /// @param _context Some indexed data to be emitted with the event for listeners to filter on.
+    function notify(bytes32 _context) external;
 }
