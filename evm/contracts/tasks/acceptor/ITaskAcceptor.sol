@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-
-/// The contract is did not pass the ITaskAcceptor ERC-165 check.
-error NotTaskAcceptor();
 error UnknownQuantifier();
 
-interface ITaskAcceptorV1 is IERC165 {
+interface ITaskAcceptorV1 {
     struct TaskIdSelector {
         Quantifier quantifier;
         /// A sorted list identifying subset of submitted tasks that will interpereted per the quantifier.

@@ -23,10 +23,6 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
         _afterTaskResultsAccepted(_taskIds, _report, msg.sender, sel);
     }
 
-    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
-        return _interfaceId == type(ITaskAcceptorV1).interfaceId;
-    }
-
     /// Accepts one or more elements of a task runner's task results submission, returning the seto tasks that were accepted.
     /// @param _taskIds a sorted set of taskIds completed in this submission
     /// @param _proof some proof of having completed the identiied tasks that the acceptor can verify.
