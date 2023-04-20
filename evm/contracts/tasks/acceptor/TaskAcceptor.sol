@@ -56,7 +56,7 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
     }
 
     function _isSortedSet(uint256[] memory _input) internal pure returns (bool) {
-        for (uint256 i = 1; i < _input.length - 1; ++i)
+        for (uint256 i = 1; i < _input.length; ++i)
             if (_input[i] <= _input[i - 1]) return false;
         return true;
     }
