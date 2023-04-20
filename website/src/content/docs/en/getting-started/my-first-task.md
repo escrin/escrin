@@ -1,39 +1,42 @@
 ---
 title: "My First Task"
-description: "A crash course on how to use Escrin to run secure off-chain tasks."
+description: "A simple example of using Escrin to run secure off-chain tasks."
+image:
+    src: /twitter-my-first-task.png
+    alt: It's easy to use secure off-chain compute.
 ---
 
-## Objective
-
-This guide will walk you through assembling an `AddingAtHome` dapp that pays people for contributing valid additions to the NumbersDAO.
-In this illustrative example, adding two numbers is done as an Escrin task due to the intense and high-security calculation required.
-The result is posted back to the blockchain as a part of the NumbersDAO mission to create all of the numbers.
-
-The key concepts covered are:
-* installing the Escrin toolkit
-* creating tasks
-* accepting task results
-* submitting task results
-
-## On-Chain Steps
-
-Escrin allows smart contracts to run secure off-chain computation, which are called _tasks_.
+Escrin allows smart contracts to run secure off-chain computation in bundles of work called _tasks_.
 Tasks are created implicitly by a contract when it provides an incentive for off-chain task runners to submit work.
-To allow your contract to run tasks, you will need to use the Escrin Solidity library to create and accept tasks.
-The steps below work through creating tasks that will be completed by task runners created in the next set of steps.
+A task is anything a contract will accept.
 
-### 1. Create a new Remix project
+This guide will walk you through assembling an `AddingAtHome` dapp that rewards people for contributing to the mission of discovering all numbers through the power of addition.
+To do this, `AddingAtHome` requests that a submission contain an proposed undiscovered number and two discovered numbers that add up to that new number.
+As a reward, `AddingAtHome` will gives the discoverer of the number a commemorative NFT.
 
-<!-- TODO: make a tip callout box thing for this meta-exposition -->
+This illustrative example does not need autonomous computation, but it does demonstrate the fundamental workflow of an Escrin workload.
+
+By the end of this guide, you will know how to add Escrin to your dapp, create tasks, and fulfill them using your own task runners.
+The steps below work through creating the tasks that will be fulfilled by task runners created in the next set of steps.
+
+## Setup
+
 This guide uses [Remix] because it is convenient for prototyping.
 The steps should be easy to follow if you are using a different development environment like Hardhat or Foundry.
 
 Start by navigating to [Remix].
 Once there, create a new workspace from the "OpenZeppelin ERC721" template.
-You should see a file browser containing `contracts/MyToken.sol`.
-Open it for editing.
 
-Rename the contract, and optionally also the source file.
+<figure class="text-center">
+<img src="/remix-new-workspace.png" alt="A dialog box for creating a workspace showing Open Zeppelin ERC-721 as the selected template and AddingAtHome as the name." class="block lg:w-3/4 mx-auto" />
+<figcaption class="my-4 text-sm">The dialog for creating an ERC721 workspace in Remix.</figcaption>
+</figure>
+
+After the workspace has been created, you should see a file browser containing `contracts/MyToken.sol`.
+Rename it to `AddingAtHome.sol` and open it for editing.
+
+In the file, first change the name of the token to `AddingAtHome`.
+Also add a line of code that gives token 1 to the creator, which allows the discovery of further numbers like 2, and 3.
 
 ```diff
  // SPDX-License-Identifier: MIT
@@ -42,179 +45,206 @@ Rename the contract, and optionally also the source file.
  import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 -contract MyToken is ERC721 {
+-    constructor() ERC721("MyToken", "MTK") {}
 +contract AddingAtHome is ERC721 {
-     constructor() ERC721("Number", "NUM") {}
++    constructor() ERC721("Adding@home", "SUM") {
++        _mint(msg.sender, 1);
++    }
  }
 ```
 
 [Remix]: https://remix.ethereum.org
 
-### 2. Get the Escrin Solidity library
+## Get Escrin
 
-Escrin is easy to use within any dapp.
-All you have to do is implement [ITaskAcceptor], which is all of one function.
+Escrin is easy to add to any dapp since the only required interface is [ITaskAcceptor], which is only one function.
 
-The Escrin Solidity library contains a number of pre-made task acceptors and widgets that you can use to build your own.
+The Escrin Solidity library also contains a pre-made task acceptors and customizable widgets that make implementing this one function even easier.
 
-The task acceptance criterion for `AddingAtHome` is whether the result is the sum of the two inputs.
-This is simple to verify, so the `AddingAtHome` contract will inherit from the [TaskAcceptorV1] base class.
-`TaskAcceptorV1` implements basic validation and exposes lifecycle hooks, so it is a good place to start.
-
-Here is how you can change your code to make `AddingAtHome` a task acceptor:
+The following code pulls in [TaskAcceptorV1], which adds some scaffolding around `ITaskAcceptor`.
+All this next changeset does is add the Escrin Solidity library dependency, make the token contract a task acceptor, and implement the one required lifecycle hook.
 
 ```diff
 +import {TaskAcceptorV1} from "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol";
-+import {TaskHubNotifier} from "@escrin/evm/contracts/tasks/widgets/TaskHubNotifier.sol";
  import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
--contract AddingAtHome {
-+contract AddingAtHome is TaskAcceptorV1, TaskHubNotifier {
-     constructor() ERC721("AddingAtHome", "SUM") {}
- }
-```
-
-This changeset also adds the completely optional `TaskHub`, which is just a notification center that lets a worker pool know that tasks are available for completion.
-`AddingAtHome` is a public service, so it announces itself to the world.
-
-This code does not yet compile because `AddingAtHome` does not yet implement the `_acceptTaskResults` function stub left by `TaskAcceptorV1`.
-We will add that in the next step.
-
-[ITaskAcceptor]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/acceptor/ITaskAcceptor.sol
-[TaskAcceptorV1]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/acceptor/TaskAcceptor.sol
-
-### 3. Accept tasks
-
-Task acceptance is an important decision because the contract virtually creates whatever tasks it accepts.
-Task acceptance is also a highly personal decision, so you have all the power of a function to express it.
-
-For `AddingAtHome`, a task is to discover a target number by providing two already-discovered numbers that sum to that number.
-The submitter will be rewarded with an NFT representing discovery of the new number.
-A natural choice is to make the NFT token ID be the number that was discovered.
-
-In that case, first add some code that allows the discovery process to begin.
-Also let task runners know that this contract has tasks available.
-
-```diff
- contract AddingAtHome is ERC721 {
--    constructor() ERC721("AddingAtHome", "SUM") {}
-+    constructor() ERC721("AddingAtHome", "SUM") {}
+-contract AddingAtHome is ERC721 {
++contract AddingAtHome is ERC721, TaskAcceptorV1 {
++    constructor() ERC721("Adding@home", "SUM") {
 +        _mint(msg.sender, 1);
-+        taskHub().notify();
 +    }
- }
-```
-
-Now the deploying account can discover new numbers like 2 (please don't steal my work).
-
-Next, the contract needs to define the verification function that ensures that the numbers have the right sum.
-The following code is the empty sub left to implement by [TaskAcceptorV1].
-Copy it into Remix for later.
-
-```diff
- contract AddingAtHome is ERC721 {
-     constructor() ERC721("AddingAtHome", "SUM") {
-      _mint(msg.sender, 1);
-     }
 +
-+    /// Accepts one or more elements of a task runner's task results submission, returning the seto tasks that were accepted.
-+    /// @param _taskIds A sorted set of taskIds completed in this submission
-+    /// @param _proof Some proof of having completed the identiied tasks that the acceptor can verify.
-+    /// @param _report Some data provided by the submitter that the requester may or may not trust
-+    /// @param _submitter The account that submitted the task results
++    /// Accepts one or more elements of a task runner's task results submission
++    /// @param _taskIds A sorted set of taskIds reported as complete in this submission
++    /// @param _proof A proof of having completed the tasks
++    /// @param _report Any extra data the submitter wants to provide
++    /// @param _submitter The submitter's address
 +    function _acceptTaskResults(
 +        uint256[] calldata _taskIds,
 +        bytes calldata _proof,
 +        bytes calldata _report,
 +        address _submitter
-+   ) internal override returns (TaskIdSelector memory sel) {
-+   }
++    ) internal override returns (TaskIdSelector memory sel) {
++    }
  }
 ```
 
-Our objective is to express our task validation logic in terms of task ids, proofs, and reports.
-All of `_taskIds`, `_proof`, and `_report` are entirely generated by the submitter and can have any format.
-The format, of course, being what the acceptor will choose to accept.
+This is a batch interface because it makes it work better with techniques like zero-knowledge proofs that can authenticate several items with one compact proof.
+For other proof methods, `abi.decode` is fairly widely applicable, as we will see below.
 
-In this case, `_tasksIds` can be used identify the numbers to be discovered.
-The `_proof` is the right place to put the two numbers that add up, but they need to be decoded from bytes using `abi.decode`.
-`_submitter` and `_report` are not used.
+[ITaskAcceptor]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/acceptor/ITaskAcceptor.sol
+[TaskAcceptorV1]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/acceptor/TaskAcceptor.sol
 
-The following diff changes the argument names for clarity and adds a statement to unzip `_proof`.
+## Accept tasks
 
-```diff
-     function _acceptTaskResults(
--        uint256[] calldata _taskIds,
--        bytes calldata _proof,
--        bytes calldata _report,
--        address _submitter
-+        uint256[] calldata _numbers,
-+        bytes calldata _zippedSummands,
-+        bytes calldata,
-+        address
-    ) internal override returns (TaskIdSelector memory sel) {
-+     (uint256[] memory lefts, uint256[] memory rights) =
-+         abi.decode(_zippedSummands, (uint256[], uint256[]));
-    }
-```
+Whether to accept a task is an important and often highly customized decision.
+That's why Escrin gives you all of the power of a function to express yourself.
+The [pre-made acceptors](https://github.com/escrin/escrin/tree/main/evm/contracts/tasks/acceptor) are both drop-in solutions and starting points for your own task acceptance policies.
 
-The last component of the `_acceptTaskResults` function is the actual validation.
-This means going through each of the tasks and ensuring that the target number is undiscovered and that the two numbers provided as proof add up correctly.
+For `AddingAtHome`, it is fortunately very easy to tell if a submission is acceptable using the `+` and `==` operators.
+
+Before verifying that each pair of discovered numbers is correct, they need to be unpacked from the `_proof` argument (they're proofs by construction).
+The numbers will be flattened as pairs into a single list so that they can be easily decoded using Solidity's `abi.decode`.
+
+Once the addends are unpacked, the tasks can be verified and rewards can be distributed.
+For simplicity, `AddingAtHome` will require all items in a submission to be correct.
+
+The following diff translates this overall approach into code:
 
 ```diff
-     function _acceptTaskResults(
-         uint256[] calldata _numbers,
-         bytes calldata _zippedSummands,
-         bytes calldata,
-         address
-    ) internal override returns (TaskIdSelector memory sel) {
-      (uint256[] memory lefts, uint256[] memory) = abi.decode(_proof, (uint256[], uint256[]));
-+     for (uint256 i; i < _tasksIds.length; ++i) {
-+       require(_exists(_lefts[i]) && _exists(_rights[i]), "unknown summand");
-+       require(!_exists(_numbers[i]), "already discovered");
-+       require(lefts[i] + rights[i] == _numbers[i], "invalid sum");
+  function _acceptTaskResults(
+      uint256[] calldata _taskIds,
+      bytes calldata _proof,
+      bytes calldata _report,
+      address _submitter
+  ) internal override returns (TaskIdSelector memory sel) {
++     uint256[] memory pairs = abi.decode(_proof, (uint256[]));
++     for (uint256 i; i < _taskIds.length; ++i) {
 +     }
-+     sel.quantifier = Quantifier.All;
-    }
++     sel.quantifier = Quantifier.All; // Accept all
+  }
 ```
 
-That last line that sets the selection's `Quantifier` is just reporting that the entire task was accepted.
-Usually the acceptor will report `Quantifier.All` but revert on error, but if you need partial acceptance, that's also possible.
-
-### 4. Provide incentives
-
-Unless you have a private deployment of task runners, your task isn't going to get run unless the runners get some value out of it.
-
-`AddingAtHome` is for the benefit of all humankind, so an acknowledgement of discovering a number should be reward enough.
-The submitter will get their number as an NFT, which is just a call to `_mint` using OpenZeppelin's ERC-721.
-
-This logic will go in `_afterTaskResultsAccepted`, which is another lifecycle hook exposed by [TaskAcceptorV1].
-Rewarding the submitter could have equally gone in `_acceptTaskResults`, but this way the separation of concerns is clearer.
+And in the for loop, we add the business logic of verifying each discovered number:
 
 ```diff
-+    function _afterTaskResultsAccepted(
-+        uint256[] calldata _numbers,
-+        bytes calldata,
-+        address _submitter,
-+        TaskIdSelector memory
-+    ) internal override {
-+        for (uint256 i; i < _numbers.length; ++i) {
-+            _mint(_submitter, _numbers[i]);
-+        }
+     bytes calldata _report,
+     address _submitter
+ ) internal override returns (TaskIdSelector memory sel) {
+     uint256[] memory pairs = abi.decode(_proof, (uint256[]));
+     for (uint256 i; i < _taskIds.length; ++i) {
++        (uint256 left, uint256 right) = (pairs[i*2], pairs[i*2+1]);
++        uint256 discoveredNumber = _taskIds[i];
++        require(_exists(lefts[i]), "undiscovered left addend");
++        require(_exists(rights[i]), "undiscovered right addend");
++        require(!_exists(discoveredNumber), "number already discovered");
++        require(lefts[i] + rights[i] == discoveredNumber, "faulty proof");
++        _mint(_submitter, discoveredNumber); // Reward the submitter.
 +    }
+     sel.quantifier = Quantifier.All; // Accept all
+ }
 ```
 
-Good!
-The on-chain steps are complete.
-All that remains is to create a program that task runners will run to complete the task.
+Your editor should contain this `AddingAtHome` implementation:
 
-## Off-Chain Steps
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
 
-### 1. Run the tasks
+import {TaskAcceptorV1} from "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-Right now, there's no public pool of Escrin task runners, so you have to complete the tasks yourself.
-This can be done using a library like Ethers.js because the task acceptance criteria are so lax.
-In reality, a submission would be accepted if it came from an attested trusted execution environment running a particular program plus other things.
+contract AddingAtHome is ERC721, TaskAcceptorV1 {
+    constructor() ERC721("Adding@home", "SUM") {
+        _mint(msg.sender, 1);
+    }
 
-If you find this page exciting and want to get started building, drop into the [#escrin channel of our Discord](https://discord.gg/QjNpXkd3un) to ask any questions that you may have!
+    /// Accepts one or more elements of a task runner's task results submission
+    /// @param _taskIds A sorted set of taskIds reported as complete in this submission
+    /// @param _proof A proof of having completed the tasks
+    /// @param _report Any extra data the submitter wants to provide
+    /// @param _submitter The submitter's address
+    function _acceptTaskResults(
+        uint256[] calldata _taskIds,
+        bytes calldata _proof,
+        bytes calldata _report,
+        address _submitter
+   ) internal override returns (TaskIdSelector memory sel) {
+        uint256[] memory pairs = abi.decode(_proof, (uint256[]));
+        for (uint256 i; i < _taskIds.length; ++i) {
+            (uint256 left, uint256 right) = (pairs[i*2], pairs[i*2+1]);
+            uint256 discoveredNumber = _taskIds[i];
+            require(_exists(left), "undiscovered left addend");
+            require(_exists(right), "undiscovered right addend");
+            require(!_exists(discoveredNumber), "number already discovered");
+            require(left + right == discoveredNumber, "faulty proof");
+            _mint(_submitter, discoveredNumber); // Reward the submitter.
+        }
+        sel.quantifier = Quantifier.All; // Accept all
+   }
+}
+```
 
-<!-- add next steps section once there are any -->
+## Deploy
+
+Now that `AddingAtHome` accepts tasks, we can deploy it to the Remix in-browser testnet so that a motivated task runner can complete some tasks!
+
+First the code needs to be compiled.
+You can do this using the green play button, the _Save_ keyboard shortcut, or the big blue button in the Solidity tab as pictured below.
+
+<figure class="text-center">
+<img src="/remix-compile.png" alt="The page shown having selected the Solidity icon in the Remix toolbar." class="block w-3/4 md:w-2/3 mx-auto" />
+<figcaption class="my-4 text-sm">The Remix Solidity compiler tab and big blue compile button.</figcaption>
+</figure>
+
+If this guide has been serving you well, compilation will succeed and you can proceed to the tab below: the deployment tab.
+You should be greeted now by a big orange button.
+
+<figure class="text-center">
+<img src="/remix-deploy.png" alt="The page shown having selected the Ethereum icon in the Remix toolbar." class="block w-3/4 md:w-2/3 mx-auto" />
+<figcaption class="my-4 text-sm">The Remix deployments tab and orange deploy button.</figcaption>
+</figure>
+
+Click the button to deploy `AddingAtHome` to your in-browser testnet.
+Once this succeeds, you should see a new contract appear in the _Deployed Contracts_ section of the tab, which marks the completion of this step.
+
+## Complete a task
+
+After opening up the `AddingAtHome` item under _Deployed Contracts_, you will see a form that lets you interact with the contract.
+
+The `acceptTaskResults` method from [ITaskAcceptor] should be at the top of the form.
+Paste the following arguments into the arguments box of `acceptTaskResults`.
+They will discover the number 2 by adding 1 and 1.
+
+```
+[2],0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001,0x
+```
+
+It should look like this:
+
+<figure class="text-center">
+<img src="/remix-transact.png" alt="The Remix contract interaction tab with the accept task results function populated with arguments." class="block w-3/4 md:w-2/3 mx-auto" />
+<figcaption class="my-4 text-sm">Using the Remix UI to manually complete a task.</figcaption>
+</figure>
+
+You can then click the orange `acceptTaskResults` button (or the `transact` button if you clicked into it).
+That should cause a transaction to be successfully submitted and shown in the console.
+
+<figure class="text-center">
+<img src="/remix-accepted.png" alt="A successfully validated accept task results transaction." class="block w-3/4 md:w-2/3 mx-auto" />
+<figcaption class="my-4 text-sm">Successful discovery of the number 2 by manual labor.</figcaption>
+</figure>
+
+So now, if you were to check who the discoverer of 2 is, it would be your wallet address because you have successfully created and completed your first task!
+🎉
+
+## Recap & Next Steps
+
+In this guide we deployed a simple contract that uses Escrin to complete off-chain tasks.
+We were also able to complete a task on our own through our browser.
+
+Even though `AddingAtHome` is a simple problem, it illustrates the idea of a task and how a contract's definition of its acceptance drives it to completion.
+
+In a more realistic scenario, task verification would require execution in a trusted execution environment (TEE), and there would be similar policies governing the use of secret keys.
+Additionally, it is much more convenient if tasks could be done automatically without anyone clicking buttons.
+These are all concepts that will be covered in [the next tutorial](../coming-soon).

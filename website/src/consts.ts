@@ -7,10 +7,10 @@ export const SITE = {
 
 export const OPEN_GRAPH = {
 	image: {
-		src: '',
-		alt: '',
+		src: '/escrin-box.png',
+		alt: 'Escrin',
 	},
-	twitter: '',
+	twitter: 'enshrinecc',
 };
 
 export const KNOWN_LANGUAGES = {
