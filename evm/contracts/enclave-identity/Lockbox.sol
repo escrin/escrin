@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-// import "hardhat/console.sol";
-
 import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 
 import {AttestationToken, TcbId} from "./AttestationToken.sol";

@@ -6,8 +6,6 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 import {ITaskHubV1} from "../hub/ITaskHub.sol";
 import {TaskHubV1} from "../hub/TaskHub.sol";
 
-// import "hardhat/console.sol";
-
 error NotTaskHub();
 
 contract BaseTaskHubV1Notifier {

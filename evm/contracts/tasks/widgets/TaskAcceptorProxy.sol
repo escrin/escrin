@@ -5,8 +5,6 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 
 import {ITaskAcceptorV1} from "../acceptor/ITaskAcceptor.sol";
 
-// import "hardhat/console.sol";
-
 error NotTaskAcceptor();
 
 contract TaskAcceptorV1Proxy {

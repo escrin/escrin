@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-// import "hardhat/console.sol";
 
 type TcbId is bytes32;
 
