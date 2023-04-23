@@ -4,9 +4,9 @@ pragma solidity ^0.8.9;
 import {ITaskAcceptorV1, TaskIdSelectorOps} from "./ITaskAcceptor.sol";
 
 /// The input task ids were not sorted.
-error SubmisionTaskIdsNotSorted();
+error SubmisionTaskIdsNotSorted(); // E+1Qrg== 13ed50ae
 /// The set of accepted task ids was not sorted.
-error AcceptedTaskIdsNotSorted();
+error AcceptedTaskIdsNotSorted(); // WjXPLQ== 5a35cf2d
 
 abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
     using TaskIdSelectorOps for TaskIdSelector;

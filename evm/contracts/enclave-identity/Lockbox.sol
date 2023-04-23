@@ -6,7 +6,7 @@ import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol
 import {AttestationToken, TcbId} from "./AttestationToken.sol";
 
 contract Lockbox {
-    error NoAttestationToken(); // zUKkBQ==
+    error NoAttestationToken(); // zUKkBQ== cd42a405
 
     AttestationToken public immutable attestationToken;
 

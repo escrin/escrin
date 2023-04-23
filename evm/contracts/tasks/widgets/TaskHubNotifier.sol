@@ -6,7 +6,7 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 import {ITaskHubV1} from "../hub/ITaskHub.sol";
 import {TaskHubV1} from "../hub/TaskHub.sol";
 
-error NotTaskHub();
+error NotTaskHub(); // owTjPw== a304e33f
 
 contract BaseTaskHubV1Notifier {
     event TaskHubChanged(address to);

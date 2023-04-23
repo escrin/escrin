@@ -6,10 +6,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 type TcbId is bytes32;
 
 /// The quote did not link to the registration bundle.
-error MismatchedRegistration(); // kPomqw==
+error MismatchedRegistration(); // kPomqw== 90fa26ab
 /// The registration has expired.
-error RegistrationExpired(); // D+WbwA==
-error InvalidQuote(); // +GGAMA==
+error RegistrationExpired(); // D+WbwA== 0fe59bc0
+error InvalidQuote(); // +GGAMA== f8618030
 
 contract AttestationToken is Ownable {
     struct Quote {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-error UnknownQuantifier();
+error UnknownQuantifier(); // yrtLPA== cabb4b3c
 
 interface ITaskAcceptorV1 {
     struct TaskIdSelector {

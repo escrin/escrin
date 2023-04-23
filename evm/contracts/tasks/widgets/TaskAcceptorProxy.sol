@@ -5,7 +5,7 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 
 import {ITaskAcceptorV1} from "../acceptor/ITaskAcceptor.sol";
 
-error NotTaskAcceptor();
+error NotTaskAcceptor(); // 32ECXQ== df61025d
 
 contract TaskAcceptorV1Proxy {
     event TaskAcceptorChanged(address to);
