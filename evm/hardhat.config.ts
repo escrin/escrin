@@ -26,6 +26,12 @@ task('accounts').setAction(async (_, hre) => {
   }
 });
 
+task('get-trusted-sender').setAction(async (_, hre) => {
+  const { ethers } = hre;
+  const attok = await ethers.getContract('AttestationToken');
+  console.log(await attok.callStatic.trustedSender());
+});
+
 task('set-trusted-sender')
   .addParam('sender')
   .setAction(async (args, hre) => {

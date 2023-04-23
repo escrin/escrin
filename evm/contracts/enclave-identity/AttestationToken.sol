@@ -36,6 +36,10 @@ contract AttestationToken is Ownable {
     /// Mock attestation component.
     address private trustedSender;
 
+    constructor(address _trustedSender) {
+        trustedSender = _trustedSender;
+    }
+
     function attest(bytes calldata _quote, Registration calldata _reg) external returns (TcbId) {
         Quote memory quote = _parseQuote(_quote);
         _validateRegistration(quote.userdata, _reg);

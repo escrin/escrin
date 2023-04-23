@@ -5,6 +5,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
   await hre.deployments.deploy('AttestationToken', {
     from: deployer,
+    args: [process.env.ATTESTATION_TOKEN_TRUSTED_SENDER ?? deployer],
     log: true,
     autoMine: true,
   });
