@@ -18,11 +18,8 @@
     "typechain-types"
   ],
   "exports": {
-    "default": "./lib/esm/src/index.js",
-    "node": {
-      "import": "./lib/esm/src/index.js",
-      "require": "./lib/cjs/src/index.js"
-    }
+    "import": "./lib/esm/src/index.js",
+    "require": "./lib/cjs/src/index.js"
   },
   "scripts": {
     "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' 'tsconfig/*.json' 'test/**/*.ts' 'contracts/**/*.sol'",
