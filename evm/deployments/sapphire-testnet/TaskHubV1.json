@@ -1,0 +1,113 @@
+{
+  "address": "0xAdA897c101918d24d2C424007DdE5AE937DcC02f",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "generator",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "context",
+          "type": "bytes32"
+        }
+      ],
+      "name": "TasksAvailable",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_context",
+          "type": "bytes32"
+        }
+      ],
+      "name": "notify",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "notify",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x616e61bf2ecea5f5f48156698804aebd20103ab997348b85502fc695ceab742c",
+  "receipt": {
+    "to": null,
+    "from": "0x013e84e68AF747DE29F224747011a9c7f8828f08",
+    "contractAddress": "0xAdA897c101918d24d2C424007DdE5AE937DcC02f",
+    "transactionIndex": 0,
+    "gasUsed": "118519",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x3d94732a5cd206cb08791c45bec64799d0112554d5f23cbbc4453d20c0c80d55",
+    "transactionHash": "0x616e61bf2ecea5f5f48156698804aebd20103ab997348b85502fc695ceab742c",
+    "logs": [],
+    "blockNumber": 965735,
+    "cumulativeGasUsed": "118519",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "e3925046a8c56d4adca6301675c9ec15",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.18+commit.87f61d96\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"generator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"TasksAvailable\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"_context\",\"type\":\"bytes32\"}],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"_interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"The methods in this contract are not marked with `override` are not guaranteed to be in the next version of the contract.\",\"kind\":\"dev\",\"methods\":{\"notify(bytes32)\":{\"params\":{\"_context\":\"Some indexed data to be emitted with the event for listeners to filter on.\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"notify()\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"},\"notify(bytes32)\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/tasks/hub/TaskHub.sol\":\"TaskHubV1\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"@openzeppelin/contracts/utils/introspection/ERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)\\n\\npragma solidity ^0.8.0;\\n\\nimport \\\"./IERC165.sol\\\";\\n\\n/**\\n * @dev Implementation of the {IERC165} interface.\\n *\\n * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check\\n * for the additional interface id that will be supported. For example:\\n *\\n * ```solidity\\n * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {\\n *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);\\n * }\\n * ```\\n *\\n * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.\\n */\\nabstract contract ERC165 is IERC165 {\\n    /**\\n     * @dev See {IERC165-supportsInterface}.\\n     */\\n    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {\\n        return interfaceId == type(IERC165).interfaceId;\\n    }\\n}\\n\",\"keccak256\":\"0xd10975de010d89fd1c78dc5e8a9a7e7f496198085c151648f20cba166b32582b\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/introspection/IERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)\\n\\npragma solidity ^0.8.0;\\n\\n/**\\n * @dev Interface of the ERC165 standard, as defined in the\\n * https://eips.ethereum.org/EIPS/eip-165[EIP].\\n *\\n * Implementers can declare support of contract interfaces, which can then be\\n * queried by others ({ERC165Checker}).\\n *\\n * For an implementation, see {ERC165}.\\n */\\ninterface IERC165 {\\n    /**\\n     * @dev Returns true if this contract implements the interface defined by\\n     * `interfaceId`. See the corresponding\\n     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]\\n     * to learn more about how these ids are created.\\n     *\\n     * This function call must use less than 30 000 gas.\\n     */\\n    function supportsInterface(bytes4 interfaceId) external view returns (bool);\\n}\\n\",\"keccak256\":\"0x447a5f3ddc18419d41ff92b3773fb86471b1db25773e07f877f548918a185bf1\",\"license\":\"MIT\"},\"contracts/tasks/hub/ITaskHub.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.9;\\n\\nimport {IERC165} from \\\"@openzeppelin/contracts/utils/introspection/IERC165.sol\\\";\\n\\ninterface ITaskHubV1 is IERC165 {\\n    event TasksAvailable(address indexed generator, bytes32 indexed context);\\n\\n    /// Alerts any listening task runners that there are new tasks available.\\n    function notify() external;\\n\\n    /// Alerts any listening task runners that there are new tasks available.\\n    /// @param _context Some indexed data to be emitted with the event for listeners to filter on.\\n    function notify(bytes32 _context) external;\\n}\\n\",\"keccak256\":\"0x7d0e005a875af6b09d0700af1c38090b4bcce96fa4cd68ae9a908bcc9e4d3d74\",\"license\":\"MIT\"},\"contracts/tasks/hub/TaskHub.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.9;\\n\\nimport {ERC165} from \\\"@openzeppelin/contracts/utils/introspection/ERC165.sol\\\";\\n\\nimport {ITaskHubV1} from \\\"./ITaskHub.sol\\\";\\n\\n/// @dev The methods in this contract are not marked with `override` are not guaranteed to be in the next version of the contract.\\ncontract TaskHubV1 is ITaskHubV1 {\\n    function notify() external override {\\n        emit TasksAvailable(msg.sender, \\\"\\\");\\n    }\\n\\n    function notify(bytes32 _context) external override {\\n        emit TasksAvailable(msg.sender, _context);\\n    }\\n\\n    function supportsInterface(bytes4 _interfaceId) public pure override returns (bool) {\\n        return _interfaceId == type(ITaskHubV1).interfaceId;\\n    }\\n}\\n\",\"keccak256\":\"0xc0e4b9c97e7bd29c061e12168cfc9e53b1f9e4baa77944a409aee564677026ac\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x6080806040523461001657610126908161001c8239f35b600080fdfe6080806040526004361015601257600080fd5b600090813560e01c90816301ffc9a71460b357508063138b10841460785763899f589814603e57600080fd5b346075578060031936011260755780337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608280a380f35b80fd5b50346075576020366003190112607557600435337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608380a380f35b90503460ec57602036600319011260ec5760043563ffffffff60e01b811680910360e857632685120760e21b14815260209150f35b8280fd5b5080fdfea2646970667358221220f0a22f4a7201058870107493683d3806314c09544b7fa0a40431ff542d85c4c564736f6c63430008120033",
+  "deployedBytecode": "0x6080806040526004361015601257600080fd5b600090813560e01c90816301ffc9a71460b357508063138b10841460785763899f589814603e57600080fd5b346075578060031936011260755780337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608280a380f35b80fd5b50346075576020366003190112607557600435337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608380a380f35b90503460ec57602036600319011260ec5760043563ffffffff60e01b811680910360e857632685120760e21b14815260209150f35b8280fd5b5080fdfea2646970667358221220f0a22f4a7201058870107493683d3806314c09544b7fa0a40431ff542d85c4c564736f6c63430008120033",
+  "devdoc": {
+    "details": "The methods in this contract are not marked with `override` are not guaranteed to be in the next version of the contract.",
+    "kind": "dev",
+    "methods": {
+      "notify(bytes32)": {
+        "params": {
+          "_context": "Some indexed data to be emitted with the event for listeners to filter on."
+        }
+      }
+    },
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "notify()": {
+        "notice": "Alerts any listening task runners that there are new tasks available."
+      },
+      "notify(bytes32)": {
+        "notice": "Alerts any listening task runners that there are new tasks available."
+      }
+    },
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}
