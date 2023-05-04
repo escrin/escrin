@@ -1,5 +1,4 @@
 import { HardhatUserConfig, task } from 'hardhat/config';
-import '@oasisprotocol/sapphire-hardhat';
 import '@nomicfoundation/hardhat-toolbox';
 import 'hardhat-watcher';
 import 'hardhat-deploy';
@@ -49,6 +48,7 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
+        runs: Math.pow(2, 32) - 1,
       },
       viaIR: true,
     },
@@ -64,7 +64,8 @@ const config: HardhatUserConfig = {
       accounts,
     },
     sapphire: {
-      url: 'https://sapphire.oasis.io',
+      // url: 'https://sapphire.oasis.io',
+      url: 'http://127.0.0.1:8545',
       chainId: 0x5afe,
       accounts,
     },
