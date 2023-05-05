@@ -74,6 +74,11 @@ const config: HardhatUserConfig = {
       chainId: 3141,
       accounts,
     },
+    filecoin: {
+      url: 'https://rpc.ankr.com/filecoin',
+      chainId: 314,
+      accounts,
+    },
   },
   watcher: {
     compile: {
