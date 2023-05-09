@@ -32,7 +32,7 @@ interface ITaskAcceptorV1 {
 /// An extension to `ITaskAcceptorV1` that helps task runners know where to find details about how to complete the task.
 interface ITaskAcceptanceCriteriaV1 is ITaskAcceptorV1 {
     /// @return a string that could be a URI or some abi-encoded data
-    function taskAcceptanceCriteria(uint256 _taskId) external view returns (string calldata);
+    function taskAcceptanceCriteria(uint256 _taskId) external view returns (string memory);
 }
 
 library TaskIdSelectorOps {
