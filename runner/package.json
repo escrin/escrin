@@ -1,0 +1,30 @@
+{
+  "scripts": {
+    "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' 'src/**/*.ts'",
+    "lint": "npm-run-all lint:**",
+    "format:prettier": "prettier --write --plugin-search-dir=. --cache '*.json' 'src/**/*.ts'",
+    "format": "npm-run-all format:**",
+    "build:typecheck": "tsc -b",
+    "build:bundle": "esbuild --bundle ./src/main.ts --outfile=./dist/tmm.js --minify --target=es2020 --format=esm",
+    "build": "npm-run-all --parallel build:**",
+    "watch:typecheck": "tsc -b --watch",
+    "watch:bundle": "esbuild --bundle ./src/main.ts --outfile=./dist/tmm.js --minify --target=es2020 --format=esm --watch",
+    "watch": "npm-run-all --parallel watch:**"
+  },
+  "dependencies": {
+    "@escrin/evm": "workspace:../evm",
+    "@oasisprotocol/deoxysii": "^0.0.5",
+    "@oasisprotocol/sapphire-paratime": "^1.0.15",
+    "canonicalize": "^2.0.0",
+    "ethers": "^5.7.2",
+    "keccak": "^3.0.3",
+    "nft.storage": "^7.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20230518.0",
+    "@types/keccak": "^3.0.1",
+    "esbuild": "^0.18.4",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.1.3"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "include": ["src"],
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "lib": ["es2022", "dom"],
+    "module": "es2022",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "strict": true,
+    "target": "es2022"
+  }
+}
