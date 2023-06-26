@@ -131,5 +131,6 @@ async function getOrCreateKey(
 
 async function importKey(keyHex: string): Promise<CryptoKey> {
   const key = ethers.utils.arrayify(keyHex);
-  return crypto.subtle.importKey('raw', key, 'HKDF', true, ['deriveKey', 'deriveBits']);
+  const exportable = true;
+  return crypto.subtle.importKey('raw', key, 'HKDF', exportable, ['deriveKey', 'deriveBits']);
 }

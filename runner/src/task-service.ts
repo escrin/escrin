@@ -1,24 +1,20 @@
-import { Envs } from './envs';
-import { deepFreeze } from './utils';
+import canonicalize from 'canonicalize';
 
-type HandlerFunction = (...args: any[]) => Promise<object | undefined | null>;
+import { Cacheable, Environment } from './env';
 
-const DEFAULT_KEY_STORE = 'sapphire';
-
-class RpcError extends Error {
-  constructor(public readonly statusCode: number, message: string) {
-    super(message);
-    this.name = new.target.name;
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
+type CacheEntry = {
+  value: object;
+  expiry: Date;
+};
 
 export class TaskService {
   private timer: ReturnType<typeof setInterval> | undefined;
 
+  private responseCache: Map<string, Map<string, CacheEntry>> = new Map();
+
   private isTerminated = false;
 
-  constructor(public readonly worker: Worker, private readonly envs: Envs) {
+  constructor(public readonly worker: Worker, private readonly env: Environment) {
     worker.onmessage = (req) => {
       this.handleRequest(req).catch((e: any) => {
         console.log('error handling request:', JSON.stringify(e));
@@ -40,10 +36,36 @@ export class TaskService {
     if (!('id' in req)) return this.sendError(null, 'malformed RPC body: missing ID');
     if (!('module' in req)) return this.sendError(req.id, 'malformed RPC body: missing module');
     if (!('method' in req)) return this.sendError(req.id, 'malformed RPC body: missing method');
-    const handler = this.envs.get(req.module, req.method);
+
+    const getCacheKey = () => canonicalize(req.args) ?? '';
+
+    const moduleResponseCache = this.responseCache.get(req.module);
+    if (moduleResponseCache) {
+      const cacheKey = getCacheKey();
+      const { value, expiry } = moduleResponseCache.get(cacheKey) ?? {};
+      if (expiry) {
+        if (expiry > new Date()) {
+          this.sendResponse(req.id, value);
+          return;
+        } else {
+          moduleResponseCache.delete(cacheKey);
+        }
+      }
+    }
+
+    const handler = this.env.get(req.module, req.method);
     if (!handler) return this.sendError(req.id, 'unable to fulfil RPC: no such handler');
     try {
-      this.sendResponse(req.id, handler(...req.args));
+      let result = await handler(...req.args);
+      if (result instanceof Cacheable) {
+        if (!this.responseCache.has(req.module)) {
+          this.responseCache.set(req.module, new Map());
+        }
+        this.responseCache.get(req.module)!.set(getCacheKey(), result.item);
+        result = result.item;
+      } else {
+        this.sendResponse(req.id, result);
+      }
     } catch (e: any) {
       this.sendError(req.id, e);
     }

@@ -1,4 +1,4 @@
-export * from './km';
+export * as sapphire from './sapphire';
 
 type HandlerModules = Readonly<Record<string, Module>>;
 
@@ -10,7 +10,7 @@ export class Cacheable<T> {
   constructor(public readonly item: T, public readonly expiry: Date) {}
 }
 
-export class Enviroment {
+export class Environment {
   public static builder(): EnvironmentBuilder {
     return new EnvironmentBuilder();
   }
