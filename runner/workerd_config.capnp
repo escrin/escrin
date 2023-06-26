@@ -9,7 +9,7 @@ const runner :Workerd.Worker = (
   compatibilityDate = "2023-02-28",
   compatibilityFlags = ["web_workers"],
   modules = [
-    (name = "worker", esModule = embed "dist/tmm.js")
+    (name = "worker", esModule = embed "dist/escrin-runner.js")
   ],
   bindings = [
     (name = "gasKey", fromEnvironment = "GAS_KEY")
