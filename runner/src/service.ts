@@ -7,14 +7,16 @@ type CacheEntry = {
   expiry: Date;
 };
 
-export class TaskService {
+export class Service {
+  public env: Environment = new Environment({});
+
   private timer: ReturnType<typeof setInterval> | undefined;
 
   private responseCache: Map<string, Map<string, CacheEntry>> = new Map();
 
   private isTerminated = false;
 
-  constructor(public readonly worker: Worker, private readonly env: Environment) {
+  constructor(public readonly worker: Worker) {
     worker.onmessage = (req) => {
       this.handleRequest(req).catch((e: any) => {
         console.log('error handling request:', JSON.stringify(e));

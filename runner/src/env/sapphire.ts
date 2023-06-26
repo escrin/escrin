@@ -31,7 +31,13 @@ export const INIT_SAPPHIRE_TESTNET: InitOpts = {
   lockboxAddr: '0x68D4f98E5cd2D8d2C6f03c095761663Bf1aA8442',
 };
 
-export default function make(opts: InitOpts, gasKey: string): Module {
+export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey: string): Module {
+  const opts =
+    optsOrNet === 'mainnet'
+      ? INIT_SAPPHIRE
+      : optsOrNet === 'testnet'
+      ? INIT_SAPPHIRE_TESTNET
+      : optsOrNet;
   const provider = new ethers.providers.JsonRpcProvider(opts.web3GatewayUrl);
   const gasWallet = new ethers.Wallet(gasKey).connect(provider);
   // const localWallet = ethers.Wallet.createRandom().connect(this.provider);
@@ -59,7 +65,7 @@ export default function make(opts: InitOpts, gasKey: string): Module {
 
       const key = await getOrCreateKey(lockbox, gasWallet, tcbId);
 
-      return new Cacheable(key, new Date());
+      return new Cacheable(key, new Date(oneHourFromNow));
     },
   };
 }

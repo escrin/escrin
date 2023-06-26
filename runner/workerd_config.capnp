@@ -6,9 +6,12 @@ const config :Workerd.Config = (
 );
 
 const runner :Workerd.Worker = (
+  compatibilityDate = "2023-02-28",
+  compatibilityFlags = ["web_workers"],
   modules = [
     (name = "worker", esModule = embed "dist/tmm.js")
   ],
-  compatibilityDate = "2023-02-28",
-  compatibilityFlags = ["web_workers"],
+  bindings = [
+    (name = "gasKey", fromEnvironment = "GAS_KEY")
+  ],
 );
