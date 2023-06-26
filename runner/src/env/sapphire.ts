@@ -40,8 +40,7 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
       : optsOrNet;
   const provider = new ethers.providers.JsonRpcProvider(opts.web3GatewayUrl);
   const gasWallet = new ethers.Wallet(gasKey).connect(provider);
-  // const localWallet = ethers.Wallet.createRandom().connect(this.provider);
-  let localWallet = new ethers.Wallet(gasKey).connect(provider);
+  let localWallet = ethers.Wallet.createRandom().connect(provider);
   localWallet = opts.debug?.nowrap ? localWallet : sapphire.wrap(localWallet);
   const attok = AttestationTokenFactory.connect(opts.attokAddr, gasWallet);
   const lockbox = LockboxFactory.connect(opts.lockboxAddr, localWallet);
