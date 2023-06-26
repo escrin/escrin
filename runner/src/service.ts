@@ -42,7 +42,11 @@ export class Service {
     if (!('module' in req)) return this.sendError(req.id, 'malformed RPC body: missing module');
     if (!('method' in req)) return this.sendError(req.id, 'malformed RPC body: missing method');
 
-    const getCacheKey = () => canonicalize(req.args) ?? '';
+    const getCacheKey = () =>
+      canonicalize({
+        method: req.method,
+        args: req.args,
+      }) ?? '';
 
     const moduleResponseCache = this.responseCache.get(req.module);
     if (moduleResponseCache) {
@@ -94,10 +98,7 @@ export class Service {
 
   public schedule(period: number) {
     if (this.isTerminated) throw new Error('Worker has already terminated.');
-    this.timer = setInterval(() => {
-      console.log('notifying');
-      this.notify();
-    }, period);
+    this.timer = setInterval(() => this.notify(), period);
   }
 
   private sendError(requestId: number | null, e: Error | string): void {

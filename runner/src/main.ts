@@ -83,6 +83,8 @@ export default new class {
         ctx.waitUntil(service.terminated);
       }
 
+      service.notify();
+
       return new Response('', { status: 201 });
     } catch (e: unknown) {
       if (e instanceof ApiError) {
