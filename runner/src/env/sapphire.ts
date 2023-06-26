@@ -31,6 +31,24 @@ export const INIT_SAPPHIRE_TESTNET: InitOpts = {
   lockboxAddr: '0x68D4f98E5cd2D8d2C6f03c095761663Bf1aA8442',
 };
 
+const lazy = <T extends object>(initializer: () => T): T => {
+  let value: T | undefined;
+  let initialized = false;
+
+  return new Proxy(
+    {},
+    {
+      get: (_, prop) => {
+        if (!initialized) {
+          value = initializer();
+          initialized = true;
+        }
+        return Reflect.get(value!, prop);
+      },
+    },
+  ) as T;
+};
+
 export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey: string): Module {
   const opts =
     optsOrNet === 'mainnet'
@@ -38,12 +56,17 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
       : optsOrNet === 'testnet'
       ? INIT_SAPPHIRE_TESTNET
       : optsOrNet;
-  const provider = new ethers.providers.JsonRpcProvider(opts.web3GatewayUrl);
-  const gasWallet = new ethers.Wallet(gasKey).connect(provider);
-  let localWallet = ethers.Wallet.createRandom().connect(provider);
-  localWallet = opts.debug?.nowrap ? localWallet : sapphire.wrap(localWallet);
-  const attok = AttestationTokenFactory.connect(opts.attokAddr, gasWallet);
-  const lockbox = LockboxFactory.connect(opts.lockboxAddr, localWallet);
+
+  const provider = lazy(() => new ethers.providers.JsonRpcProvider(opts.web3GatewayUrl));
+  const gasWallet = lazy(() => new ethers.Wallet(gasKey).connect(provider));
+  const localWallet = lazy(() => {
+    const localWallet = ethers.Wallet.createRandom().connect(provider)
+    return opts.debug?.nowrap ? localWallet : sapphire.wrap(localWallet);
+  });
+  const attok = lazy(() => {
+    return AttestationTokenFactory.connect(opts.attokAddr, gasWallet);
+  });
+  const lockbox = lazy(() => LockboxFactory.connect(opts.lockboxAddr, localWallet));
 
   return {
     async getKey(id: string): Promise<Cacheable<CryptoKey>> {
