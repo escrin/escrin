@@ -15,18 +15,22 @@ export class Service {
   private responseCache: Map<string, Map<string, CacheEntry>> = new Map();
 
   private isTerminated = false;
+  private error: Error | undefined;
 
   constructor(public readonly worker: Worker) {
     worker.onmessage = (req) => {
       this.handleRequest(req).catch((e: any) => {
         console.log('error handling request:', JSON.stringify(e));
+        this.error = e.error;
         this.terminate();
       });
     };
     worker.onerror = (e) => {
       console.error('worker encountered an error:', JSON.stringify(e));
+      this.error = e.error;
       this.terminate();
     };
+    if (this.isTerminated) throw this.error ?? new Error('failed to start service');
   }
 
   public get terminated() {

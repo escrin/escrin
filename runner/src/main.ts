@@ -42,56 +42,53 @@ async function parseRequestBody(contentType: string | null, body: Body): Promise
   throw new ApiError(400, `unsupported content type: ${contentType}`);
 }
 
-export class TaskManager {
+async function createService(spec: AgentSpec, gasKey: string): Promise<Service> {
+  const scriptUrl = URL.createObjectURL(
+    new Blob([spec.script], { type: 'application/javascript' }),
+  );
+  const worker = new Worker(scriptUrl, { type: spec.type, name: spec.name });
+  URL.revokeObjectURL(scriptUrl);
+
+  let svc: Service;
+  try {
+    svc = new Service(worker);
+  } catch (e: any) {
+    throw new ApiError(400, e.message ?? JSON.stringify(e));
+  }
+  svc.env = new Environment({
+    'sapphire-mainnet': sapphire('mainnet', gasKey),
+    'sapphire-testnet': sapphire('testnet', gasKey),
+  });
+
+  if (spec.schedule) {
+    if (spec.schedule !== '*/5 * * * *') throw new ApiError(400, 'unsupported cron spec');
+    svc.schedule(5 * 60 * 1000);
+  }
+
+  return svc;
+}
+
+export default new class {
   private services: Service[] = [];
 
   async fetch(req: Request, env: { gasKey?: string }, _ctx: ExecutionContext) {
-    if (!/^(0x)?[0-9a-f]{64,64}$/i.test(env.gasKey ?? '')) {
-      console.log(env.gasKey)
+    if (!env.gasKey || !/^(0x)?[0-9a-f]{64,64}$/i.test(env.gasKey)) {
       console.error('missing or invalid `env.gasKey`');
       return new Response('', { status: 500 });
     }
 
-    let spec: AgentSpec;
     try {
-      spec = await parseRequestBody(req.headers.get('content-type'), req);
+      const spec = await parseRequestBody(req.headers.get('content-type'), req);
+      this.services.push(await createService(spec, env.gasKey));
+      return new Response('', { status: 201 });
     } catch (e: unknown) {
       if (e instanceof ApiError) {
         return new ErrorResponse(e.statusCode, e.message);
       }
       throw e;
     }
-
-    const scriptUrl = URL.createObjectURL(new Blob([spec.script], { type: 'application/json' }));
-    const worker = new Worker(scriptUrl, { type: spec.type, name: spec.name });
-    URL.revokeObjectURL(scriptUrl);
-
-    let svc: Service;
-    try {
-      svc = new Service(worker);
-    } catch (e: unknown) {
-      console.error(e);
-      return new Response('', { status: 400 });
-    }
-    svc.env = new Environment({
-      'sapphire-mainnet': sapphire('mainnet', env.gasKey!),
-      'sapphire-testnet': sapphire('testnet', env.gasKey!),
-    });
-
-    if (spec.schedule) {
-      if (spec.schedule !== '*/5 * * * *') {
-        // throw new ApiError(400, 'unsupported cron spec')
-        return new Response('', { status: 501 });
-      }
-      console.log('schedule');
-      svc.schedule(5 * 60 * 1000);
-    }
-    this.services.push(svc);
-    return new Response('', { status: 201 });
   }
-}
-
-export default new TaskManager();
+};
 
 class ErrorResponse extends Response {
   constructor(status: number, message: string) {
