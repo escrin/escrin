@@ -15,9 +15,12 @@ export class Service {
   private responseCache: Map<string, Map<string, CacheEntry>> = new Map();
 
   private isTerminated = false;
+  public terminated: Promise<void>;
+  private terminatedResolver = () => {};
   private error: Error | undefined;
 
   constructor(public readonly worker: Worker) {
+    this.terminated = new Promise((resolve) => (this.terminatedResolver = resolve));
     worker.onmessage = (req) => {
       this.handleRequest(req).catch((e: any) => {
         console.log('error handling request:', JSON.stringify(e));
@@ -31,10 +34,6 @@ export class Service {
       this.terminate();
     };
     if (this.isTerminated) throw this.error ?? new Error('failed to start service');
-  }
-
-  public get terminated() {
-    return this.isTerminated;
   }
 
   public async handleRequest({ data: req }: MessageEvent): Promise<void> {
@@ -90,6 +89,7 @@ export class Service {
       clearInterval(this.timer);
       this.timer = undefined;
     }
+    this.terminatedResolver();
   }
 
   public schedule(period: number) {
