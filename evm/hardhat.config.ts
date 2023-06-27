@@ -10,37 +10,13 @@ const accounts = process.env.PRIVATE_KEY
   ? { mnemonic: process.env.MNEMONIC }
   : [];
 
-task('accounts').setAction(async (_, hre) => {
-  const { ethers } = hre;
+task('accounts').setAction(async (_, { ethers }) => {
   const signers = await ethers.getSigners();
   const balances = await Promise.all(signers.map((s) => ethers.provider.getBalance(s.address)));
   for (let i = 0; i < signers.length; i++) {
-    let num: string | number;
-    try {
-      num = balances[i].toNumber();
-    } catch {
-      num = ethers.utils.formatEther(balances[i]);
-    }
-    console.log(signers[i].address, num);
+    console.log(signers[i].address, ethers.formatEther(balances[i]));
   }
 });
-
-task('get-trusted-sender').setAction(async (_, hre) => {
-  const { ethers } = hre;
-  const attok = await ethers.getContract('AttestationToken');
-  console.log(await attok.callStatic.trustedSender());
-});
-
-task('set-trusted-sender')
-  .addParam('sender')
-  .setAction(async (args, hre) => {
-    const { ethers } = hre;
-    const attok = await ethers.getContract('AttestationToken');
-    const tx = await attok.setTrustedSender(args.sender);
-    console.log(tx.hash);
-    const receipt = await tx.wait();
-    if (receipt.status !== 1) throw new Error('failed');
-  });
 
 const config: HardhatUserConfig = {
   solidity: {
