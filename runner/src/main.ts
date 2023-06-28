@@ -63,8 +63,8 @@ async function createService(spec: AgentSpec, gasKey: string): Promise<Service> 
   return svc;
 }
 
-export default new class {
-  private services: Service[] = [];
+export default new (class {
+  #services: Service[] = [];
 
   async fetch(req: Request, env: { gasKey?: string }, ctx: ExecutionContext) {
     if (!env.gasKey || !/^(0x)?[0-9a-f]{64,64}$/i.test(env.gasKey)) {
@@ -75,7 +75,7 @@ export default new class {
     try {
       const spec = await parseRequestBody(req.headers.get('content-type'), req);
       const service = await createService(spec, env.gasKey);
-      this.services.push(service);
+      this.#services.push(service);
 
       if (spec.schedule) {
         if (spec.schedule !== '*/5 * * * *') throw new ApiError(400, 'unsupported cron spec');
@@ -93,7 +93,7 @@ export default new class {
       throw e;
     }
   }
-};
+})();
 
 class ErrorResponse extends Response {
   constructor(status: number, message: string) {

@@ -60,7 +60,7 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
   const provider = lazy(() => new ethers.JsonRpcProvider(opts.web3GatewayUrl));
   const gasWallet = lazy(() => new ethers.Wallet(gasKey).connect(provider));
   const localWallet = lazy(() => {
-    const localWallet = ethers.Wallet.createRandom().connect(provider)
+    const localWallet = ethers.Wallet.createRandom().connect(provider);
     return opts.debug?.nowrap ? localWallet : sapphire.wrap(localWallet);
   }) as any as ethers.BaseWallet;
   const attok = lazy(() => {

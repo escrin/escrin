@@ -1,11 +1,12 @@
 {
   "include": ["src"],
   "compilerOptions": {
+    "declaration": true,
     "esModuleInterop": true,
     "lib": ["es2022", "dom"],
     "module": "es2022",
     "moduleResolution": "node",
-    "noEmit": true,
+    "outDir": "dist/lib",
     "strict": true,
     "target": "es2022"
   }
