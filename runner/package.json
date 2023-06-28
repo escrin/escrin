@@ -25,16 +25,17 @@
   "dependencies": {
     "@escrin/evm": "workspace:../evm",
     "@oasisprotocol/deoxysii": "^0.0.5",
-    "@oasisprotocol/sapphire-paratime": "^1.0.15",
+    "@oasisprotocol/sapphire-paratime": "file:../oasisprotocol-sapphire-paratime-1.1.0.tgz",
     "canonicalize": "^2.0.0",
-    "ethers": "^5.7.2",
+    "ethers": "^6.6.1",
     "keccak": "^3.0.3",
     "nft.storage": "^7.1.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20230518.0",
     "@types/keccak": "^3.0.1",
-    "esbuild": "^0.18.4",
+    "@types/node": "^20.3.2",
+    "esbuild": "^0.18.10",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.1.3"
   }

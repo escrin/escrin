@@ -57,12 +57,12 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
       ? INIT_SAPPHIRE_TESTNET
       : optsOrNet;
 
-  const provider = lazy(() => new ethers.providers.JsonRpcProvider(opts.web3GatewayUrl));
+  const provider = lazy(() => new ethers.JsonRpcProvider(opts.web3GatewayUrl));
   const gasWallet = lazy(() => new ethers.Wallet(gasKey).connect(provider));
   const localWallet = lazy(() => {
     const localWallet = ethers.Wallet.createRandom().connect(provider)
     return opts.debug?.nowrap ? localWallet : sapphire.wrap(localWallet);
-  });
+  }) as any as ethers.BaseWallet;
   const attok = lazy(() => {
     return AttestationTokenFactory.connect(opts.attokAddr, gasWallet);
   });
@@ -74,12 +74,14 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
 
       const oneHourFromNow = Math.floor(Date.now() / 1000) + 60 * 60;
       let currentBlock = await provider.getBlock('latest');
+      if (currentBlock === null) throw new RpcError(500, 'unable to get current block');
       const prevBlock = await provider.getBlock(currentBlock.number - 1);
+      if (prevBlock === null) throw new RpcError(500, 'unable to get previous block');
       const registration: Registration = {
-        baseBlockHash: prevBlock.hash,
+        baseBlockHash: prevBlock.hash!,
         baseBlockNumber: prevBlock.number,
         expiry: oneHourFromNow,
-        registrant: localWallet.address,
+        registrant: localWallet.getAddress(),
         tokenExpiry: oneHourFromNow,
       };
       const quote = await mockQuote(registration);
@@ -93,13 +95,13 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
 }
 
 async function mockQuote(registration: Registration): Promise<Uint8Array> {
-  const coder = ethers.utils.defaultAbiCoder;
+  const coder = ethers.AbiCoder.defaultAbiCoder();
   const measurementHash = '0xc275e487107af5257147ce76e1515788118429e0caa17c04d508038da59d5154'; // static random bytes. this is just a key in a key-value store.
   const regTypeDef =
     'tuple(uint256 baseBlockNumber, bytes32 baseBlockHash, uint256 expiry, uint256 registrant, uint256 tokenExpiry)'; // TODO: keep this in sync with the actual typedef
   const regBytesHex = coder.encode([regTypeDef], [registration]);
-  const regBytes = Buffer.from(ethers.utils.arrayify(regBytesHex));
-  return ethers.utils.arrayify(
+  const regBytes = Buffer.from(ethers.getBytes(regBytesHex));
+  return ethers.getBytes(
     coder.encode(
       ['bytes32', 'bytes32'],
       [measurementHash, createKeccakHash('keccak256').update(regBytes).digest()],
@@ -112,30 +114,31 @@ async function sendAttestation(
   quote: Uint8Array,
   reg: Registration,
 ): Promise<string> {
-  const expectedTcbId = await attok.callStatic.getTcbId(quote);
-  if (await attok.callStatic.isAttested(reg.registrant, expectedTcbId)) return expectedTcbId;
+  const expectedTcbId = await attok.getTcbId(quote);
+  if (await attok.isAttested(reg.registrant, expectedTcbId)) return expectedTcbId;
   const tx = await attok.attest(quote, reg, { gasLimit: 10_000_000 });
   const receipt = await tx.wait();
-  if (receipt.status !== 1) throw new Error('attestation tx failed');
+  if (receipt?.status !== 1) throw new Error('attestation tx failed');
   let tcbId = '';
-  for (const event of receipt.events ?? []) {
-    if (event.event !== 'Attested') continue;
-    tcbId = event.args!.tcbId;
+  const attestedTopic = attok.getEvent('Attested').fragment.topicHash;
+  for (const log of receipt ?? []) {
+    if (log.topics[0] !== attestedTopic) continue;
+    tcbId = log.topics[1];
   }
   if (!tcbId) throw new Error('could not retrieve attestation id');
-  await waitForConfirmation(attok.provider, receipt);
+  await waitForConfirmation(attok.runner!.provider!, receipt);
   return tcbId;
 }
 
 async function waitForConfirmation(
-  provider: ethers.providers.Provider,
-  receipt: ethers.ContractReceipt,
+  provider: ethers.Provider,
+  receipt: ethers.ContractTransactionReceipt | null,
 ): Promise<void> {
   const { chainId } = await provider.getNetwork();
-  if (chainId !== 0x5afe && chainId !== 0x5aff) return;
+  if (chainId !== 0x5afen && chainId !== 0x5affn) return;
   const getCurrentBlock = () => provider.getBlock('latest');
   let currentBlock = await getCurrentBlock();
-  while (currentBlock.number <= receipt.blockNumber + 1) {
+  while (currentBlock && receipt && currentBlock.number <= receipt.blockNumber + 1) {
     await new Promise((resolve) => setTimeout(resolve, 3_000));
     currentBlock = await getCurrentBlock();
   }
@@ -143,22 +146,22 @@ async function waitForConfirmation(
 
 async function getOrCreateKey(
   lockbox: Lockbox,
-  gasWallet: ethers.Wallet,
+  gasWallet: ethers.ContractRunner,
   tcbId: string,
 ): Promise<CryptoKey> {
-  let keyHex = await lockbox.callStatic.getKey(tcbId);
+  let keyHex = await lockbox.getKey(tcbId);
   if (!/^(0x)?0+$/.test(keyHex)) return importKey(keyHex);
   const tx = await lockbox
     .connect(gasWallet)
     .createKey(tcbId, crypto.getRandomValues(new Uint8Array(32)), { gasLimit: 10_000_000 });
   const receipt = await tx.wait();
-  await waitForConfirmation(lockbox.provider, receipt);
-  keyHex = await lockbox.callStatic.getKey(tcbId);
+  await waitForConfirmation(lockbox.runner!.provider!, receipt);
+  keyHex = await lockbox.getKey(tcbId);
   return importKey(keyHex);
 }
 
 async function importKey(keyHex: string): Promise<CryptoKey> {
-  const key = ethers.utils.arrayify(keyHex);
+  const key = ethers.getBytes(keyHex);
   const exportable = true;
   return crypto.subtle.importKey('raw', key, 'HKDF', exportable, ['deriveKey', 'deriveBits']);
 }
