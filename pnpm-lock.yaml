@@ -136,6 +136,9 @@ importers:
       '@types/keccak':
         specifier: ^3.0.1
         version: 3.0.1
+      '@types/node':
+        specifier: ^20.3.2
+        version: 20.3.2
       esbuild:
         specifier: ^0.18.10
         version: 0.18.10
