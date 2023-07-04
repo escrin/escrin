@@ -9,9 +9,14 @@ const runner :Workerd.Worker = (
   compatibilityDate = "2023-02-28",
   compatibilityFlags = ["web_workers"],
   modules = [
-    (name = "worker", esModule = embed "dist/escrin-runner.js")
+    (name = "worker", esModule = embed "dist/escrin-runner.js"),
   ],
+  durableObjectNamespaces = [
+    (className = "EscrinSpawner", uniqueKey = "393fc4a381c4adafa76c55683f06ee4a"),
+  ],
+  durableObjectStorage = (inMemory = void),
   bindings = [
-    (name = "gasKey", fromEnvironment = "GAS_KEY")
+    (name = "gasKey", fromEnvironment = "GAS_KEY"),
+    (name = "spawner", durableObjectNamespace = "EscrinSpawner"),
   ],
 );

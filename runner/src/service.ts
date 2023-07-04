@@ -1,33 +1,29 @@
-import canonicalize from 'canonicalize';
+import * as Comlink from 'comlink';
 
-import { Cacheable, Environment } from './env';
-
-type CacheEntry = {
-  value: object;
-  expiry: Date;
-};
+import { Environment } from './env';
+import { EscrinRunner, EscrinWorker } from './worker-interface';
 
 export class Service {
   public env: Environment = new Environment({});
 
-  private timer: ReturnType<typeof setInterval> | undefined;
+  private workerInterface: Comlink.Remote<EscrinWorker>;
 
-  private responseCache: Map<string, Map<string, CacheEntry>> = new Map();
+  private scheduledTimeout: ReturnType<typeof setInterval> | number | undefined;
 
   private isTerminated = false;
-  public terminated: Promise<void>;
-  private terminatedResolver = () => {};
   private error: Error | undefined;
 
-  constructor(public readonly worker: Worker) {
-    this.terminated = new Promise((resolve) => (this.terminatedResolver = resolve));
-    worker.onmessage = (req) => {
-      this.handleRequest(req).catch((e: any) => {
-        console.log('error handling request:', JSON.stringify(e));
-        this.error = e.error;
-        this.terminate();
-      });
+  constructor(public readonly name: string, public readonly worker: Worker) {
+    this.workerInterface = Comlink.wrap(worker);
+    // TODO: replace `Environment` dynamic dispatch with concretized `EscrinRunner` to preserve type sanity without destroying performance via `postMessage` roundtrips.
+    const env = this.env;
+    const context: EscrinRunner = {
+      getKey(store, ident) {
+        const handler = env.get(store, 'get-key') as any; // TODO: type
+        return handler(ident);
+      },
     };
+    Comlink.expose(context, worker);
     worker.onerror = (e) => {
       console.error('worker encountered an error:', JSON.stringify(e));
       this.error = e.error;
@@ -36,84 +32,35 @@ export class Service {
     if (this.isTerminated) throw this.error ?? new Error('failed to start service');
   }
 
-  public async handleRequest({ data: req }: MessageEvent): Promise<void> {
-    if (!req || typeof req === 'object') return this.sendError(null, 'malformed RPC body');
-    if (!('id' in req)) return this.sendError(null, 'malformed RPC body: missing ID');
-    if (!('module' in req)) return this.sendError(req.id, 'malformed RPC body: missing module');
-    if (!('method' in req)) return this.sendError(req.id, 'malformed RPC body: missing method');
-
-    const getCacheKey = () =>
-      canonicalize({
-        method: req.method,
-        args: req.args,
-      }) ?? '';
-
-    const moduleResponseCache = this.responseCache.get(req.module);
-    if (moduleResponseCache) {
-      const cacheKey = getCacheKey();
-      const { value, expiry } = moduleResponseCache.get(cacheKey) ?? {};
-      if (expiry) {
-        if (expiry > new Date()) {
-          this.sendResponse(req.id, value);
-          return;
-        } else {
-          moduleResponseCache.delete(cacheKey);
-        }
-      }
-    }
-
-    const handler = this.env.get(req.module, req.method);
-    if (!handler) return this.sendError(req.id, 'unable to fulfil RPC: no such handler');
+  public async notify(): Promise<void> {
+    if (this.isTerminated) throw new Error('Worker has already terminated.');
     try {
-      let result = await handler(...req.args);
-      if (result instanceof Cacheable) {
-        if (!this.responseCache.has(req.module)) {
-          this.responseCache.set(req.module, new Map());
-        }
-        this.responseCache.get(req.module)!.set(getCacheKey(), result.item);
-        result = result.item;
-      } else {
-        this.sendResponse(req.id, result);
-      }
+      await this.workerInterface.tasks();
     } catch (e: any) {
-      this.sendError(req.id, e);
+      this.terminate();
+      throw e;
     }
-  }
-
-  public notify(): void {
-    this.worker.postMessage({
-      method: 'tasks',
-    });
   }
 
   public terminate(): void {
+    if (this.isTerminated) return;
     this.isTerminated = true;
-    this.worker.terminate();
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = undefined;
-    }
-    this.terminatedResolver();
+    this.workerInterface[Comlink.releaseProxy]();
+    clearTimeout(this.scheduledTimeout);
+    delete this.scheduledTimeout;
+    setImmediate(() => {
+      // Wait for promises to settle before destroying the isolate.
+      this.worker.terminate();
+    });
   }
 
   public schedule(period: number) {
     if (this.isTerminated) throw new Error('Worker has already terminated.');
-    this.timer = setInterval(() => this.notify(), period);
-  }
-
-  private sendError(requestId: number | null, e: Error | string): void {
-    this.worker.postMessage({
-      type: 'error',
-      requestId,
-      error: typeof e === 'string' ? new Error(e) : e,
-    });
-  }
-
-  private sendResponse(requestId: number | null, response?: object): void {
-    this.worker.postMessage({
-      type: 'response',
-      requestId,
-      response,
-    });
+    const notifyAndSchedule = async (period: number) => {
+      if (this.isTerminated) return;
+      await this.notify();
+      setTimeout(notifyAndSchedule, period);
+    };
+    this.scheduledTimeout = setTimeout(notifyAndSchedule, period);
   }
 }
