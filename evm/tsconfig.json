@@ -1,8 +1,15 @@
 {
-  "extends": "./tsconfig/cjs.json",
   "include": ["src", "scripts", "test", "typechain-types", "deploy"],
-  "files": ["hardhat.config.ts"],
+  "files": ["hardhat.config.cjs"],
   "compilerOptions": {
-    "noEmit": true
+    "allowJs": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "lib": ["es2022", "dom"],
+    "module": "es2022",
+    "moduleResolution": "node",
+    "outDir": "lib",
+    "strict": true,
+    "target": "es2022",
   }
 }

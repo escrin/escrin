@@ -1,8 +1,8 @@
-import { HardhatUserConfig, task } from 'hardhat/config';
-import '@nomicfoundation/hardhat-toolbox';
-import 'hardhat-watcher';
-import 'hardhat-deploy';
-import 'hardhat-deploy-ethers';
+const { task } = require('hardhat/config');
+require('@nomicfoundation/hardhat-toolbox');
+require('hardhat-watcher');
+require('hardhat-deploy');
+require('hardhat-deploy-ethers');
 
 const accounts = process.env.PRIVATE_KEY
   ? [process.env.PRIVATE_KEY]
@@ -18,7 +18,7 @@ task('accounts').setAction(async (_, { ethers }) => {
   }
 });
 
-const config: HardhatUserConfig = {
+module.exports = {
   solidity: {
     version: '0.8.18',
     settings: {
@@ -65,5 +65,3 @@ const config: HardhatUserConfig = {
     deployer: 0,
   },
 };
-
-export default config;
