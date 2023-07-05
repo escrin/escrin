@@ -1,6 +1,6 @@
 import * as Comlink from 'comlink';
 
-import { EscrinRunner, EscrinWorker } from './worker-interface';
+import { EscrinRunner, EscrinWorker } from './worker-interface.js';
 
 export interface EscrinCallbacks {
   tasks(rnr: EscrinRunner): Promise<void>;

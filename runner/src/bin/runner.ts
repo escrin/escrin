@@ -6,9 +6,9 @@ import {
   Request,
 } from '@cloudflare/workers-types/experimental';
 
-import { Environment } from '../env';
-import sapphire from '../env/sapphire';
-import { Service } from '../service';
+import { Environment } from '../env/index.js';
+import sapphire from '../env/sapphire.js';
+import { Service } from '../service.js';
 
 class ApiError extends Error {
   constructor(public readonly statusCode: number, message: string) {

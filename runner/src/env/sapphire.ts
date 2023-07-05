@@ -6,7 +6,7 @@ import createKeccakHash from 'keccak';
 
 import { AttestationToken, AttestationTokenFactory, Lockbox, LockboxFactory } from '@escrin/evm';
 
-import { Cacheable, Module, RpcError } from '.';
+import { Cacheable, Module, RpcError } from './index.js';
 
 type Registration = AttestationToken.RegistrationStruct;
 

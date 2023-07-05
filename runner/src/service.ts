@@ -1,7 +1,7 @@
 import * as Comlink from 'comlink';
 
-import { Environment } from './env';
-import { EscrinRunner, EscrinWorker } from './worker-interface';
+import { Environment } from './env/index.js';
+import { EscrinRunner, EscrinWorker } from './worker-interface.js';
 
 export class Service {
   public env: Environment = new Environment({});
