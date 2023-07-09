@@ -1,6 +1,6 @@
 export type Module = Readonly<Record<string, Handler>>;
 
-export type Handler<T extends object | undefined | null = object> = (...args: any[]) => Promise<T>;
+export type Handler = (...args: any[]) => any;
 
 export class Cacheable<T> {
   constructor(public readonly item: T, public readonly expiry: Date) {}

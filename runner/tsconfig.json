@@ -7,6 +7,7 @@
     "module": "es2022",
     "moduleResolution": "node",
     "outDir": "dist/lib",
+    "skipLibCheck": true,
     "strict": true,
     "target": "es2022"
   }

@@ -6,17 +6,10 @@ import {
   Request,
 } from '@cloudflare/workers-types/experimental';
 
+import { ApiError } from '../error.js';
+import { Service } from '../service.js';
 import { Environment } from '../env/index.js';
 import sapphire from '../env/sapphire.js';
-import { Service } from '../service.js';
-
-class ApiError extends Error {
-  constructor(public readonly statusCode: number, message: string) {
-    super(message);
-    this.name = new.target.name;
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
 
 type AgentSpec = {
   script: string;
@@ -24,6 +17,7 @@ type AgentSpec = {
   name?: string;
   schedule?: string;
   args?: object;
+  config?: string | Record<string, object>;
 };
 
 async function parseRequestBody(contentType: string | null, body: Body): Promise<AgentSpec> {
@@ -39,8 +33,19 @@ async function parseRequestBody(contentType: string | null, body: Body): Promise
     contentType.startsWith('multipart/form-data')
   ) {
     try {
-      const fd = await body.formData();
-      return Object.fromEntries(fd.entries()) as any;
+      const formData = await body.formData();
+      const rawConfig = formData.get('config');
+      let config: Record<string, object> = {};
+      if (rawConfig instanceof File) {
+        throw new ApiError(400, 'unsupported config format');
+      } else if (typeof rawConfig === 'string') {
+        config = JSON.parse(rawConfig);
+      }
+      // TODO: validation
+      return {
+        ...Object.fromEntries(formData.entries()),
+        config,
+      } as any;
     } catch {
       throw new ApiError(400, 'the request body could not be parsed as form data');
     }
@@ -64,6 +69,9 @@ async function createService(spec: AgentSpec, gasKey: string): Promise<Service> 
   svc.env = new Environment({
     'sapphire-mainnet': sapphire('mainnet', gasKey),
     'sapphire-testnet': sapphire('testnet', gasKey),
+    config: {
+      'get-config': () => spec.config,
+    },
   });
 
   return svc;

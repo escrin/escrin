@@ -17,13 +17,20 @@ export class Service {
     this.workerInterface = Comlink.wrap(worker);
     // TODO: replace `Environment` dynamic dispatch with concretized `EscrinRunner` to preserve type sanity without destroying performance via `postMessage` roundtrips.
     const env = this.env;
-    const context: EscrinRunner = {
-      getKey(store, ident) {
-        const handler = env.get(store, 'get-key') as any; // TODO: type
-        return handler(ident);
+    const rnr: EscrinRunner = {
+      async getConfig() {
+        return env.get('config', 'task-source') ?? {};
       },
+      async getKey(store, ident) {
+        const handler = env.get(store, 'get-key'); // TODO: type
+        return handler ? handler(ident) : undefined;
+      },
+      // async getEthProvider(network) {
+      //   const handler = env.get(network, 'get-provider'); // TODO: type
+      //   return handler ? handler() : undefined;
+      // },
     };
-    Comlink.expose(context, worker);
+    Comlink.expose(rnr, worker);
     worker.onerror = (e) => {
       console.error('worker encountered an error:', JSON.stringify(e));
       this.error = e.error;

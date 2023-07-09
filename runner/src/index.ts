@@ -2,6 +2,9 @@ import * as Comlink from 'comlink';
 
 import { EscrinRunner, EscrinWorker } from './worker-interface.js';
 
+export { ApiError } from './error.js';
+export * from './worker-interface.js';
+
 export interface EscrinCallbacks {
   tasks(rnr: EscrinRunner): Promise<void>;
 }
