@@ -13,12 +13,12 @@
 
  :root {
   --vp-c-brand: #eeaa00;
-  --vp-c-brand-light: #ffcc33;
-  --vp-c-brand-lighter: #9499ff;
-  --vp-c-brand-lightest: #bcc0ff;
-  --vp-c-brand-dark: #eeaa00;
-  --vp-c-brand-darker: #454ce1;
-  --vp-c-brand-dimm: rgba(100, 108, 255, 0.08);
+  --vp-c-brand-light: #fbb70d;
+  --vp-c-brand-lighter: #ffc41a;
+  --vp-c-brand-lightest: #fce2a1;
+  --vp-c-brand-dark: #c88400;
+  --vp-c-brand-darker: #955100;
+  --vp-c-brand-dimm: rgba(238, 170, 0, 0.08);
 }
 
 /**
@@ -91,8 +91,4 @@
 
 .DocSearch {
   --docsearch-primary-color: var(--vp-c-brand) !important;
-}
-
-code {
-  font-size: 13px !important;
 }
