@@ -1,5 +1,7 @@
 const { task } = require('hardhat/config');
-require('@nomicfoundation/hardhat-toolbox');
+
+require('@typechain/hardhat')
+require('@nomicfoundation/hardhat-ethers')
 require('hardhat-watcher');
 require('hardhat-deploy');
 require('hardhat-deploy-ethers');
