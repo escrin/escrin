@@ -7,7 +7,7 @@ export type StateNetwork = 'sapphire-mainnet' | 'sapphire-testnet';
 
 export interface EscrinRunner {
   getConfig(): Promise<Record<string, unknown>>;
-  getKey(store: KmNetwork, ident: string): Promise<CryptoKey>;
+  getOmniKey(store: KmNetwork): Promise<CryptoKey>;
   // getEthProvider(network: StateNetwork): Promise<EIP1193Provider>; // TODO: this does not need to be async here
 }
 

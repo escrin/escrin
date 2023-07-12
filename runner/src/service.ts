@@ -21,9 +21,9 @@ export class Service {
       async getConfig() {
         return env.get('config', 'task-source') ?? {};
       },
-      async getKey(store, ident) {
+      async getOmniKey(store) {
         const handler = env.get(store, 'get-key'); // TODO: type
-        return handler ? handler(ident) : undefined;
+        return handler ? handler('omni') : undefined;
       },
       // async getEthProvider(network) {
       //   const handler = env.get(network, 'get-provider'); // TODO: type
