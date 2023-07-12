@@ -1,5 +1,5 @@
 export interface EscrinWorker {
-  tasks(): Promise<void>;
+  tasks(rnr: EscrinRunner): Promise<void>;
 }
 
 export type KmNetwork = 'sapphire-mainnet' | 'sapphire-testnet';

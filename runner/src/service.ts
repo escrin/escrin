@@ -6,7 +6,7 @@ import { EscrinRunner, EscrinWorker } from './worker-interface.js';
 export class Service {
   public env: Environment = new Environment({});
 
-  private workerInterface: Comlink.Remote<EscrinWorker>;
+  private workerInterface: Comlink.Remote<OmitRunner<EscrinWorker>>;
 
   private scheduledTimeout: ReturnType<typeof setInterval> | number | undefined;
 
@@ -71,3 +71,9 @@ export class Service {
     this.scheduledTimeout = setTimeout(notifyAndSchedule, period);
   }
 }
+
+type OmitRunner<T> = {
+  [K in keyof T]: T[K] extends (rnr: EscrinRunner, ...args: infer Args) => infer R
+    ? (...args: Args) => R
+    : T[K];
+};
