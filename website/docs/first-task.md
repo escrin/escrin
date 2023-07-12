@@ -7,7 +7,7 @@ image:
 ---
 
 Escrin allows smart contracts to run secure off-chain computation in bundles of work called _tasks_.
-Tasks are created implicitly by a contract when it provides an incentive for off-chain task runners to submit work.
+Tasks are created implicitly by a contract when it provides an incentive for off-chain workers to submit task results.
 A task is anything a contract will accept.
 
 This guide will walk you through assembling an `AddingAtHome` dapp that rewards people for contributing to the mission of discovering all numbers through the power of addition.
@@ -16,8 +16,8 @@ As a reward, `AddingAtHome` will gives the discoverer of the number a commemorat
 
 This illustrative example does not need autonomous computation, but it does demonstrate the fundamental workflow of an Escrin workload.
 
-By the end of this guide, you will know how to add Escrin to your dapp, create tasks, and fulfill them using your own task runners.
-The steps below work through creating the tasks that will be fulfilled by task runners created in the next set of steps.
+By the end of this guide, you will know how to add Escrin to your dapp, create tasks, and fulfill them using your own workers.
+The steps below work through creating the tasks that will be fulfilled by workers created in the next set of steps.
 
 ## Setup
 
@@ -74,7 +74,7 @@ All this next changeset does is add the Escrin Solidity library dependency, make
 +        _mint(msg.sender, 1);
 +    }
 +
-+    /// Accepts one or more elements of a task runner's task results submission
++    /// Accepts one or more elements of a worker's task results submission
 +    /// @param _taskIds A sorted set of taskIds reported as complete in this submission
 +    /// @param _proof A proof of having completed the tasks
 +    /// @param _report Any extra data the submitter wants to provide
@@ -159,7 +159,7 @@ contract AddingAtHome is ERC721, TaskAcceptorV1 {
         _mint(msg.sender, 1);
     }
 
-    /// Accepts one or more elements of a task runner's task results submission
+    /// Accepts one or more elements of a worker's task results submission
     /// @param _taskIds A sorted set of taskIds reported as complete in this submission
     /// @param _proof A proof of having completed the tasks
     /// @param _report Any extra data the submitter wants to provide
@@ -187,7 +187,7 @@ contract AddingAtHome is ERC721, TaskAcceptorV1 {
 
 ## Deploy
 
-Now that `AddingAtHome` accepts tasks, we can deploy it to the Remix in-browser testnet so that a motivated task runner can complete some tasks!
+Now that `AddingAtHome` accepts tasks, we can deploy it to the Remix in-browser testnet so that a motivated worker can complete some tasks!
 
 First the code needs to be compiled.
 You can do this using the green play button, the _Save_ keyboard shortcut, or the big blue button in the Solidity tab as pictured below.
