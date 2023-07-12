@@ -12,7 +12,7 @@ hero:
   actions:
     - theme: brand
       text: Read the Docs
-      link: /markdown-examples
+      link: /docs/
     - theme: alt
       text: Try the Demo
       link: https://nftrout.escrin.org
