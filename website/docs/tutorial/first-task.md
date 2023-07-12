@@ -28,7 +28,7 @@ Start by navigating to [Remix].
 Once there, create a new workspace from the "OpenZeppelin ERC721" template.
 
 <figure class="text-center">
-<img src="/remix-new-workspace.png" alt="A dialog box for creating a workspace showing Open Zeppelin ERC-721 as the selected template and AddingAtHome as the name." class="block lg:w-3/4 mx-auto" />
+<img src="/remix-new-workspace.png" alt="A dialog box for creating a workspace showing Open Zeppelin ERC-721 as the selected template and AddingAtHome as the name." class="block md:w-2/3 mx-auto" />
 <figcaption class="my-4 text-sm">The dialog for creating an ERC721 workspace in Remix.</figcaption>
 </figure>
 
@@ -193,7 +193,7 @@ First the code needs to be compiled.
 You can do this using the green play button, the _Save_ keyboard shortcut, or the big blue button in the Solidity tab as pictured below.
 
 <figure class="text-center">
-<img src="/remix-compile.png" alt="The page shown having selected the Solidity icon in the Remix toolbar." class="block w-3/4 md:w-2/3 mx-auto" />
+<img src="/remix-compile.png" alt="The page shown having selected the Solidity icon in the Remix toolbar." class="block w-3/4 md:w-1/2 mx-auto" />
 <figcaption class="my-4 text-sm">The Remix Solidity compiler tab and big blue compile button.</figcaption>
 </figure>
 

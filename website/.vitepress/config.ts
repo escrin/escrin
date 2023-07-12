@@ -15,6 +15,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Docs', link: '/docs/' },
+      { text: 'Community', link: 'https://enshrine.ai/discord' },
     ],
 
     sidebar: [
@@ -27,14 +28,15 @@ export default defineConfig({
       {
         text: 'Tutorial',
         items: [
-          { text: 'My First Task', link: '/docs/first-task' },
+          { text: '1. Create On-Chain Tasks', link: '/docs/tutorial/first-task' },
+          { text: '2. Fulfill Tasks using a Worker', link: '/docs/tutorial/first-worker' },
         ],
       },
       {
-        text: 'Worker API',
+        text: 'Reference',
         items: [
-          { text: 'Overview', link: '/docs/api/' },
-          { text: 'Key Management', link: '/docs/api/key-management' },
+          { text: 'Worker API', link: '/docs/reference/worker' },
+          { text: 'Solidity Library', link: '/docs/reference/solidity' },
         ],
       },
     ],

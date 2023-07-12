@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /**
  * Customize default theme styling by overriding CSS variables:
  * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
@@ -23,7 +27,7 @@
 
 :root {
   --vp-button-brand-border: var(--vp-c-brand-light);
-  --vp-button-brand-text: var(--vp-c-white);
+  --vp-button-brand-text: var(--vp-c-black);
   --vp-button-brand-bg: var(--vp-c-brand);
   --vp-button-brand-hover-border: var(--vp-c-brand-light);
   --vp-button-brand-hover-text: var(--vp-c-white);
