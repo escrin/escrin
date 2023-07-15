@@ -275,7 +275,16 @@ The `--target=es2022` and `--minify` flags are used to decrease bundle size and 
 
 ### Deployment
 
-Send the bundled worker to the `escrin-runner` instance using the HTTP API, which will be assumed to be running locally on port 8080.
+First, create a JSON file called `worker-config.json` containing the configuration variables `contractAddress` and `walletKey`.
+
+```json
+{
+    "contractAddress": "0x...",
+    "walletKey": "0x..."
+}
+```
+
+Next, and finally, send the bundled worker to the `escrin-runner` instance using the HTTP API, which will be assumed to be running locally on port 8080.
 
 ```sh
 curl -isS http://localhost:8080 \
