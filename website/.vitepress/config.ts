@@ -36,7 +36,7 @@ export default defineConfig({
         text: 'Reference',
         items: [
           { text: 'Smart Workers', link: '/docs/reference/worker' },
-          { text: 'Solidity Library', link: '/docs/reference/solidity' },
+          // { text: 'Solidity Library', link: '/docs/reference/solidity' },
         ],
       },
     ],
