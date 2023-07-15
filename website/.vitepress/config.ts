@@ -50,7 +50,7 @@ export default defineConfig({
     algolia: {
       indexName: 'escrin',
       appId: 'ZNRK6V99NY',
-      apiKey: 'ab132c7d3e214170645c7e45a41094dd',
+      apiKey: 'bf4aaa6ca6d33a85474cb33796497f0f',
     },
   },
 });
