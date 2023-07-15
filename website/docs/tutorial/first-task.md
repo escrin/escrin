@@ -1,10 +1,11 @@
 ---
-title: "My First Task"
-description: "A simple example of using Escrin to run secure off-chain tasks."
+description: "Using the Escrin Solidity library to create tasks for off-chain workers to complete."
 image:
     src: /twitter-my-first-task.png
-    alt: It's easy to use smart workers.
+    alt: It is easy to use Escrin Smart Workers.
 ---
+
+# My First Task
 
 Escrin allows smart contracts to run secure off-chain computation in bundles of work called _tasks_.
 Tasks are created implicitly by a contract when it provides an incentive for off-chain workers to submit task results.
@@ -43,13 +44,14 @@ Also add a line of code that gives token 1 to the creator, which allows the disc
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"; // [!code ++]
 
-contract MyToken is ERC721 { // [!code --]
-    constructor() ERC721("MyToken", "MTK") {} // [!code --]
-contract AddingAtHome is ERC721 { // [!code ++]
-    constructor() ERC721("Adding@home", "SUM") { // [!code ++]
-        _mint(msg.sender, 1); // [!code ++]
-    } // [!code ++]
+contract MyToken is ERC721 { // [!code --:2]
+    constructor() ERC721("MyToken", "MTK") {}
+contract AddingAtHome is ERC721 { // [!code ++:4]
+    constructor() ERC721("Adding@home", "SUM") {
+        _mint(msg.sender, 1);
+    }
 }
 ```
 
@@ -67,6 +69,7 @@ All this next changeset does is add the Escrin Solidity library dependency, make
 ```solidity
 import {TaskAcceptorV1} from "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol"; // [!code ++]
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 contract AddingAtHome is ERC721 { // [!code --]
 contract AddingAtHome is ERC721, TaskAcceptorV1 { // [!code ++]
@@ -74,18 +77,18 @@ contract AddingAtHome is ERC721, TaskAcceptorV1 { // [!code ++]
         _mint(msg.sender, 1);
     }
 
-    /// Accepts one or more elements of a worker's task results submission // [!code ++]
-    /// @param _taskIds A sorted set of taskIds reported as complete in this submission // [!code ++]
-    /// @param _proof A proof of having completed the tasks // [!code ++]
-    /// @param _report Any extra data the submitter wants to provide // [!code ++]
-    /// @param _submitter The submitter's address // [!code ++]
-    function _acceptTaskResults( // [!code ++]
-        uint256[] calldata _taskIds, // [!code ++]
-        bytes calldata _proof, // [!code ++]
-        bytes calldata _report, // [!code ++]
-        address _submitter // [!code ++]
-    ) internal override returns (TaskIdSelector memory sel) { // [!code ++]
-    } // [!code ++]
+    /// Accepts one or more elements of a worker's task results submission // [!code ++:12]
+    /// @param _taskIds A sorted set of taskIds reported as complete in this submission
+    /// @param _proof A proof of having completed the tasks
+    /// @param _report Any extra data the submitter wants to provide
+    /// @param _submitter The submitter's address
+    function _acceptTaskResults(
+        uint256[] calldata _taskIds,
+        bytes calldata _proof,
+        bytes calldata _report,
+        address _submitter
+    ) internal override returns (TaskIdSelector memory sel) {
+    }
  }
 ```
 
@@ -98,7 +101,7 @@ For other proof methods, `abi.decode` is fairly widely applicable, as we will se
 ## Accept tasks
 
 Whether to accept a task is an important and often highly customized decision.
-That's why Escrin gives you all of the power of a function to express yourself.
+That is why Escrin gives you all of the power of a function to express yourself.
 The [pre-made acceptors](https://github.com/escrin/escrin/tree/main/evm/contracts/tasks/acceptor) are both drop-in solutions and starting points for your own task acceptance policies.
 
 For `AddingAtHome`, it is fortunately very easy to tell if a submission is acceptable using the `+` and `==` operators.
@@ -118,29 +121,29 @@ function _acceptTaskResults(
     bytes calldata _report,
     address _submitter
 ) internal override returns (TaskIdSelector memory sel) {
-    uint256[] memory pairs = abi.decode(_proof, (uint256[])); // [!code ++]
-    for (uint256 i; i < _taskIds.length; ++i) { // [!code ++]
-       (uint256 left, uint256 right) = (pairs[i*2], pairs[i*2+1]); // [!code ++]
-       uint256 discoveredNumber = _taskIds[i]; // [!code ++]
-    } // [!code ++]
-    sel.quantifier = Quantifier.All; // Accept all // [!code ++]
+    uint256[] memory pairs = abi.decode(_proof, (uint256[])); // [!code ++:6]
+    for (uint256 i; i < _taskIds.length; ++i) {
+       (uint256 left, uint256 right) = (pairs[i*2], pairs[i*2+1]);
+       uint256 discoveredNumber = _taskIds[i];
+    }
+    sel.quantifier = Quantifier.All; // Accept all
 }
 ```
 
-And now we add the business logic of verifying each discovered number:
+And now we add the logic for verifying each discovered number:
 
 ```solidity
- for (uint256 i; i < _taskIds.length; ++i) {
-     (uint256 left, uint256 right) = (pairs[i*2], pairs[i*2+1]);
-     uint256 discoveredNumber = _taskIds[i];
-+    // Verify the result. // [!code ++]
-+    require(_exists(left), "undiscovered left addend"); // [!code ++]
-+    require(_exists(right), "undiscovered right addend"); // [!code ++]
-+    require(!_exists(discoveredNumber), "number already discovered"); // [!code ++]
-+    require(left + right == discoveredNumber, "faulty proof"); // [!code ++]
-+    // Reward the submitter. // [!code ++]
-+    _mint(_submitter, discoveredNumber); // [!code ++]
- }
+for (uint256 i; i < _taskIds.length; ++i) {
+    (uint256 left, uint256 right) = (pairs[i*2], pairs[i*2+1]);
+    uint256 discoveredNumber = _taskIds[i];
+    // Verify the result. // [!code ++:7]
+    require(_exists(left), "undiscovered left addend");
+    require(_exists(right), "undiscovered right addend");
+    require(!_exists(discoveredNumber), "number already discovered");
+    require(left + right == discoveredNumber, "faulty proof");
+    // Reward the submitter.
+    _mint(_submitter, discoveredNumber);
+}
 ```
 
 Your editor should contain this `AddingAtHome` implementation:
@@ -151,6 +154,7 @@ pragma solidity ^0.8.9;
 
 import {TaskAcceptorV1} from "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 contract AddingAtHome is ERC721, TaskAcceptorV1 {
     constructor() ERC721("Adding@home", "SUM") {
@@ -240,7 +244,7 @@ So now, if you were to check who the discoverer of 2 is, it would be your wallet
 
 ## Recap & Next Steps
 
-In this guide we deployed a simple contract that uses Escrin to complete off-chain tasks.
+In this tutorial we deployed a simple contract that uses Escrin to create off-chain tasks.
 We were also able to complete a task on our own through our browser.
 
 Even though `AddingAtHome` is a simple problem, it illustrates the idea of a task and how a contract's definition of its acceptance drives it to completion.
