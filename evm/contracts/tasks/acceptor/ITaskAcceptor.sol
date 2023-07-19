@@ -6,7 +6,7 @@ error UnknownQuantifier(); // yrtLPA== cabb4b3c
 interface ITaskAcceptorV1 {
     struct TaskIdSelector {
         Quantifier quantifier;
-        /// A sorted list identifying subset of submitted tasks that will interpereted per the quantifier.
+        /// A sorted list identifying subset of submitted tasks that will interpreted per the quantifier.
         uint256[] taskIds;
     }
 
@@ -18,9 +18,9 @@ interface ITaskAcceptorV1 {
         Excluding
     }
 
-    /// Accepts one or more elements of a task runner's task results submission, returning the seto tasks that were accepted.
+    /// Accepts one or more elements of a task runner's task results submission, returning the set of tasks that were accepted.
     /// @param _taskIds a sorted set of taskIds completed in this submission
-    /// @param _proof some proof of having completed the identiied tasks that the acceptor can verify.
+    /// @param _proof some proof of having completed the identified tasks that the acceptor can verify.
     /// @param _report some data provided by the submitter that the requester may or may not trust
     function acceptTaskResults(
         uint256[] calldata _taskIds,
