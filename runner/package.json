@@ -5,7 +5,7 @@
   "keywords": [],
   "author": "Nick Hynes <nick@enshrine.ai>",
   "type": "module",
-  "bin": "./dist/bin/escrin-runner.js",
+  "service": "./dist/service/escrin-runner.js",
   "module": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
   "files": [
@@ -22,10 +22,12 @@
     "format": "npm-run-all format:**",
     "build:typecheck": "tsc -b",
     "build:lib": "tsc -b",
-    "build:runner": "esbuild --bundle ./src/bin/runner.ts --outfile=./dist/bin/escrin-runner.js --minify --target=es2022 --format=esm",
+    "build:runner": "esbuild --bundle ./src/service/runner.ts --outfile=./dist/service/escrin-runner.js --minify --target=es2022 --format=esm",
+    "build:env": "esbuild --bundle ./src/service/env.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm",
     "build": "npm-run-all --parallel build:**",
     "watch:build:lib": "tsc -b --watch --preserveWatchOutput",
-    "watch:build:runner": "esbuild --bundle ./src/bin/runner.ts --outfile=./dist/bin/escrin-runner.js --minify --target=es2022 --format=esm --watch",
+    "watch:build:runner": "esbuild --bundle ./src/service/runner.ts --outfile=./dist/service/escrin-runner.js --minify --target=es2022 --format=esm --watch",
+    "watch:build:env": "esbuild --bundle ./src/service/env.ts --outfile=./dist/service/escrin-en.js --minify --target=es2022 --format=esm --watch",
     "watch:build": "npm-run-all --parallel watch:build:**",
     "watch": "npm-run-all --parallel watch:**"
   },

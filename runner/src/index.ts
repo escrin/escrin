@@ -6,9 +6,7 @@ export type KmNetwork = 'sapphire-mainnet' | 'sapphire-testnet';
 export type StateNetwork = 'sapphire-mainnet' | 'sapphire-testnet';
 
 export interface EscrinRunner {
-  getConfig(): Promise<Record<string, unknown>>;
   getOmniKey(store: KmNetwork): Promise<CryptoKey>;
-  // getEthProvider(network: StateNetwork): Promise<EIP1193Provider>; // TODO: this does not need to be async here
 }
 
 export interface EIP1193Provider {
@@ -82,11 +80,6 @@ class EscrinRunnerInterface implements EscrinRunner {
     const { key: keyB64 } = await res.json() as { key: string };
     const key = decodeBase64Bytes(keyB64);
     return crypto.subtle.importKey('raw', key, 'HKDF', false, ['deriveKey', 'deriveBits']);
-  }
-
-  async getConfig(): Promise<Record<string, unknown>> {
-    const res = await this.escrin.fetch(`${this.#baseUrl}/config`);
-    return res.json();
   }
 }
 
