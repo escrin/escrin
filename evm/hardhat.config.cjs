@@ -1,7 +1,7 @@
 const { task } = require('hardhat/config');
 
-require('@typechain/hardhat')
-require('@nomicfoundation/hardhat-ethers')
+require('@typechain/hardhat');
+require('@nomicfoundation/hardhat-ethers');
 require('hardhat-watcher');
 require('hardhat-deploy');
 require('hardhat-deploy-ethers');
@@ -20,6 +20,13 @@ task('accounts').setAction(async (_, { ethers }) => {
   }
 });
 
+task('set-trusted-sender')
+  .addParam('trustedSender')
+  .setAction(async (args, { ethers }) => {
+    const attok = await ethers.getContract('AttestationToken');
+    await attok.setTrustedSender(args.trustedSender);
+  });
+
 module.exports = {
   solidity: {
     version: '0.8.18',
@@ -36,14 +43,12 @@ module.exports = {
       url: 'http://127.0.0.1:8545',
     },
     'sapphire-testnet': {
-      // url: 'https://testnet.sapphire.oasis.dev',
-      url: 'http://127.0.0.1:8545',
+      url: 'https://testnet.sapphire.oasis.dev',
       chainId: 0x5aff,
       accounts,
     },
     sapphire: {
-      // url: 'https://sapphire.oasis.io',
-      url: 'http://127.0.0.1:8545',
+      url: 'https://sapphire.oasis.io',
       chainId: 0x5afe,
       accounts,
     },
