@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {TaskAcceptorV1Proxy} from "../widgets/TaskAcceptorProxy.sol";
+import {ITaskAcceptorV1Proxy, TaskAcceptorV1Proxy} from "../widgets/TaskAcceptorProxy.sol";
 import {TaskAcceptorV1} from "./TaskAcceptor.sol";
 
-abstract contract DelegatedTaskAcceptorV1 is TaskAcceptorV1, TaskAcceptorV1Proxy {
-    constructor(address _upstream) TaskAcceptorV1Proxy(_upstream) {
-        return;
-    }
-
+abstract contract DelegatedTaskAcceptorV1 is TaskAcceptorV1, ITaskAcceptorV1Proxy {
     function _acceptTaskResults(
         uint256[] calldata,
         bytes calldata,
@@ -16,7 +12,7 @@ abstract contract DelegatedTaskAcceptorV1 is TaskAcceptorV1, TaskAcceptorV1Proxy
         address
     ) internal virtual override returns (TaskIdSelector memory) {
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory result) = address(taskAcceptor()).delegatecall(msg.data);
+        (bool success, bytes memory result) = address(this.getTaskAcceptor()).call(msg.data);
         if (!success) revert(string(result));
         return abi.decode(result, (TaskIdSelector));
     }

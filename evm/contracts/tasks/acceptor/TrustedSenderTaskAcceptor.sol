@@ -21,7 +21,7 @@ abstract contract TrustedSenderTaskAcceptorV1 is TaskAcceptorV1 {
         sel.quantifier = _isTrustedSender(_submitter) ? Quantifier.All : Quantifier.None;
     }
 
-    function _isTrustedSender(address addr) internal virtual view returns (bool) {
+    function _isTrustedSender(address addr) internal view virtual returns (bool) {
         return addr == trustedSender;
     }
 }
