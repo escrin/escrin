@@ -1,8 +1,6 @@
-import { CryptoKey } from '@cloudflare/workers-types/experimental';
-
+import { keccak_256 } from '@noble/hashes/sha3';
 import * as sapphire from '@oasisprotocol/sapphire-paratime';
 import { ethers } from 'ethers';
-import createKeccakHash from 'keccak';
 
 import { AttestationToken, AttestationTokenFactory, Lockbox, LockboxFactory } from '@escrin/evm';
 
@@ -14,40 +12,45 @@ export type InitOpts = {
   web3GatewayUrl: string;
   attokAddr: string;
   lockboxAddr: string;
-  debug?: Partial<{
-    nowrap: boolean;
-  }>;
+  network: ethers.Network;
 };
 
 export const INIT_SAPPHIRE: InitOpts = {
   web3GatewayUrl: 'https://sapphire.oasis.io',
   attokAddr: '0x96c1D1913310ACD921Fc4baE081CcDdD42374C36',
   lockboxAddr: '0x53FE9042cbB6B9773c01F678F7c0439B09EdCeB3',
+  network: new ethers.Network('sapphire-mainnet', 0x5afe),
 };
 
 export const INIT_SAPPHIRE_TESTNET: InitOpts = {
   web3GatewayUrl: 'https://testnet.sapphire.oasis.dev',
   attokAddr: '0x960bEAcD9eFfE69e692f727F52Da7DF3601dc80f',
   lockboxAddr: '0x68D4f98E5cd2D8d2C6f03c095761663Bf1aA8442',
+  network: new ethers.Network('sapphire-testnet', 0x5aff),
 };
 
-const lazy = <T extends object>(initializer: () => T): T => {
-  let value: T | undefined;
+function lazy<T extends object>(initializer: () => T): T {
   let initialized = false;
+  let instance: T;
 
-  return new Proxy(
-    {},
-    {
-      get: (_, prop) => {
-        if (!initialized) {
-          value = initializer();
-          initialized = true;
-        }
-        return Reflect.get(value!, prop);
-      },
+  const proxyHandler: ProxyHandler<T> = {
+    get(_target: T, prop: PropertyKey, receiver: any) {
+      if (!initialized) {
+        instance = initializer();
+        initialized = true;
+      }
+
+      const value = Reflect.get(instance, prop, receiver);
+      if (typeof value === 'function') {
+        return value.bind(instance);
+      }
+
+      return value;
     },
-  ) as T;
-};
+  };
+
+  return new Proxy({} as T, proxyHandler);
+}
 
 export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey: string): Module {
   const opts =
@@ -57,11 +60,17 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
       ? INIT_SAPPHIRE_TESTNET
       : optsOrNet;
 
-  const provider = lazy(() => new ethers.JsonRpcProvider(opts.web3GatewayUrl));
-  const gasWallet = lazy(() => new ethers.Wallet(gasKey).connect(provider));
+  const provider = lazy(
+    () =>
+      new ethers.JsonRpcProvider(opts.web3GatewayUrl, undefined, {
+        staticNetwork: opts.network,
+      }),
+  );
+  const gasWallet = lazy(() => new ethers.Wallet(gasKey, provider));
   const localWallet = lazy(() => {
-    const localWallet = ethers.Wallet.createRandom().connect(provider);
-    return opts.debug?.nowrap ? localWallet : sapphire.wrap(localWallet);
+    // const localWallet = ethers.Wallet.createRandom().connect(provider);
+    const localWallet = new ethers.Wallet(gasKey, provider);
+    return sapphire.wrap(localWallet);
   }) as any as ethers.BaseWallet;
   const attok = lazy(() => {
     return AttestationTokenFactory.connect(opts.attokAddr, gasWallet);
@@ -69,7 +78,7 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
   const lockbox = lazy(() => LockboxFactory.connect(opts.lockboxAddr, localWallet));
 
   return {
-    async getKey(id: string): Promise<Cacheable<CryptoKey>> {
+    async getKey(id: string): Promise<Cacheable<Uint8Array>> {
       if (id !== 'omni') throw new RpcError(404, `unknown key \`${id}\``);
 
       const oneHourFromNow = Math.floor(Date.now() / 1000) + 60 * 60;
@@ -81,7 +90,7 @@ export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey
         baseBlockHash: prevBlock.hash!,
         baseBlockNumber: prevBlock.number,
         expiry: oneHourFromNow,
-        registrant: localWallet.getAddress(),
+        registrant: await localWallet.getAddress(),
         tokenExpiry: oneHourFromNow,
       };
       const quote = await mockQuote(registration);
@@ -100,11 +109,11 @@ async function mockQuote(registration: Registration): Promise<Uint8Array> {
   const regTypeDef =
     'tuple(uint256 baseBlockNumber, bytes32 baseBlockHash, uint256 expiry, uint256 registrant, uint256 tokenExpiry)'; // TODO: keep this in sync with the actual typedef
   const regBytesHex = coder.encode([regTypeDef], [registration]);
-  const regBytes = Buffer.from(ethers.getBytes(regBytesHex));
+  const regBytes = ethers.getBytes(regBytesHex);
   return ethers.getBytes(
     coder.encode(
       ['bytes32', 'bytes32'],
-      [measurementHash, createKeccakHash('keccak256').update(regBytes).digest()],
+      [measurementHash, keccak_256.create().update(regBytes).digest()],
     ),
   );
 }
@@ -114,7 +123,9 @@ async function sendAttestation(
   quote: Uint8Array,
   reg: Registration,
 ): Promise<string> {
-  const expectedTcbId = await attok.getTcbId(quote);
+  const expectedTcbId = await attok.getTcbId(quote, {
+    from: reg.registrant
+  });
   if (await attok.isAttested(reg.registrant, expectedTcbId)) return expectedTcbId;
   const tx = await attok.attest(quote, reg, { gasLimit: 10_000_000 });
   const receipt = await tx.wait();
@@ -146,21 +157,16 @@ async function waitForConfirmation(
 
 async function getOrCreateKey(
   lockbox: Lockbox,
-  gasWallet: ethers.ContractRunner,
+  gasWallet: ethers.Wallet,
   tcbId: string,
-): Promise<CryptoKey> {
-  let keyHex = await lockbox.getKey(tcbId);
-  if (!/^(0x)?0+$/.test(keyHex)) return importKey(keyHex);
+): Promise<Uint8Array> {
+  let keyHex = await lockbox.getKey(tcbId, { from: gasWallet.getAddress() });
+  if (!/^(0x)?0+$/.test(keyHex)) return ethers.getBytes(keyHex);
   const tx = await lockbox
     .connect(gasWallet)
     .createKey(tcbId, crypto.getRandomValues(new Uint8Array(32)), { gasLimit: 10_000_000 });
   const receipt = await tx.wait();
   await waitForConfirmation(lockbox.runner!.provider!, receipt);
   keyHex = await lockbox.getKey(tcbId);
-  return importKey(keyHex);
-}
-
-async function importKey(keyHex: string): Promise<CryptoKey> {
-  const key = ethers.getBytes(keyHex);
-  return crypto.subtle.importKey('raw', key, 'HKDF', false, ['deriveKey', 'deriveBits']);
+  return ethers.getBytes(keyHex);
 }

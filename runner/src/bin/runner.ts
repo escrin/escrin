@@ -70,7 +70,7 @@ async function createService(spec: AgentSpec, gasKey: string): Promise<Service> 
     'sapphire-mainnet': sapphire('mainnet', gasKey),
     'sapphire-testnet': sapphire('testnet', gasKey),
     config: {
-      'get-config': () => spec.config,
+      'getUserConfig': () => spec.config,
     },
   });
 

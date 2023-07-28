@@ -1,5 +1,3 @@
-import * as Comlink from 'comlink';
-
 import { Environment } from './env/index.js';
 import { EscrinRunner, EscrinWorker } from './worker-interface.js';
 
@@ -14,16 +12,22 @@ export class Service {
   private error: Error | undefined;
 
   constructor(public readonly name: string, public readonly worker: Worker) {
-    this.workerInterface = Comlink.wrap(worker);
     // TODO: replace `Environment` dynamic dispatch with concretized `EscrinRunner` to preserve type sanity without destroying performance via `postMessage` roundtrips.
-    const env = this.env;
+    const svc = this;
     const rnr: EscrinRunner = {
       async getConfig() {
-        return env.get('config', 'task-source') ?? {};
+        const handler = svc?.env.get('config', 'getUserConfig');
+        return handler ? handler() : {};
       },
       async getOmniKey(store) {
-        const handler = env.get(store, 'get-key'); // TODO: type
-        return handler ? handler('omni') : undefined;
+        const handler = svc?.env.get(store, 'getKey'); // TODO: type
+        if (!handler) throw new Error(`unrecognized key store: ${store}`);
+        let keyBytes = await handler('omni');
+        if (keyBytes.item) {
+          keyBytes = keyBytes.item;
+        }
+        if (!keyBytes) throw new Error(`unable to fetch omnikey from ${store}`);
+        return keyBytes;
       },
       // async getEthProvider(network) {
       //   const handler = env.get(network, 'get-provider'); // TODO: type
@@ -65,6 +69,7 @@ export class Service {
     if (this.isTerminated) throw new Error('Worker has already terminated.');
     const notifyAndSchedule = async (period: number) => {
       if (this.isTerminated) return;
+      console.log('notifying', period)
       await this.notify();
       setTimeout(notifyAndSchedule, period);
     };
