@@ -32,6 +32,8 @@
     "watch": "npm-run-all --parallel watch:**"
   },
   "dependencies": {
+    "@babel/generator": "^7.22.9",
+    "@babel/parser": "^7.22.7",
     "@escrin/evm": "link:../evm",
     "@noble/hashes": "^1.3.1",
     "@oasisprotocol/sapphire-paratime": "file:../oasisprotocol-sapphire-paratime-1.1.0.tgz",
@@ -40,6 +42,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20230717.0",
+    "@types/babel__generator": "^7.6.4",
     "@types/node": "^20.4.2",
     "@types/ws": "^8.5.5",
     "esbuild": "^0.18.14",

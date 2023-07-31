@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 
 import { AttestationToken, AttestationTokenFactory, Lockbox, LockboxFactory } from '@escrin/evm';
 
-import { Cacheable, Module, RpcError } from './index.js';
+import { Cacheable, cacheability } from '../index.js';
 
 type Registration = AttestationToken.RegistrationStruct;
 
@@ -29,78 +29,49 @@ export const INIT_SAPPHIRE_TESTNET: InitOpts = {
   network: new ethers.Network('sapphire-testnet', 0x5aff),
 };
 
-function lazy<T extends object>(initializer: () => T): T {
-  let initialized = false;
-  let instance: T;
-
-  const proxyHandler: ProxyHandler<T> = {
-    get(_target: T, prop: PropertyKey, receiver: any) {
-      if (!initialized) {
-        instance = initializer();
-        initialized = true;
-      }
-
-      const value = Reflect.get(instance, prop, receiver);
-      if (typeof value === 'function') {
-        return value.bind(instance);
-      }
-
-      return value;
-    },
-  };
-
-  return new Proxy({} as T, proxyHandler);
-}
-
-export default function make(optsOrNet: InitOpts | 'mainnet' | 'testnet', gasKey: string): Module {
-  const opts =
-    optsOrNet === 'mainnet'
-      ? INIT_SAPPHIRE
-      : optsOrNet === 'testnet'
-      ? INIT_SAPPHIRE_TESTNET
-      : optsOrNet;
-
-  const provider = lazy(
-    () =>
-      new ethers.JsonRpcProvider(opts.web3GatewayUrl, undefined, {
-        staticNetwork: opts.network,
-      }),
-  );
-  const gasWallet = lazy(() => new ethers.Wallet(gasKey, provider));
-  const localWallet = lazy(() => {
-    // const localWallet = ethers.Wallet.createRandom().connect(provider);
-    const localWallet = new ethers.Wallet(gasKey, provider);
-    return sapphire.wrap(localWallet);
-  }) as any as ethers.BaseWallet;
-  const attok = lazy(() => {
-    return AttestationTokenFactory.connect(opts.attokAddr, gasWallet);
+export async function getKeySapphire(
+  _keyId: 'omni',
+  _proof: string,
+  gasKey: string,
+  opts: { init: InitOpts },
+): Promise<Cacheable<Uint8Array>> {
+  const provider = new ethers.JsonRpcProvider(opts.init.web3GatewayUrl, undefined, {
+    staticNetwork: opts.init.network,
   });
-  const lockbox = lazy(() => LockboxFactory.connect(opts.lockboxAddr, localWallet));
+  const gasWallet = new ethers.Wallet(gasKey, provider);
+  const localWallet = sapphire.wrap(new ethers.Wallet(gasKey, provider));
+  // const localWallet = ethers.Wallet.createRandom().connect(provider);
+  const attok = AttestationTokenFactory.connect(opts.init.attokAddr, gasWallet);
+  const lockbox = LockboxFactory.connect(opts.init.lockboxAddr, localWallet);
 
-  return {
-    async getKey(id: string): Promise<Cacheable<Uint8Array>> {
-      if (id !== 'omni') throw new RpcError(404, `unknown key \`${id}\``);
+  const oneHourFromNow = Math.floor(Date.now() / 1000) + 60 * 60;
 
-      const oneHourFromNow = Math.floor(Date.now() / 1000) + 60 * 60;
-      let currentBlock = await provider.getBlock('latest');
-      if (currentBlock === null) throw new RpcError(500, 'unable to get current block');
-      const prevBlock = await provider.getBlock(currentBlock.number - 1);
-      if (prevBlock === null) throw new RpcError(500, 'unable to get previous block');
-      const registration: Registration = {
-        baseBlockHash: prevBlock.hash!,
-        baseBlockNumber: prevBlock.number,
-        expiry: oneHourFromNow,
-        registrant: await localWallet.getAddress(),
-        tokenExpiry: oneHourFromNow,
-      };
-      const quote = await mockQuote(registration);
-      const tcbId = await sendAttestation(attok.connect(localWallet), quote, registration);
+  let currentBlock = await provider.getBlock('latest');
+  if (currentBlock === null) throw new Error('unable to get current block');
 
-      const key = await getOrCreateKey(lockbox, gasWallet, tcbId);
+  const prevBlock = await provider.getBlock(currentBlock.number - 1);
+  if (prevBlock === null) throw new Error('unable to get previous block');
 
-      return new Cacheable(key, new Date(oneHourFromNow));
-    },
+  const registration: Registration = {
+    baseBlockHash: prevBlock.hash!,
+    baseBlockNumber: prevBlock.number,
+    expiry: oneHourFromNow,
+    registrant: await localWallet.getAddress(),
+    tokenExpiry: oneHourFromNow,
   };
+  const quote = await mockQuote(registration);
+  const tcbId = await sendAttestation(attok.connect(localWallet), quote, registration);
+
+  const key = await getOrCreateKey(lockbox, gasWallet, tcbId);
+
+  Object.defineProperty(key, cacheability, {
+    value: new Date(oneHourFromNow),
+    enumerable: false,
+    writable: false,
+    configurable: true,
+  });
+
+  return key as Cacheable<Uint8Array>;
 }
 
 async function mockQuote(registration: Registration): Promise<Uint8Array> {
@@ -124,7 +95,7 @@ async function sendAttestation(
   reg: Registration,
 ): Promise<string> {
   const expectedTcbId = await attok.getTcbId(quote, {
-    from: reg.registrant
+    from: reg.registrant,
   });
   if (await attok.isAttested(reg.registrant, expectedTcbId)) return expectedTcbId;
   const tx = await attok.attest(quote, reg, { gasLimit: 10_000_000 });
@@ -147,11 +118,10 @@ async function waitForConfirmation(
 ): Promise<void> {
   const { chainId } = await provider.getNetwork();
   if (chainId !== 0x5afen && chainId !== 0x5affn) return;
-  const getCurrentBlock = () => provider.getBlock('latest');
-  let currentBlock = await getCurrentBlock();
+  let currentBlock = await provider.getBlock('latest');
   while (currentBlock && receipt && currentBlock.number <= receipt.blockNumber + 1) {
     await new Promise((resolve) => setTimeout(resolve, 3_000));
-    currentBlock = await getCurrentBlock();
+    currentBlock = await provider.getBlock('latest');
   }
 }
 
