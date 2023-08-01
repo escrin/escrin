@@ -45,7 +45,6 @@
     "@nomicfoundation/hardhat-verify": "^1.0.4",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@oasisprotocol/sapphire-hardhat": "^2.16.1",
-    "@oasisprotocol/sapphire-paratime": "file:../oasisprotocol-sapphire-paratime-1.1.0.tgz",
     "@typechain/ethers-v6": "^0.4.2",
     "@typechain/hardhat": "^8.0.2",
     "@types/chai": "^4.3.5",
