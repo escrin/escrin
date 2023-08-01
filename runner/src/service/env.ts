@@ -4,15 +4,15 @@ import { ApiError, decodeRequest, encodeBase64Bytes, wrapFetch } from '../rpc.js
 
 export default new (class {
   public readonly fetch = wrapFetch(async (req, env: { gasKey?: string }) => {
-    const requester = req.headers.get('host');
+    const requester = req.headers.get('x-caller-id');
+    if (!requester) throw new ApiError(500, 'escrin-runner did not set x-caller-id header');
     const { method, params } = await decodeRequest(req);
 
     if (method === 'get-key') {
-      if (!requester) throw new ApiError(500, 'escrin-runner did not set host header');
       const { keyStore, keyId, proof } = params;
       if (!env.gasKey) throw new ApiError(500, 'escrin-runner not configured: missing `gas-key`');
       const key = await getKey(requester, keyStore, keyId, proof, env.gasKey);
-      return encodeBase64Bytes(key);
+      return { key: encodeBase64Bytes(key) };
     }
 
     throw new ApiError(404, `unknown method: ${method}`);
@@ -40,7 +40,7 @@ async function getKey(
     delete KEY_CACHE[cacheKey];
   }
 
-  if (!/^sapphire(-testnet)?$/.test(keyStore))
+  if (!/^sapphire-(main|test)net$/.test(keyStore))
     throw new ApiError(404, `unknown key store: ${keyStore}`);
   if (keyId !== 'omni') throw new ApiError(404, `unknown key id: ${keyId}`);
 

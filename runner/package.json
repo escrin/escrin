@@ -27,7 +27,7 @@
     "build": "npm-run-all --parallel build:**",
     "watch:build:lib": "tsc -b --watch --preserveWatchOutput",
     "watch:build:runner": "esbuild --bundle ./src/service/runner.ts --outfile=./dist/service/escrin-runner.js --minify --target=es2022 --format=esm --watch",
-    "watch:build:env": "esbuild --bundle ./src/service/env.ts --outfile=./dist/service/escrin-en.js --minify --target=es2022 --format=esm --watch",
+    "watch:build:env": "esbuild --bundle ./src/service/env.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm --watch",
     "watch:build": "npm-run-all --parallel watch:build:**",
     "watch": "npm-run-all --parallel watch:**"
   },
@@ -41,7 +41,7 @@
     "events": "^3.3.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20230717.0",
+    "@cloudflare/workers-types": "^4.20230724.0 ",
     "@types/babel__generator": "^7.6.4",
     "@types/node": "^20.4.2",
     "@types/ws": "^8.5.5",

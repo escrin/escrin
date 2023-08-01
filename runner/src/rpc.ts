@@ -1,9 +1,4 @@
-import {
-  ExportedHandler,
-  Fetcher,
-  Request,
-  Response,
-} from '@cloudflare/workers-types/experimental';
+import type { ExecutionContext, Fetcher, Request } from '@cloudflare/workers-types/experimental';
 
 export class ApiResponse extends Response {
   constructor(status?: number, content?: object) {
@@ -28,13 +23,12 @@ export class ErrorResponse extends ApiResponse {
   }
 }
 
-type FetchHandler<Env> = Exclude<ExportedHandler<Env>['fetch'], undefined>;
 export function wrapFetch<Env>(
-  fetchHandler: (...args: Parameters<FetchHandler<Env>>) => unknown,
-): FetchHandler<Env> {
-  return async (req, env, ctx) => {
+  handler: (req: Request, env: Env, ctx: ExecutionContext) => unknown,
+): (req: Request, env: Env, ctx: ExecutionContext) => Promise<Response> {
+  return async (req: Request, env: Env, ctx: ExecutionContext) => {
     try {
-      const result = await fetchHandler(req, env, ctx);
+      const result = await handler(req, env, ctx);
       if (result instanceof Response) return result;
       const statusCode = result === null || result === undefined || result === '' ? 204 : 200;
       return new ApiResponse(statusCode, result ?? '');
@@ -62,7 +56,7 @@ export async function decodeRequest(
     throw new ApiError(400, `invalid request body`);
   if (!('method' in bodyJson) || typeof bodyJson.method !== 'string')
     throw new ApiError(400, `invalid request body: missing or invalid method`);
-  if (!('params' in bodyJson) || !Array.isArray(bodyJson.params))
+  if (!('params' in bodyJson) || typeof bodyJson.params !== 'object' || bodyJson.params === null)
     throw new ApiError(400, `invalid request body: missing or invalid params`);
   return {
     method: bodyJson.method,

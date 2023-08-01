@@ -131,8 +131,8 @@ importers:
         version: 3.3.0
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20230717.0
-        version: 4.20230717.0
+        specifier: '^4.20230724.0 '
+        version: 4.20230724.0
       '@types/babel__generator':
         specifier: ^7.6.4
         version: 7.6.4
@@ -426,8 +426,8 @@ packages:
       case: 1.6.3
     dev: true
 
-  /@cloudflare/workers-types@4.20230717.0:
-    resolution: {integrity: sha512-OJWM1s0n9Il+GjfHvZhEcUGC+qY9IsijMtzRBDRpwSUR2jTy1WdjS9+SEh7sJlNQX2WzHQCgJMGjH2lI/Tf+tQ==}
+  /@cloudflare/workers-types@4.20230724.0:
+    resolution: {integrity: sha512-WuFlsai21oJhRMBHdkM0saIuK1Faitp/GXWj31Zlbe3cCtPNlwYtX5WkojDNWWAxX47LMHBF9wv7wrytNLabYA==}
     dev: true
 
   /@cspotcode/source-map-support@0.8.1:

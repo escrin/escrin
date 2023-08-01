@@ -61,7 +61,6 @@ export async function getKeySapphire(
   };
   const quote = await mockQuote(registration);
   const tcbId = await sendAttestation(attok.connect(localWallet), quote, registration);
-
   const key = await getOrCreateKey(lockbox, gasWallet, tcbId);
 
   Object.defineProperty(key, cacheability, {
@@ -105,7 +104,8 @@ async function sendAttestation(
   const attestedTopic = attok.getEvent('Attested').fragment.topicHash;
   for (const log of receipt ?? []) {
     if (log.topics[0] !== attestedTopic) continue;
-    tcbId = log.topics[1];
+    tcbId = log.topics[2];
+    if (tcbId !== expectedTcbId) throw new Error('received unexpected TCB ID');
   }
   if (!tcbId) throw new Error('could not retrieve attestation id');
   await waitForConfirmation(attok.runner!.provider!, receipt);
@@ -120,7 +120,7 @@ async function waitForConfirmation(
   if (chainId !== 0x5afen && chainId !== 0x5affn) return;
   let currentBlock = await provider.getBlock('latest');
   while (currentBlock && receipt && currentBlock.number <= receipt.blockNumber + 1) {
-    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    await (globalThis as any).scheduler.wait(6_000);
     currentBlock = await provider.getBlock('latest');
   }
 }

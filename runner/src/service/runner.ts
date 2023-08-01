@@ -1,6 +1,6 @@
 import { Body, Fetcher, Request } from '@cloudflare/workers-types/experimental';
 
-import { ApiResponse, ApiError, ErrorResponse, wrapFetch } from '../rpc.js';
+import { ApiResponse, ApiError, wrapFetch } from '../rpc.js';
 
 type WorkerConfig = {
   code: string;
@@ -27,23 +27,28 @@ async function parseWorkerConfig(contentType: string | null, body: Body): Promis
     try {
       const formData = await body.formData();
       const rawConfig = formData.get('config');
-      let config: Record<string, object> = {};
+      let userConfig: Record<string, object> = {};
       if (rawConfig instanceof File) {
-        throw new ApiError(400, 'unsupported config format');
+        userConfig = JSON.parse(await readFile(rawConfig));
       } else if (typeof rawConfig === 'string') {
-        config = JSON.parse(rawConfig);
+        userConfig = JSON.parse(rawConfig);
       }
       // TODO: validation
-      return {
-        ...Object.fromEntries(formData.entries()),
-        config,
-      } as any;
-    } catch {
-      throw new ApiError(400, 'the request body could not be parsed as form data');
+      const workerConfig: any = {
+        config: userConfig,
+      };
+      for (const [k, v] of formData.entries()) {
+        workerConfig[k] = v instanceof File ? await readFile(v) : v;
+      }
+      return workerConfig;
+    } catch (e: any) {
+      throw new ApiError(400, `the request body could not be parsed as form data: ${e}`);
     }
   }
   throw new ApiError(400, `unsupported content type: ${contentType}`);
 }
+
+const readFile = (file: File): Promise<string> => new Response(file).text();
 
 type WorkerId = string;
 
@@ -53,20 +58,25 @@ type RunnerEnv = {
 };
 
 export default new (class {
-  public readonly fetch = wrapFetch(async (req: Request, env: RunnerEnv) => {
+  #schedules: Map<string, ReturnType<typeof setInterval>> = new Map();
+
+  public readonly fetch = wrapFetch(async (req: Request, env: RunnerEnv, ctx: ExecutionContext) => {
     const config = await parseWorkerConfig(req.headers.get('content-type'), req);
+    if (config.schedule && config.schedule !== '*/5 * * * *') {
+      throw new ApiError(400, 'unsupported schedule');
+    }
     const workerId = await this.#createWorker(env.workerd, config);
 
     if (config.schedule) {
-      const id = env.waker.idFromName('default');
-      const scheduleRes = await env.waker.get(id).fetch('http://waker', {
-        body: JSON.stringify({
-          worker: workerId,
-          schedule: config.schedule,
-        }),
-      });
-      if (!scheduleRes.ok) return scheduleRes;
+      const cron = config.schedule;
+      this.#schedules.set(
+        workerId,
+        setInterval(async () => {
+          await this.#dispatchScheduledEvent(env.workerd, workerId, cron);
+        }, 5 * 60 * 1000),
+      );
     }
+    ctx.waitUntil(this.#dispatchScheduledEvent(env.workerd, workerId, ''));
 
     return new ApiResponse(201, {
       id: workerId,
@@ -75,30 +85,43 @@ export default new (class {
 
   async #createWorker(workerd: Fetcher, config: WorkerConfig): Promise<WorkerId> {
     const modular = config.type === 'module';
-    const res = await workerd.fetch('http://workerd.escrin/workers', {
+    const res = await workerd.fetch('http://workerd.local/workers', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        worker: {
-          compatibilityDate: '2023-02-28',
-          serviceWorkerScript: modular ? undefined : config.code,
-          modules: modular ? [{ name: 'main', esModule: config.code }] : undefined,
-          bindings: [
-            { name: 'escrin', service: '@escrin/env' },
-            {
-              name: 'config',
-              json:
-                typeof config.config === 'string' ? config.config : JSON.stringify(config.config),
-            },
-          ],
-          schedule: config.schedule,
-        },
+        compatibilityDate: '2023-02-28',
+        serviceWorkerScript: modular ? undefined : config.code,
+        modules: modular ? [{ name: 'main', esModule: config.code }] : undefined,
+        bindings: [
+          { name: 'escrin', service: { name: '@escrin/env' } },
+          {
+            name: 'config',
+            json: typeof config.config === 'string' ? config.config : JSON.stringify(config.config),
+          },
+        ],
+        schedule: config.schedule,
       }),
     });
 
     const { name: id }: { name: WorkerId } = await res.json();
     return id;
+  }
+
+  async #dispatchScheduledEvent(workerd: Fetcher, workerId: string, cron: string): Promise<void> {
+    const res = await workerd.fetch(`http://workerd.local/workers/${workerId}/events/scheduled`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        cron,
+        scheduledTime: Date.now(),
+      }),
+    });
+    if (!res.ok) {
+      console.error('failed to post scheduled event', await res.text());
+    }
   }
 })();
