@@ -54,7 +54,7 @@ type WorkerId = string;
 
 type RunnerEnv = {
   workerd: Fetcher;
-  waker: DurableObjectNamespace;
+  mode: string;
 };
 
 export default new (class {
@@ -69,12 +69,18 @@ export default new (class {
 
     if (config.schedule) {
       const cron = config.schedule;
-      this.#schedules.set(
-        workerId,
-        setInterval(async () => {
-          await this.#dispatchScheduledEvent(env.workerd, workerId, cron);
-        }, 5 * 60 * 1000),
-      );
+      let iters = 0;
+      const interval = setInterval(async () => {
+        if (env.mode === 'demo') {
+          iters++;
+          if (iters === 5) {
+            clearInterval(interval);
+            this.#schedules.delete(workerId);
+          }
+        }
+        await this.#dispatchScheduledEvent(env.workerd, workerId, cron);
+      }, 5 * 60 * 1000);
+      this.#schedules.set(workerId, interval);
     }
     ctx.waitUntil(this.#dispatchScheduledEvent(env.workerd, workerId, ''));
 
