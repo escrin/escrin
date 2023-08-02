@@ -261,7 +261,7 @@ Bundling does not affect the behavior of your code or its imports–it just make
 This is no different from creating a [regular JavaScript Worker](https://developer.mozilla.org/en-US/docs/Web/API/Worker).
 
 For bundling, this tutorial uses `esbuild`.
-Run the following code to create a `bundled-worker.js` that's ready for deployment.
+Run the following code to create a `bundled-worker.js` that is ready for deployment.
 
 ```sh
 npx --no-install esbuild \
@@ -269,7 +269,7 @@ npx --no-install esbuild \
     --target=es2022 --format=esm --minify
 ```
 
-In this case, we chose to create an ES module bundle using `--format=esm` since that is the more modern format that offers greater flexibility and features.
+In this case, we chose to create an ES module bundle using `--format=esm` since that is the modern format that offers greater flexibility and features.
 
 The `--target=es2022` and `--minify` flags are used to decrease bundle size and increase performance since less code is required.
 
@@ -284,29 +284,43 @@ First, create a JSON file called `worker-config.json` containing the configurati
 }
 ```
 
-Next, and finally, send the bundled worker to the `escrin-runner` instance using the HTTP API, which will be assumed to be running locally on port 8080.
+Next, and finally, send the bundled worker to the `escrin-runner` instance using the HTTP API.
 
-```sh
-curl -isS http://localhost:8080 \
+::: code-group
+
+```sh [hosted]
+curl -isS https://demo.escrin.org \
     -F 'script=@bundled-worker.js' \
     -F 'type=module' \
     -F 'schedule="*/5 * * * *"' \
     -F 'config=@worker-config.json'
 ```
 
+```sh [local]
+curl -isS http://localhost:1057 \
+    -F 'script=@bundled-worker.js' \
+    -F 'type=module' \
+    -F 'schedule="*/5 * * * *"' \
+    -F 'config=@worker-config.json'
+```
+
+:::
+
 You should see something like the following response, which means that your worker has been successfully submitted!
 
 ```http
 HTTP/1.1 201 Created
-Content-Length: 0
-Content-Type: text/plain;charset=UTF-8
+Content-Length: 45
+Content-Type: application/json
+
+{"id":"36ed31e6-58a8-4025-918e-afe66af78896"}
 ```
 
 ::: tip
 There is currently no way to check the status of the worker, but this feature is planned for an upcoming release.
 For now, the only way to observe progress is to see if tasks are being completed.
 
-When running the `escrin-runner` locally, it's possible to debug the worker using standard tools like `console.log` (and, also soon-to-come, the Chrome DevTools).
+When running the `escrin-runner` locally, it is possible to debug the worker using standard tools like `console.log` (and, also soon-to-come, the Chrome DevTools).
 :::
 
 After a few moments, you should find that a few numbers have already been discovered, which brings us to the end of the tutorial.
@@ -317,7 +331,7 @@ Congratulations! 🎉
 In this tutorial we created an Escrin Smart Worker that completes on-chain tasks created using the Escrin Solidity library.
 We even were able to complete a few tasks without manual labor!
 
-Even though `AddingAtHome` remains a simple problem, it illustrates the idea of a Smart Worker, and how easy it is to write JavaScript that runs in a secure environment to autonomously complete tasks according to the designs of a smart contract.
+Even though `AddingAtHome` remains a simple problem, it illustrates the idea of a Smart Worker, and how easy it is to write JavaScript that runs in a secure environment to autonomously complete tasks according to the designs of a smart contr'act.
 
 In a more realistic scenario, the Smart Worker would coordinate private access to private data after authenticating itself to a key management contract via a technique like remote attestation.
 These features are provided by the Escrin Runner, so it is a mostly simple matter of configuration to take advantage of these powerful features.
