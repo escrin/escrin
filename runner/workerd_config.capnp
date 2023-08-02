@@ -10,7 +10,7 @@ const config :Workerd.Config = (
       )
     )
   ],
-  sockets = [ (name = "http", address = "*:8080", http = (), service = "@escrin/runner") ]
+  sockets = [ (name = "http", address = "*:1057", http = (), service = "@escrin/runner") ]
 );
 
 const runner :Workerd.Worker = (
