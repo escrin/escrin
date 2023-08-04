@@ -88,16 +88,20 @@ escrinWorker(new class {
             this.#contract = this.#makeContract(await rnr.getConfig());
         }
     }
-    // [!code ++:12]
+    // [!code ++:16]
     #makeContract(config) {
-        return new ethers.Contract(
+        const runner = new ethers.Wallet(
+            config.walletKey,
+            new ethers.JsonRpcProvider(config.web3GatewayUrl),
+        );
+        return ethers.Contract(
             config.contractAddress,
             [
                 'function acceptTaskResults(uint256[], bytes, bytes, address)',
                 'function totalSupply() view returns (uint256)',
                 'function tokenByIndex(uint256) view returns (uint256)',
             ],
-            config.walletKey,
+            runner,
         );
     }
 });
@@ -239,14 +243,18 @@ escrinWorker(new class {
     }
 
     #makeContract(config) {
-        return new ethers.Contract(
+        const runner = new ethers.Wallet(
+            config.walletKey,
+            new ethers.JsonRpcProvider(config.web3GatewayUrl),
+        );
+        return ethers.Contract(
             config.contractAddress,
             [
                 'function acceptTaskResults(uint256[], bytes, bytes, address)',
                 'function totalSupply() view returns (uint256)',
                 'function tokenByIndex(uint256) view returns (uint256)',
             ],
-            config.walletKey,
+            runner,
         );
     }
 });
@@ -277,18 +285,31 @@ The `--target=es2022` and `--minify` flags are used to decrease bundle size and 
 
 First, create a JSON file called `worker-config.json` containing the configuration variables `contractAddress` and `walletKey`.
 
-```json
+::: code-group
+
+```json [Sapphire Testnet]
 {
+    "web3GatewayUrl": "https://testnet.sapphire.oasis.dev",
+    "contractAddress": "0x4046d9265f3a2E9b0Ba8EE61A1a8bC8093CEfd53",
+    "walletKey": "0xf9834a328ff8f2599724e689e24b3585fb4e3b0a4ab84effe1d74ae9c7ce9fff"
+}
+```
+
+```json [Local]
+{
+    "web3GatewayUrl": "http://localhost:8545",
     "contractAddress": "0x...",
     "walletKey": "0x..."
 }
 ```
 
+:::
+
 Next, and finally, send the bundled worker to the `escrin-runner` instance using the HTTP API.
 
 ::: code-group
 
-```sh [hosted]
+```sh [Hosted]
 curl -isS https://demo.escrin.org \
     -F 'script=@bundled-worker.js' \
     -F 'type=module' \
@@ -296,7 +317,7 @@ curl -isS https://demo.escrin.org \
     -F 'config=@worker-config.json'
 ```
 
-```sh [local]
+```sh [Local]
 curl -isS http://localhost:1057 \
     -F 'script=@bundled-worker.js' \
     -F 'type=module' \
@@ -323,7 +344,10 @@ For now, the only way to observe progress is to see if tasks are being completed
 When running the `escrin-runner` locally, it is possible to debug the worker using standard tools like `console.log` (and, also soon-to-come, the Chrome DevTools).
 :::
 
-After a few moments, you should find that a few numbers have already been discovered, which brings us to the end of the tutorial.
+After a few moments, you should find that a few numbers have already been discovered.
+If you are using the Sapphire Testnet config JSON, you can see the results live on the [Oasis Explorer](https://explorer.oasis.io/testnet/sapphire/address/0x4046d9265f3a2E9b0Ba8EE61A1a8bC8093CEfd53/token-transfers#transfers).
+
+Now you have not only completed several Escrin tasks, you have completed the tutorial.
 Congratulations! 🎉
 
 ## Recap & Next Steps

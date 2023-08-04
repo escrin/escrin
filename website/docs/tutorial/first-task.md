@@ -43,12 +43,12 @@ Also add a line of code that gives token 1 to the creator, which allows the disc
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol"; // [!code --]
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol"; // [!code ++]
 
 contract MyToken is ERC721 { // [!code --:2]
     constructor() ERC721("MyToken", "MTK") {}
-contract AddingAtHome is ERC721 { // [!code ++:4]
+contract AddingAtHome is ERC721Enumerable { // [!code ++:4]
     constructor() ERC721("Adding@home", "SUM") {
         _mint(msg.sender, 1);
     }
@@ -67,12 +67,11 @@ The following code pulls in [TaskAcceptorV1], which adds some scaffolding around
 All this next changeset does is add the Escrin Solidity library dependency, make the token contract a task acceptor, and implement the one required lifecycle hook.
 
 ```solidity
-import {TaskAcceptorV1} from "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol"; // [!code ++]
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol"; // [!code ++]
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-contract AddingAtHome is ERC721 { // [!code --]
-contract AddingAtHome is ERC721, TaskAcceptorV1 { // [!code ++]
+contract AddingAtHome is ERC721Enumerable { // [!code --]
+contract AddingAtHome is ERC721Enumerable, TaskAcceptorV1 { // [!code ++]
     constructor() ERC721("Adding@home", "SUM") {
         _mint(msg.sender, 1);
     }
@@ -152,11 +151,10 @@ Your editor should contain this `AddingAtHome` implementation:
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {TaskAcceptorV1} from "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-contract AddingAtHome is ERC721, TaskAcceptorV1 {
+contract AddingAtHome is ERC721Enumerable, TaskAcceptorV1 {
     constructor() ERC721("Adding@home", "SUM") {
         _mint(msg.sender, 1);
     }
