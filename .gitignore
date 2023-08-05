@@ -7,9 +7,10 @@ typechain-types
 lib/
 */deployments/local*/
 
-# Hardhat files
-cache
+# Hardhat & Foundry files
+*cache*
 artifacts
+out/
 
 **/.terraform/*
 .terraform.lock.hcl

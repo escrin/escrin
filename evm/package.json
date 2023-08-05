@@ -14,24 +14,26 @@
   "files": [
     "contracts",
     "lib/src",
-    "lib/typechain-types", "src",
+    "lib/typechain-types",
+    "src",
     "typechain-types"
   ],
   "scripts": {
-    "lint:prettier": "prettier --check --plugin=prettier-plugin-solidity --cache '*.json' 'test/**/*.ts' 'contracts/**/*.sol'",
-    "lint:solhint": "solhint 'contracts/**/*.sol'",
+    "lint:prettier": "prettier --check --plugin=prettier-plugin-solidity --cache '*.json' '{contracts,test}/**/*.sol'",
+    "lint:solhint": "solhint '{contracts,test}/**/*.sol'",
     "lint": "npm-run-all lint:**",
-    "format:prettier": "prettier --write  --plugin=prettier-plugin-solidity --cache '*.json' 'test/**/*.ts' 'contracts/**/*.sol'",
-    "format:solhint": "solhint --fix 'contracts/**/*.sol'",
+    "format:prettier": "prettier --write  --plugin=prettier-plugin-solidity --cache '*.json' '{contracts,test}/**/*.sol'",
+    "format:solhint": "solhint --fix '{contracts,test}/**/*.sol'",
     "format": "npm-run-all format:**",
     "build:contracts": "hardhat compile",
     "build:lib": "tsc -p tsconfig.json",
     "build": "npm-run-all build:contracts build:lib",
+    "test": "forge test",
     "watch:build:contracts": "hardhat watch compile",
     "watch:build:lib": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "watch:build": "npm-run-all --parallel 'watch:build:**'",
+    "watch:test": "forge test --watch",
     "watch": "npm-run-all --parallel 'watch:**'",
-    "test": "hardhat test",
     "prepublishOnly": "pnpm build"
   },
   "devDependencies": {

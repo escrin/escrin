@@ -16,6 +16,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   });
 };
 
-func.tags = ['AttestationToken', 'enclave-identity'];
+func.tags = ['AttestationToken', 'identity'];
 
 export default func;

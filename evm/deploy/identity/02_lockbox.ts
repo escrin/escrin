@@ -13,7 +13,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   });
 };
 
-func.tags = ['Lockbox', 'enclave-identity'];
+func.tags = ['Lockbox', 'identity'];
 func.dependencies = ['AttestationToken'];
 
 export default func;
