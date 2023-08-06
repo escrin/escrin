@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {ITaskAcceptorV1Proxy, TaskAcceptorV1Proxy} from "../widgets/TaskAcceptorProxy.sol";
+import {ITaskAcceptorV1Proxy} from "../widgets/TaskAcceptorProxy.sol";
 import {TaskAcceptorV1} from "./TaskAcceptor.sol";
 
 abstract contract DelegatedTaskAcceptorV1 is TaskAcceptorV1, ITaskAcceptorV1Proxy {

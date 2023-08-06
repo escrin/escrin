@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
 import {TaskAcceptorV1} from "./TaskAcceptor.sol";
 
 abstract contract TrustedSenderTaskAcceptorV1 is TaskAcceptorV1 {
