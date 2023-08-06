@@ -8,7 +8,7 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 type WorkerId is bytes32;
 
 interface IIdentityAuthorizer is IERC165 {
-    function canAssumeIdentity(
+    function assumeIdentity(
         WorkerId _id,
         bytes calldata _context,
         bytes calldata _authz
@@ -20,6 +20,8 @@ contract WorkerRegistry {
     error NoSuchWorker(); // bd88a936 vYipNg==
     /// The action is disallowed.
     error Unauthorized(); // 82b42900 grQpAA==
+    /// The provided contract address does not support the correct interface.
+    error InterfaceUnsupported(); // bbaa55aa u6pVqg==
 
     event WorkerRegistered(WorkerId id);
     event WorkerDeregistered(WorkerId indexed id);
@@ -37,14 +39,10 @@ contract WorkerRegistry {
         address _authorizer,
         bytes calldata _entropy
     ) external returns (WorkerId id) {
-        require(
-            ERC165Checker.supportsInterface(_authorizer, type(IIdentityAuthorizer).interfaceId),
-            "not IIdentityAuthorizer"
-        );
         id = _generateWorkerId(_entropy);
         require(registrants[id] == address(0), "unlucky");
         registrants[id] = msg.sender;
-        authorizers[id] = IIdentityAuthorizer(_authorizer);
+        authorizers[id] = _checkIsAuthorizer(_authorizer);
         emit WorkerRegistered(id);
     }
 
@@ -53,6 +51,10 @@ contract WorkerRegistry {
         delete proposedRegistrants[_id];
         delete authorizers[_id];
         emit WorkerDeregistered(_id);
+    }
+
+    function setAuthorier(WorkerId _id, address _authorizer) external onlyRegistrant(_id) {
+        authorizers[_id] = _checkIsAuthorizer(_authorizer);
     }
 
     function proposeRegistrationTransfer(WorkerId _id, address _to) external onlyRegistrant(_id) {
@@ -79,5 +81,11 @@ contract WorkerRegistry {
                     ? bytes32(Sapphire.randomBytes(16, _pers))
                     : keccak256(bytes.concat(bytes32(block.prevrandao), _pers))
             );
+    }
+
+    function _checkIsAuthorizer(address _authorizer) internal view returns (IIdentityAuthorizer) {
+        if (!ERC165Checker.supportsInterface(_authorizer, type(IIdentityAuthorizer).interfaceId))
+            revert InterfaceUnsupported();
+        return IIdentityAuthorizer(_authorizer);
     }
 }
