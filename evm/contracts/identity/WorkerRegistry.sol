@@ -7,7 +7,7 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 
 type WorkerId is bytes32;
 
-interface IIdentityAuthorizer is IERC165 {
+interface IIdentityAuthorizerV1 is IERC165 {
     function assumeIdentity(
         WorkerId _id,
         bytes calldata _context,
@@ -15,7 +15,7 @@ interface IIdentityAuthorizer is IERC165 {
     ) external returns (bool);
 }
 
-contract WorkerRegistry {
+contract WorkerRegistryV1 {
     /// The identified worker is not registered.
     error NoSuchWorker(); // bd88a936 vYipNg==
     /// The action is disallowed.
@@ -28,7 +28,7 @@ contract WorkerRegistry {
 
     mapping(WorkerId => address) internal registrants;
     mapping(WorkerId => address) internal proposedRegistrants;
-    mapping(WorkerId => IIdentityAuthorizer) internal authorizers;
+    mapping(WorkerId => IIdentityAuthorizerV1) internal authorizers;
 
     modifier onlyRegistrant(WorkerId _id) {
         if (msg.sender != registrants[_id]) revert Unauthorized();
@@ -68,8 +68,8 @@ contract WorkerRegistry {
         delete proposedRegistrants[_id];
     }
 
-    function getAuthorizer(WorkerId _id) external view returns (IIdentityAuthorizer) {
-        IIdentityAuthorizer authorizer = authorizers[_id];
+    function getAuthorizer(WorkerId _id) external view returns (IIdentityAuthorizerV1) {
+        IIdentityAuthorizerV1 authorizer = authorizers[_id];
         if (address(authorizer) == address(0)) revert NoSuchWorker();
         return authorizer;
     }
@@ -83,9 +83,9 @@ contract WorkerRegistry {
             );
     }
 
-    function _checkIsAuthorizer(address _authorizer) internal view returns (IIdentityAuthorizer) {
-        if (!ERC165Checker.supportsInterface(_authorizer, type(IIdentityAuthorizer).interfaceId))
+    function _checkIsAuthorizer(address _authorizer) internal view returns (IIdentityAuthorizerV1) {
+        if (!ERC165Checker.supportsInterface(_authorizer, type(IIdentityAuthorizerV1).interfaceId))
             revert InterfaceUnsupported();
-        return IIdentityAuthorizer(_authorizer);
+        return IIdentityAuthorizerV1(_authorizer);
     }
 }

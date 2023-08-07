@@ -5,22 +5,22 @@ import {Test} from "forge-std/Test.sol";
 
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import {WorkerId, WorkerRegistry, IIdentityAuthorizer} from "../../contracts/identity/WorkerRegistry.sol";
+import {WorkerId, WorkerRegistryV1, IIdentityAuthorizerV1} from "../../contracts/identity/WorkerRegistry.sol";
 
-contract WorkerRegistryTest is Test {
+contract WorkerRegistryV1Test is Test {
     address private constant AUTHORIZER = address(4242);
 
-    WorkerRegistry private reg;
+    WorkerRegistryV1 private reg;
 
     function setUp() public {
         vm.prank(address(0));
-        reg = new WorkerRegistry();
+        reg = new WorkerRegistryV1();
 
         vm.mockCall(
             AUTHORIZER,
             abi.encodeWithSelector(
                 IERC165.supportsInterface.selector,
-                type(IIdentityAuthorizer).interfaceId
+                type(IIdentityAuthorizerV1).interfaceId
             ),
             abi.encode(true)
         );
@@ -33,7 +33,7 @@ contract WorkerRegistryTest is Test {
 
     function testRegisterWorker() public {
         // vm.expectEmit();
-        // emit WorkerRegistry.WorkerRegistered(WorkerId.wrap(0));
+        // emit WorkerRegistryV1.WorkerRegistered(WorkerId.wrap(0));
         WorkerId workerId1 = reg.registerWorker(AUTHORIZER, "abc123");
         require(address(reg.getAuthorizer(workerId1)) == AUTHORIZER, "create1 failed");
 
@@ -47,7 +47,7 @@ contract WorkerRegistryTest is Test {
     }
 
     function testRegisterWorkerNotIdentityAuthorizer() public {
-        vm.expectRevert(WorkerRegistry.InterfaceUnsupported.selector);
+        vm.expectRevert(WorkerRegistryV1.InterfaceUnsupported.selector);
         reg.registerWorker(address(0), "");
     }
 
@@ -55,14 +55,14 @@ contract WorkerRegistryTest is Test {
         WorkerId workerId = reg.registerWorker(AUTHORIZER, "");
 
         vm.prank(address(0));
-        vm.expectRevert(WorkerRegistry.Unauthorized.selector);
+        vm.expectRevert(WorkerRegistryV1.Unauthorized.selector);
         reg.deregisterWorker(workerId);
 
         // vm.expectEmit();
-        // emit WorkerRegistry.WorkerRegistered(workerId);
+        // emit WorkerRegistryV1.WorkerRegistered(workerId);
         reg.deregisterWorker(workerId);
 
-        vm.expectRevert(WorkerRegistry.NoSuchWorker.selector);
+        vm.expectRevert(WorkerRegistryV1.NoSuchWorker.selector);
         reg.getAuthorizer(workerId);
     }
 
@@ -70,7 +70,7 @@ contract WorkerRegistryTest is Test {
         WorkerId workerId = reg.registerWorker(AUTHORIZER, "");
 
         vm.prank(address(0));
-        vm.expectRevert(WorkerRegistry.Unauthorized.selector);
+        vm.expectRevert(WorkerRegistryV1.Unauthorized.selector);
         reg.setAuthorier(workerId, address(AUTHORIZER));
 
         address newAuthorizer = address(9999);
@@ -78,7 +78,7 @@ contract WorkerRegistryTest is Test {
             newAuthorizer,
             abi.encodeWithSelector(
                 IERC165.supportsInterface.selector,
-                type(IIdentityAuthorizer).interfaceId
+                type(IIdentityAuthorizerV1).interfaceId
             ),
             abi.encode(true)
         );
@@ -96,7 +96,7 @@ contract WorkerRegistryTest is Test {
         WorkerId workerId = reg.registerWorker(AUTHORIZER, "");
 
         vm.prank(address(0));
-        vm.expectRevert(WorkerRegistry.Unauthorized.selector);
+        vm.expectRevert(WorkerRegistryV1.Unauthorized.selector);
         reg.proposeRegistrationTransfer(workerId, address(this));
 
         reg.proposeRegistrationTransfer(workerId, address(41));
@@ -104,13 +104,13 @@ contract WorkerRegistryTest is Test {
         reg.proposeRegistrationTransfer(workerId, address(42));
 
         vm.prank(address(41));
-        vm.expectRevert(WorkerRegistry.Unauthorized.selector);
+        vm.expectRevert(WorkerRegistryV1.Unauthorized.selector);
         reg.acceptRegistrationTransfer(workerId);
 
         vm.prank(address(42));
         reg.acceptRegistrationTransfer(workerId);
 
-        vm.expectRevert(WorkerRegistry.Unauthorized.selector);
+        vm.expectRevert(WorkerRegistryV1.Unauthorized.selector);
         reg.proposeRegistrationTransfer(workerId, address(this));
     }
 }
