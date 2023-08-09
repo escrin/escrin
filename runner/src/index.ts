@@ -4,12 +4,12 @@ import { ApiError, decodeBase64Bytes, decodeRequest, rpc, wrapFetch } from './rp
 
 export { ApiError } from './rpc.js';
 
-export type KmNetwork = 'sapphire-mainnet' | 'sapphire-testnet';
-export type StateNetwork = 'sapphire-mainnet' | 'sapphire-testnet';
+export type KmNetwork = `sapphire-${'local' | 'testnet' | 'mainnet'}`;
+export type StateNetwork = `sapphire-${'local' | 'testnet' | 'mainnet'}`;
 
 export interface EscrinRunner {
   getConfig(): Promise<Record<string, any>>;
-  getOmniKey(store: KmNetwork): Promise<CryptoKey>;
+  getOmniKey(store: KmNetwork, opts?: Record<string, unknown>): Promise<CryptoKey>;
 }
 
 export interface EIP1193Provider {
@@ -73,11 +73,15 @@ class EscrinRunnerInterface implements EscrinRunner {
     return this.#config;
   }
 
-  async getOmniKey(keyStore: 'sapphire-mainnet' | 'sapphire-testnet'): Promise<CryptoKey> {
+  async getOmniKey(
+    keyStore: `sapphire-${'local' | 'testnet' | 'mainnet'}`,
+    opts?: Record<string, unknown>,
+  ): Promise<CryptoKey> {
     const { key: keyB64 }: { key: string } = await rpc(this.#service, 'get-key', {
       keyStore,
       keyId: 'omni',
       proof: '',
+      opts,
     });
     const key = decodeBase64Bytes(keyB64);
     return crypto.subtle.importKey('raw', key, 'HKDF', false, ['deriveKey', 'deriveBits']);

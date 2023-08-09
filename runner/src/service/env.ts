@@ -1,5 +1,5 @@
 import { Cacheable, cacheability } from '../env/index.js';
-import { INIT_SAPPHIRE, INIT_SAPPHIRE_TESTNET, getKeySapphire } from '../env/keystore/sapphire.js';
+import * as sapphireKeystore from '../env/keystore/sapphire.js';
 import { ApiError, decodeRequest, encodeBase64Bytes, wrapFetch } from '../rpc.js';
 
 export default new (class {
@@ -9,9 +9,9 @@ export default new (class {
     const { method, params } = await decodeRequest(req);
 
     if (method === 'get-key') {
-      const { keyStore, keyId, proof } = params;
+      const { keyStore, keyId, proof, opts } = params;
       if (!env.gasKey) throw new ApiError(500, 'escrin-runner not configured: missing `gas-key`');
-      const key = await getKey(requester, keyStore, keyId, proof, env.gasKey);
+      const key = await getKey(requester, keyStore, keyId, proof, env.gasKey, opts);
       return { key: encodeBase64Bytes(key) };
     }
 
@@ -32,6 +32,7 @@ async function getKey(
   keyId: string,
   proof: string,
   gasKey: string,
+  opts?: Record<string, unknown>,
 ): Promise<Uint8Array> {
   const cacheKey: KeyCacheKey = `${requester}.${keyStore}.${keyId}`;
   const cachedKey = KEY_CACHE[cacheKey];
@@ -40,13 +41,19 @@ async function getKey(
     delete KEY_CACHE[cacheKey];
   }
 
-  if (!/^sapphire-(main|test)net$/.test(keyStore))
+  if (!/^sapphire-(local|(main|test)net)$/.test(keyStore))
     throw new ApiError(404, `unknown key store: ${keyStore}`);
   if (keyId !== 'omni') throw new ApiError(404, `unknown key id: ${keyId}`);
 
-  const key = await getKeySapphire(keyId, proof, gasKey, {
-    init: keyStore === 'sapphire' ? INIT_SAPPHIRE : INIT_SAPPHIRE_TESTNET,
-  });
+  let sapphireGetKeyOpts =
+    opts !== undefined
+      ? (opts as any) /* TODO */
+      : keyStore === 'sapphire-local'
+      ? sapphireKeystore.INIT_LOCAL
+      : keyStore === 'sapphire-mainnet'
+      ? sapphireKeystore.INIT_MAINNET
+      : sapphireKeystore.INIT_TESTNET;
+  const key = await sapphireKeystore.getKey(keyId, proof, gasKey, sapphireGetKeyOpts);
 
   if (key.hasOwnProperty(cacheability)) {
     KEY_CACHE[cacheKey] = key;

@@ -18,8 +18,10 @@ const runner :Workerd.Worker = (
   modules = [
     (name = "runner", esModule = embed "dist/service/escrin-runner.js")
   ],
-  bindings = [ (name = "workerd", service = "@workerd") ],
-  bindings = [ (name = "mode", fromEnvironment = "ESCRIN_MODE") ],
+  bindings = [
+    (name = "workerd", service = "@workerd"),
+    (name = "mode", fromEnvironment = "ESCRIN_MODE")
+  ],
 );
 
 const env :Workerd.Worker = (
