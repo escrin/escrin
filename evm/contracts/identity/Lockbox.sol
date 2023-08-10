@@ -8,17 +8,21 @@ import {AttestationToken, TcbId} from "./AttestationToken.sol";
 contract Lockbox {
     error NoAttestationToken(); // zUKkBQ== cd42a405
 
-    AttestationToken public immutable attestationToken;
+    AttestationToken internal immutable attestationToken_;
 
     mapping(TcbId => bytes32) private lockbox;
 
-    modifier onlyAttested(TcbId _tcbId) {
-        if (!attestationToken.isAttested(msg.sender, _tcbId)) revert NoAttestationToken();
+    modifier onlyAttested(TcbId tcbId) {
+        if (!attestationToken_.isAttested(msg.sender, tcbId)) revert NoAttestationToken();
         _;
     }
 
-    constructor(AttestationToken _attestationToken) {
-        attestationToken = _attestationToken;
+    constructor(AttestationToken attestationToken) {
+        attestationToken_ = attestationToken;
+    }
+
+    function getAttestationToken() external view returns (AttestationToken) {
+        return attestationToken_;
     }
 
     function createKey(TcbId tcbId, bytes calldata pers) external {

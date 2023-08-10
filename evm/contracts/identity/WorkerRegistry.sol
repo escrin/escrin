@@ -8,11 +8,9 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 type WorkerId is bytes32;
 
 interface IIdentityAuthorizerV1 is IERC165 {
-    function assumeIdentity(
-        WorkerId _id,
-        bytes calldata _context,
-        bytes calldata _authz
-    ) external returns (bool);
+    function assumeIdentity(WorkerId id, bytes calldata context, bytes calldata authz)
+        external
+        returns (bool);
 }
 
 contract WorkerRegistryV1 {
@@ -30,62 +28,62 @@ contract WorkerRegistryV1 {
     mapping(WorkerId => address) internal proposedRegistrants;
     mapping(WorkerId => IIdentityAuthorizerV1) internal authorizers;
 
-    modifier onlyRegistrant(WorkerId _id) {
-        if (msg.sender != registrants[_id]) revert Unauthorized();
+    modifier onlyRegistrant(WorkerId id) {
+        if (msg.sender != registrants[id]) revert Unauthorized();
         _;
     }
 
-    function registerWorker(
-        address _authorizer,
-        bytes calldata _entropy
-    ) external returns (WorkerId id) {
-        id = _generateWorkerId(_entropy);
+    function registerWorker(address authorizer, bytes calldata entropy)
+        external
+        returns (WorkerId id)
+    {
+        id = _generateWorkerId(entropy);
         require(registrants[id] == address(0), "unlucky");
         registrants[id] = msg.sender;
-        authorizers[id] = _checkIsAuthorizer(_authorizer);
+        authorizers[id] = _checkIsAuthorizer(authorizer);
         emit WorkerRegistered(id);
     }
 
-    function deregisterWorker(WorkerId _id) external onlyRegistrant(_id) {
-        delete registrants[_id];
-        delete proposedRegistrants[_id];
-        delete authorizers[_id];
-        emit WorkerDeregistered(_id);
+    function deregisterWorker(WorkerId id) external onlyRegistrant(id) {
+        delete registrants[id];
+        delete proposedRegistrants[id];
+        delete authorizers[id];
+        emit WorkerDeregistered(id);
     }
 
-    function setAuthorier(WorkerId _id, address _authorizer) external onlyRegistrant(_id) {
-        authorizers[_id] = _checkIsAuthorizer(_authorizer);
+    function setAuthorier(WorkerId id, address authorizer) external onlyRegistrant(id) {
+        authorizers[id] = _checkIsAuthorizer(authorizer);
     }
 
-    function proposeRegistrationTransfer(WorkerId _id, address _to) external onlyRegistrant(_id) {
-        proposedRegistrants[_id] = _to;
+    function proposeRegistrationTransfer(WorkerId id, address to) external onlyRegistrant(id) {
+        proposedRegistrants[id] = to;
     }
 
-    function acceptRegistrationTransfer(WorkerId _id) external {
-        address proposed = proposedRegistrants[_id];
+    function acceptRegistrationTransfer(WorkerId id) external {
+        address proposed = proposedRegistrants[id];
         if (msg.sender != proposed) revert Unauthorized();
-        registrants[_id] = proposed;
-        delete proposedRegistrants[_id];
+        registrants[id] = proposed;
+        delete proposedRegistrants[id];
     }
 
-    function getAuthorizer(WorkerId _id) external view returns (IIdentityAuthorizerV1) {
-        IIdentityAuthorizerV1 authorizer = authorizers[_id];
+    function getAuthorizer(WorkerId id) external view returns (IIdentityAuthorizerV1) {
+        IIdentityAuthorizerV1 authorizer = authorizers[id];
         if (address(authorizer) == address(0)) revert NoSuchWorker();
         return authorizer;
     }
 
-    function _generateWorkerId(bytes calldata _pers) internal view returns (WorkerId) {
-        return
-            WorkerId.wrap(
-                block.chainid == 0x5aff || block.chainid == 0x5afe
-                    ? bytes32(Sapphire.randomBytes(16, _pers))
-                    : keccak256(bytes.concat(bytes32(block.prevrandao), _pers))
-            );
+    function _generateWorkerId(bytes calldata pers) internal view returns (WorkerId) {
+        return WorkerId.wrap(
+            block.chainid == 0x5aff || block.chainid == 0x5afe
+                ? bytes32(Sapphire.randomBytes(16, pers))
+                : keccak256(bytes.concat(bytes32(block.prevrandao), pers))
+        );
     }
 
-    function _checkIsAuthorizer(address _authorizer) internal view returns (IIdentityAuthorizerV1) {
-        if (!ERC165Checker.supportsInterface(_authorizer, type(IIdentityAuthorizerV1).interfaceId))
+    function _checkIsAuthorizer(address authorizer) internal view returns (IIdentityAuthorizerV1) {
+        if (!ERC165Checker.supportsInterface(authorizer, type(IIdentityAuthorizerV1).interfaceId)) {
             revert InterfaceUnsupported();
-        return IIdentityAuthorizerV1(_authorizer);
+        }
+        return IIdentityAuthorizerV1(authorizer);
     }
 }

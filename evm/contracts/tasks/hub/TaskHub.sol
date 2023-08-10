@@ -9,11 +9,11 @@ contract TaskHubV1 is ITaskHubV1 {
         emit TasksAvailable(msg.sender, "");
     }
 
-    function notify(bytes32 _context) external override {
-        emit TasksAvailable(msg.sender, _context);
+    function notify(bytes32 context) external override {
+        emit TasksAvailable(msg.sender, context);
     }
 
-    function supportsInterface(bytes4 _interfaceId) public pure override returns (bool) {
-        return _interfaceId == type(ITaskHubV1).interfaceId;
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+        return interfaceId == type(ITaskHubV1).interfaceId;
     }
 }

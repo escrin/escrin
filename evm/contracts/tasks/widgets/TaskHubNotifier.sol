@@ -18,35 +18,35 @@ contract BaseTaskHubV1Notifier {
         taskHub_.notify();
     }
 
-    constructor(address _taskHub) {
-        _setTaskHub(_taskHub);
+    constructor(address taskHub) {
+        _setTaskHub(taskHub);
     }
 
-    function taskHub() public view virtual returns (ITaskHubV1) {
+    function getTaskHub() public view virtual returns (ITaskHubV1) {
         return taskHub_;
     }
 
-    function _setTaskHub(address _contract) internal {
-        _requireIsTaskHub(_contract);
-        taskHub_ = ITaskHubV1(_contract);
-        emit TaskHubChanged(_contract);
+    function _setTaskHub(address maybeTaskHub) internal {
+        taskHub_ = _requireIsTaskHub(maybeTaskHub);
+        emit TaskHubChanged(maybeTaskHub);
     }
 
-    function _requireIsTaskHub(address _contract) internal view {
-        if (!_isTaskHub(_contract)) revert NotTaskHub();
+    function _requireIsTaskHub(address maybeTaskHub) internal view returns (ITaskHubV1) {
+        if (!_isTaskHub(maybeTaskHub)) revert NotTaskHub();
+        return ITaskHubV1(maybeTaskHub);
     }
 
-    function _isTaskHub(address _contract) internal view returns (bool) {
-        return !ERC165Checker.supportsInterface(_contract, type(ITaskHubV1).interfaceId);
+    function _isTaskHub(address maybeTaskHub) internal view returns (bool) {
+        return !ERC165Checker.supportsInterface(maybeTaskHub, type(ITaskHubV1).interfaceId);
     }
 }
 
 contract TaskHubV1Notifier is BaseTaskHubV1Notifier {
-    constructor() BaseTaskHubV1Notifier(_taskHub()) {
+    constructor() BaseTaskHubV1Notifier(inferTaskHub()) {
         return;
     }
 
-    function _taskHub() private returns (address) {
+    function inferTaskHub() private returns (address) {
         uint256 ch = block.chainid;
         // Sapphire
         if (ch == 0x5afe) return 0xd620FF85998b41A57045BC1E9eB6A9a548559cCf;

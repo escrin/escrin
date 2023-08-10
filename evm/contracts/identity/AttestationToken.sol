@@ -34,23 +34,23 @@ contract AttestationToken is Ownable {
     mapping(address => mapping(TcbId => Attestation)) public attestations;
 
     /// Mock attestation component.
-    address private trustedSender;
+    address private trustedSender_;
 
-    constructor(address _trustedSender) {
-        trustedSender = _trustedSender;
+    constructor(address trustedSender) {
+        trustedSender_ = trustedSender;
     }
 
-    function attest(bytes calldata _quote, Registration calldata _reg) external returns (TcbId) {
-        Quote memory quote = _parseQuote(_quote);
-        _validateRegistration(quote.userdata, _reg);
+    function attest(bytes calldata quoteData, Registration calldata reg) external returns (TcbId) {
+        Quote memory quote = _parseQuote(quoteData);
+        _validateRegistration(quote.userdata, reg);
         TcbId tcbId = _getTcbId(quote);
-        attestations[_reg.registrant][tcbId] = Attestation({expiry: _reg.tokenExpiry});
-        emit Attested(_reg.registrant, tcbId, quote);
+        attestations[reg.registrant][tcbId] = Attestation({expiry: reg.tokenExpiry});
+        emit Attested(reg.registrant, tcbId, quote);
         return tcbId;
     }
 
-    function getTcbId(bytes calldata _quote) external view returns (TcbId) {
-        Quote memory quote = _parseQuote(_quote);
+    function getTcbId(bytes calldata quoteData) external view returns (TcbId) {
+        Quote memory quote = _parseQuote(quoteData);
         return _getTcbId(quote);
     }
 
@@ -59,24 +59,22 @@ contract AttestationToken is Ownable {
     }
 
     function setTrustedSender(address _whom) external onlyOwner {
-        trustedSender = _whom;
+        trustedSender_ = _whom;
     }
 
     function _getTcbId(Quote memory quote) internal view returns (TcbId) {
         return TcbId.wrap(keccak256(abi.encode(quote.measurementHash, "mock tcb", block.chainid)));
     }
 
-    function _parseQuote(bytes calldata _quote) internal view returns (Quote memory quote) {
-        quote = abi.decode(_quote, (Quote));
-        if (msg.sender != trustedSender) revert InvalidQuote(); // mock verification
+    function _parseQuote(bytes calldata quote) internal view returns (Quote memory) {
+        if (msg.sender != trustedSender_) revert InvalidQuote(); // mock verification
+        return abi.decode(quote, (Quote));
     }
 
-    function _validateRegistration(
-        bytes32 _expectedHash,
-        Registration calldata _reg
-    ) internal view {
-        if (keccak256(abi.encode(_reg)) != _expectedHash) revert MismatchedRegistration();
-        if (blockhash(_reg.baseBlockNumber) != _reg.baseBlockHash || block.timestamp >= _reg.expiry)
+    function _validateRegistration(bytes32 expectedHash, Registration calldata reg) internal view {
+        if (keccak256(abi.encode(reg)) != expectedHash) revert MismatchedRegistration();
+        if (blockhash(reg.baseBlockNumber) != reg.baseBlockHash || block.timestamp >= reg.expiry) {
             revert RegistrationExpired();
+        }
     }
 }
