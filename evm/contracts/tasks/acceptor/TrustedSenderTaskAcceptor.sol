@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.18;
 
 import {TaskAcceptorV1} from "./TaskAcceptor.sol";
 
@@ -16,8 +16,8 @@ abstract contract TrustedSenderTaskAcceptorV1 is TaskAcceptorV1 {
 
     function _acceptTaskResults(
         uint256[] calldata,
-        Proof calldata,
-        Report calldata,
+        bytes calldata proof,
+        bytes calldata report,
         address submitter
     ) internal virtual override returns (TaskIdSelector memory sel) {
         sel.quantifier = _isTrustedSender(submitter) ? Quantifier.All : Quantifier.None;

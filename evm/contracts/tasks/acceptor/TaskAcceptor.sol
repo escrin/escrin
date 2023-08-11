@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.18;
 
 import {ITaskAcceptorV1, TaskIdSelectorOps} from "./ITaskAcceptor.sol";
 
@@ -13,11 +13,16 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
 
     function acceptTaskResults(
         uint256[] calldata taskIds,
-        Proof calldata proof,
-        Report calldata report
+        bytes calldata proof,
+        bytes calldata report
     ) external virtual returns (TaskIdSelector memory sel) {
         if (!_isSortedSet(taskIds)) revert SubmisionTaskIdsNotSorted();
-        _beforeTaskResultsAccepted(taskIds, proof, report, msg.sender);
+        _beforeTaskResultsAccepted({
+            taskIds: taskIds,
+            proof: proof,
+            report: report,
+            submitter: msg.sender
+        });
         sel = _acceptTaskResults(taskIds, proof, report, msg.sender);
         if (!_isSortedSet(sel.taskIds)) revert AcceptedTaskIdsNotSorted();
         _afterTaskResultsAccepted(taskIds, report, msg.sender, sel);
@@ -31,26 +36,26 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
     /// @return A selection of the accepted task results, which may be empty.
     function _acceptTaskResults(
         uint256[] calldata taskIds,
-        Proof calldata proof,
-        Report calldata report,
+        bytes calldata proof,
+        bytes calldata report,
         address submitter
     ) internal virtual returns (TaskIdSelector memory);
 
     /// Runs before tasks are accepted.
     function _beforeTaskResultsAccepted(
-        uint256[] calldata, /* taskIds */
-        Proof calldata,
-        Report calldata,
-        address /* submitter */
+        uint256[] calldata taskIds,
+        bytes calldata proof,
+        bytes calldata report,
+        address submitter
     ) internal virtual {
         return;
     }
 
     function _afterTaskResultsAccepted(
-        uint256[] calldata, /* taskIds */
-        Report calldata,
-        address, /* submitter */
-        TaskIdSelector memory /* selected */
+        uint256[] calldata taskIds,
+        bytes calldata report,
+        address submitter,
+        TaskIdSelector memory selected
     ) internal virtual {
         return;
     }

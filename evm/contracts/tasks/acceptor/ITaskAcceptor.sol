@@ -1,17 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.18;
 
 error UnknownQuantifier(); // yrtLPA== cabb4b3c
 
 interface ITaskAcceptorV1 {
-    struct Proof {
-        bytes data;
-    }
-
-    struct Report {
-        bytes data;
-    }
-
     struct TaskIdSelector {
         Quantifier quantifier;
         /// A sorted list identifying subset of submitted tasks that will interpreted per the quantifier.
@@ -32,8 +24,8 @@ interface ITaskAcceptorV1 {
     /// @param report some data provided by the submitter that the requester may or may not trust
     function acceptTaskResults(
         uint256[] calldata taskIds,
-        Proof calldata proof,
-        Report calldata report
+        bytes calldata proof,
+        bytes calldata report
     ) external returns (TaskIdSelector memory);
 }
 
