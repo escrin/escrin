@@ -5,20 +5,13 @@ import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import {IIdentityRegistry} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
 import {IdentityId, InterfaceUnsupported, Unauthorized} from "./Types.sol";
 
-abstract contract IdentityRegistry {
+abstract contract IdentityRegistry is IIdentityRegistry {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Permits for Permits.Permit;
-
-    event RegistrationTransferProposed(IdentityId indexed identityId, address indexed proposed);
-    event PermitterChanged(IdentityId indexed identityId);
-
-    event IdentityCreated(IdentityId id);
-    event IdentityDestroyed(IdentityId indexed id);
-    event IdentityAcquired(IdentityId indexed id, address indexed acquirer);
-    event IdentityReleased(IdentityId indexed id, address indexed acquirer);
 
     struct Registration {
         bool registered;
@@ -45,6 +38,7 @@ abstract contract IdentityRegistry {
 
     function createIdentity(address permitter, bytes calldata pers)
         external
+        override
         returns (IdentityId id)
     {
         id = IdentityId.wrap(uint256(bytes32(Sapphire.randomBytes(32, pers))));
@@ -55,7 +49,7 @@ abstract contract IdentityRegistry {
         emit IdentityCreated(id);
     }
 
-    function destroyIdentity(IdentityId id) external onlyRegistrant(id) {
+    function destroyIdentity(IdentityId id) external override onlyRegistrant(id) {
         delete registrations[id].registrant;
         delete proposedRegistrants[id];
         delete permitters[id];
@@ -69,17 +63,21 @@ abstract contract IdentityRegistry {
         emit IdentityDestroyed(id);
     }
 
-    function setPermitter(IdentityId id, address permitter) external onlyRegistrant(id) {
+    function setPermitter(IdentityId id, address permitter) external override onlyRegistrant(id) {
         permitters[id] = _requireIsPermitter(permitter);
         emit PermitterChanged(id);
     }
 
-    function proposeRegistrationTransfer(IdentityId id, address to) external onlyRegistrant(id) {
+    function proposeRegistrationTransfer(IdentityId id, address to)
+        external
+        override
+        onlyRegistrant(id)
+    {
         proposedRegistrants[id] = to;
         emit RegistrationTransferProposed(id, to);
     }
 
-    function acceptRegistrationTransfer(IdentityId id) external {
+    function acceptRegistrationTransfer(IdentityId id) external override {
         address proposed = proposedRegistrants[id];
         if (msg.sender != proposed) revert Unauthorized();
         registrations[id].registrant = proposed;
@@ -91,7 +89,7 @@ abstract contract IdentityRegistry {
         address requester,
         bytes calldata context,
         bytes calldata authorization
-    ) external {
+    ) external override {
         (bool allow, uint64 expiry) = permitters[id].grantPermit({
             identity: id,
             relayer: msg.sender,
@@ -110,7 +108,7 @@ abstract contract IdentityRegistry {
         address requester,
         bytes calldata context,
         bytes calldata authorization
-    ) external {
+    ) external override {
         bool allow = permitters[id].revokePermit({
             identity: id,
             relayer: msg.sender,
@@ -124,17 +122,22 @@ abstract contract IdentityRegistry {
         emit IdentityReleased(id, requester);
     }
 
-    function hasIdentity(address account, IdentityId id) external view returns (bool) {
+    function hasIdentity(address account, IdentityId id) external view override returns (bool) {
         return permits[account][id].isCurrent();
     }
 
     function getRegistrant(IdentityId id)
         external
         view
+        override
         returns (address current, address proposed)
     {
         current = registrations[id].registrant;
         proposed = proposedRegistrants[id];
+    }
+
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+        return interfaceId == type(IIdentityRegistry).interfaceId;
     }
 
     function _requireIsPermitter(address authorizer) internal view returns (IPermitter) {
