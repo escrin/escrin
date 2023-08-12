@@ -88,40 +88,40 @@ abstract contract IdentityRegistry {
 
     function acquireIdentity(
         IdentityId id,
-        address beneficiary,
+        address requester,
         bytes calldata context,
-        bytes calldata authz
+        bytes calldata authorization
     ) external {
         (bool allow, uint64 expiry) = permitters[id].grantPermit({
             identity: id,
-            requester: msg.sender,
-            beneficiary: beneficiary,
+            relayer: msg.sender,
+            requester: requester,
             context: context,
-            authz: authz
+            authorization: authorization
         });
         if (!allow) revert Unauthorized();
-        permits[beneficiary][id] = Permits.Permit({allow: allow, expiry: expiry});
-        permittedAccounts[id].add(beneficiary);
-        emit IdentityAcquired(id, beneficiary);
+        permits[requester][id] = Permits.Permit({allow: allow, expiry: expiry});
+        permittedAccounts[id].add(requester);
+        emit IdentityAcquired(id, requester);
     }
 
     function releaseIdentity(
         IdentityId id,
-        address beneficiary,
+        address requester,
         bytes calldata context,
-        bytes calldata authz
+        bytes calldata authorization
     ) external {
         bool allow = permitters[id].revokePermit({
             identity: id,
-            requester: msg.sender,
-            beneficiary: beneficiary,
+            relayer: msg.sender,
+            requester: requester,
             context: context,
-            authz: authz
+            authorization: authorization
         });
         if (!allow) revert Unauthorized();
-        delete permits[beneficiary][id];
-        permittedAccounts[id].remove(beneficiary);
-        emit IdentityReleased(id, beneficiary);
+        delete permits[requester][id];
+        permittedAccounts[id].remove(requester);
+        emit IdentityReleased(id, requester);
     }
 
     function hasIdentity(address account, IdentityId id) external view returns (bool) {
