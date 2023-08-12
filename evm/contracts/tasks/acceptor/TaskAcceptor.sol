@@ -48,7 +48,7 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
         bytes calldata report,
         address submitter
     ) internal virtual {
-        return;
+        (taskIds, proof, report, submitter);
     }
 
     function _afterTaskResultsAccepted(
@@ -57,7 +57,7 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
         address submitter,
         TaskIdSelector memory selected
     ) internal virtual {
-        return;
+        (taskIds, report, submitter, selected);
     }
 
     function _isSortedSet(uint256[] memory input) internal pure returns (bool) {

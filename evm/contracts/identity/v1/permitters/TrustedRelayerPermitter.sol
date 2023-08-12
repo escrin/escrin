@@ -19,7 +19,7 @@ abstract contract TrustedRelayerPermitter is Permitter {
         address relayer,
         address requester,
         bytes calldata context,
-        bytes calldata authz
+        bytes calldata
     ) internal virtual override returns (bool allow, uint64 expiry) {
         allow = _isTrustedRelayer(relayer);
         if (allow) {
@@ -28,13 +28,12 @@ abstract contract TrustedRelayerPermitter is Permitter {
         }
     }
 
-    function _revokePermit(
-        IdentityId identity,
-        address relayer,
-        address requester,
-        bytes calldata context,
-        bytes calldata authz
-    ) internal virtual override returns (bool allow) {
+    function _revokePermit(IdentityId, address relayer, address, bytes calldata, bytes calldata)
+        internal
+        virtual
+        override
+        returns (bool allow)
+    {
         return _isTrustedRelayer(relayer);
     }
 
@@ -42,7 +41,7 @@ abstract contract TrustedRelayerPermitter is Permitter {
         return addr == trustedRelayer_;
     }
 
-    function _getPermitLifetime(IdentityId identity, address requester, bytes calldata context)
+    function _getPermitLifetime(IdentityId, address, /*requester*/ bytes calldata /*context*/ )
         internal
         view
         virtual

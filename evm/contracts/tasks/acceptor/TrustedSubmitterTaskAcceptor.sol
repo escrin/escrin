@@ -16,8 +16,8 @@ abstract contract TrustedSubmitterTaskAcceptorV1 is TaskAcceptorV1 {
 
     function _acceptTaskResults(
         uint256[] calldata,
-        bytes calldata proof,
-        bytes calldata report,
+        bytes calldata,
+        bytes calldata,
         address submitter
     ) internal virtual override returns (TaskIdSelector memory sel) {
         sel.quantifier = _isTrustedSubmitter(submitter) ? Quantifier.All : Quantifier.None;

@@ -40,10 +40,7 @@ contract OmniKeyStore is IdentityRegistry {
         secondaryKeys[identityId] = _generateKey(pers);
     }
 
-    function rotateKeys(IdentityId identityId, bytes calldata pers)
-        external
-        onlyRegistrant(identityId)
-    {
+    function rotateKeys(IdentityId identityId) external onlyRegistrant(identityId) {
         primaryKeys[identityId] = secondaryKeys[identityId];
         secondaryKeys[identityId] = Key.wrap(0);
     }
