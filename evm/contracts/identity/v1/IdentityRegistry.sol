@@ -10,7 +10,7 @@ import {IdentityId, InterfaceUnsupported, Unauthorized} from "./Types.sol";
 
 abstract contract IdentityRegistry {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Permits for IPermitter.Permit;
+    using Permits for Permits.Permit;
 
     event RegistrationTransferProposed(IdentityId indexed identityId, address indexed proposed);
     event PermitterChanged(IdentityId indexed identityId);
@@ -31,7 +31,7 @@ abstract contract IdentityRegistry {
     mapping(IdentityId => IPermitter) private permitters;
 
     mapping(IdentityId => EnumerableSet.AddressSet) private permittedAccounts;
-    mapping(address => mapping(IdentityId => IPermitter.Permit)) private permits;
+    mapping(address => mapping(IdentityId => Permits.Permit)) private permits;
 
     modifier onlyRegistrant(IdentityId id) {
         if (msg.sender != registrations[id].registrant) revert Unauthorized();
@@ -89,26 +89,39 @@ abstract contract IdentityRegistry {
     function acquireIdentity(
         IdentityId id,
         address beneficiary,
-        bytes calldata ctx,
+        bytes calldata context,
         bytes calldata authz
     ) external {
-        IPermitter.Permit memory permit = permitters[id].grantPermit({
+        (bool allow, uint64 expiry) = permitters[id].grantPermit({
             identity: id,
             requester: msg.sender,
             beneficiary: beneficiary,
-            context: ctx,
+            context: context,
             authz: authz
         });
-        if (!permit.allow) revert Unauthorized();
-        permits[msg.sender][id] = permit;
-        permittedAccounts[id].add(msg.sender);
-        emit IdentityAcquired(id, msg.sender);
+        if (!allow) revert Unauthorized();
+        permits[beneficiary][id] = Permits.Permit({allow: allow, expiry: expiry});
+        permittedAccounts[id].add(beneficiary);
+        emit IdentityAcquired(id, beneficiary);
     }
 
-    function releaseIdentity(IdentityId id) external {
-        delete permits[msg.sender][id];
-        permittedAccounts[id].remove(msg.sender);
-        emit IdentityReleased(id, msg.sender);
+    function releaseIdentity(
+        IdentityId id,
+        address beneficiary,
+        bytes calldata context,
+        bytes calldata authz
+    ) external {
+        bool allow = permitters[id].revokePermit({
+            identity: id,
+            requester: msg.sender,
+            beneficiary: beneficiary,
+            context: context,
+            authz: authz
+        });
+        if (!allow) revert Unauthorized();
+        delete permits[beneficiary][id];
+        permittedAccounts[id].remove(beneficiary);
+        emit IdentityReleased(id, beneficiary);
     }
 
     function hasIdentity(address account, IdentityId id) external view returns (bool) {
@@ -137,7 +150,12 @@ abstract contract IdentityRegistry {
 }
 
 library Permits {
-    function isCurrent(IPermitter.Permit memory p) internal view returns (bool) {
+    struct Permit {
+        bool allow;
+        uint64 expiry;
+    }
+
+    function isCurrent(Permit memory p) internal view returns (bool) {
         return p.allow && (p.expiry == 0 || p.expiry > block.timestamp);
     }
 }
