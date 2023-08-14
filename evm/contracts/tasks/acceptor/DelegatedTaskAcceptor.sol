@@ -12,7 +12,7 @@ abstract contract DelegatedTaskAcceptorV1 is TaskAcceptorV1, ITaskAcceptorV1Prox
         returns (TaskIdSelector memory)
     {
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory result) = address(this.getTaskAcceptor()).call(msg.data);
+        (bool success, bytes memory result) = address(this.getTaskAcceptor()).delegatecall(msg.data);
         if (!success) revert(string(result));
         return abi.decode(result, (TaskIdSelector));
     }

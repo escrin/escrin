@@ -8,7 +8,6 @@ import {IdentityId} from "./Types.sol";
 interface IPermitter is IERC165 {
     function grantPermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization
@@ -16,7 +15,6 @@ interface IPermitter is IERC165 {
 
     function revokePermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization

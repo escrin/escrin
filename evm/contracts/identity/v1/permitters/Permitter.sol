@@ -9,21 +9,18 @@ import {IdentityId} from "../Types.sol";
 abstract contract Permitter is IPermitter {
     function grantPermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization
-    ) external virtual returns (bool allow, uint64 expiry) {
+    ) external virtual override returns (bool allow, uint64 expiry) {
         _beforeGrantPermit({
             identity: identity,
-            relayer: relayer,
             requester: requester,
             context: context,
             authorization: authorization
         });
         (allow, expiry) = _grantPermit({
             identity: identity,
-            relayer: relayer,
             requester: requester,
             context: context,
             authorization: authorization
@@ -33,21 +30,18 @@ abstract contract Permitter is IPermitter {
 
     function revokePermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization
-    ) external virtual returns (bool allow) {
+    ) external virtual override returns (bool allow) {
         _beforeRevokePermit({
             identity: identity,
-            relayer: relayer,
             requester: requester,
             context: context,
             authorization: authorization
         });
         allow = _revokePermit({
             identity: identity,
-            relayer: relayer,
             requester: requester,
             context: context,
             authorization: authorization
@@ -61,7 +55,6 @@ abstract contract Permitter is IPermitter {
 
     function _grantPermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization
@@ -69,7 +62,6 @@ abstract contract Permitter is IPermitter {
 
     function _revokePermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization
@@ -77,7 +69,6 @@ abstract contract Permitter is IPermitter {
 
     function _beforeGrantPermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization
@@ -92,7 +83,6 @@ abstract contract Permitter is IPermitter {
 
     function _beforeRevokePermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata authorization

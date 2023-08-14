@@ -92,7 +92,6 @@ abstract contract IdentityRegistry is IIdentityRegistry {
     ) external override {
         (bool allow, uint64 expiry) = permitters[id].grantPermit({
             identity: id,
-            relayer: msg.sender,
             requester: requester,
             context: context,
             authorization: authorization
@@ -111,7 +110,6 @@ abstract contract IdentityRegistry is IIdentityRegistry {
     ) external override {
         bool allow = permitters[id].revokePermit({
             identity: id,
-            relayer: msg.sender,
             requester: requester,
             context: context,
             authorization: authorization

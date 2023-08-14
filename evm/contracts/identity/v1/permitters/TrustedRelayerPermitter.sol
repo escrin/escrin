@@ -16,25 +16,24 @@ abstract contract TrustedRelayerPermitter is Permitter {
 
     function _grantPermit(
         IdentityId identity,
-        address relayer,
         address requester,
         bytes calldata context,
         bytes calldata
     ) internal virtual override returns (bool allow, uint64 expiry) {
-        allow = _isTrustedRelayer(relayer);
+        allow = _isTrustedRelayer(msg.sender);
         if (allow) {
             uint64 lifetime = _getPermitLifetime(identity, requester, context);
             expiry = uint64(block.timestamp + lifetime);
         }
     }
 
-    function _revokePermit(IdentityId, address relayer, address, bytes calldata, bytes calldata)
+    function _revokePermit(IdentityId, address, bytes calldata, bytes calldata)
         internal
         virtual
         override
         returns (bool allow)
     {
-        return _isTrustedRelayer(relayer);
+        return _isTrustedRelayer(msg.sender);
     }
 
     function _isTrustedRelayer(address addr) internal view virtual returns (bool) {
