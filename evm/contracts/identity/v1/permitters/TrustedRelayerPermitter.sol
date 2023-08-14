@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import {DELEGATED_CONTEXT_MARKER} from "./DelegatedPermitter.sol";
 import {IdentityId, Permitter} from "./Permitter.sol";
 
 abstract contract TrustedRelayerPermitter is Permitter {
@@ -20,7 +21,19 @@ abstract contract TrustedRelayerPermitter is Permitter {
         bytes calldata context,
         bytes calldata
     ) internal virtual override returns (bool allow, uint64 expiry) {
-        allow = _isTrustedRelayer(msg.sender);
+        address relayer = msg.sender;
+        if (context.length > 159) {
+            uint256 maybeMarker;
+            assembly {
+                maybeMarker := mload(add(context.offset, 64))
+            }
+            if (maybeMarker == DELEGATED_CONTEXT_MARKER) {
+                assembly {
+                    relayer := mload(add(context.offset, 96))
+                }
+            }
+        }
+        allow = _isTrustedRelayer(relayer);
         if (allow) {
             uint64 lifetime = _getPermitLifetime(identity, requester, context);
             expiry = uint64(block.timestamp + lifetime);
