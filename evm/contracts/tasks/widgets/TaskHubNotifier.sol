@@ -55,7 +55,7 @@ contract TaskHubV1Notifier is BaseTaskHubV1Notifier {
         if (ch == 314) return 0xc63FDB6744E50A226729fD34e5Ce2727151f6072;
         if (ch == 3141) return 0xCc66F060689F2D688e9Af6B410C22632b43683e0;
         // Local
-        if (ch == 1337 || ch == 31337) return address(new TaskHubV1());
+        if (ch == 1337 || ch == 31337 || ch == 0x5afd) return address(new TaskHubV1());
         return address(0);
     }
 }

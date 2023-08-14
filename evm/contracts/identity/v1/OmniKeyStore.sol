@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
-
+import {randomBytes} from "../../Utilities.sol";
 import {IdentityId, IdentityRegistry} from "./IdentityRegistry.sol";
 
 contract OmniKeyStore is IdentityRegistry {
@@ -55,6 +54,6 @@ contract OmniKeyStore is IdentityRegistry {
     }
 
     function _generateKey(bytes calldata pers) internal view returns (Key) {
-        return Key.wrap(bytes32(Sapphire.randomBytes(32, pers)));
+        return Key.wrap(bytes32(randomBytes(32, pers)));
     }
 }

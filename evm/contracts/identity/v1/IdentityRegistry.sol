@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import {randomBytes} from "../../Utilities.sol";
 import {IIdentityRegistry} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
 import {IdentityId, InterfaceUnsupported, Unauthorized} from "./Types.sol";
@@ -42,7 +42,7 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
         override
         returns (IdentityId id)
     {
-        id = IdentityId.wrap(uint256(bytes32(Sapphire.randomBytes(32, pers))));
+        id = IdentityId.wrap(uint256(bytes32(randomBytes(32, pers))));
         require(!registrations[id].registered, "unlucky");
         registrations[id] = Registration({registered: true, registrant: msg.sender});
         permitters[id] = _requireIsPermitter(permitter);
