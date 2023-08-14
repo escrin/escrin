@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {IPermitter} from "../IPermitter.sol";
 import {IdentityId} from "../Types.sol";
 
-abstract contract Permitter is IPermitter {
+abstract contract Permitter is IPermitter, ERC165 {
     function grantPermit(
         IdentityId identity,
         address requester,
@@ -49,8 +49,14 @@ abstract contract Permitter is IPermitter {
         _afterRevokePermit(identity, requester, context, allow);
     }
 
-    function supportsInterface(bytes4 interfaceId) external pure virtual override returns (bool) {
-        return interfaceId == type(IPermitter).interfaceId;
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165, IERC165)
+        returns (bool)
+    {
+        return interfaceId == type(IPermitter).interfaceId || super.supportsInterface(interfaceId);
     }
 
     function _grantPermit(

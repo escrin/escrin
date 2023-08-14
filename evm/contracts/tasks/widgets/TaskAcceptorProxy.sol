@@ -45,8 +45,7 @@ contract TaskAcceptorV1Proxy is ITaskAcceptorV1Proxy {
     }
 
     function _isTaskAcceptor(address maybeTaskAcceptor) internal view returns (bool) {
-        return
-            !ERC165Checker.supportsInterface(maybeTaskAcceptor, type(ITaskAcceptorV1).interfaceId);
+        return ERC165Checker.supportsInterface(maybeTaskAcceptor, type(ITaskAcceptorV1).interfaceId);
     }
 
     /// Called before a new task acceptor is set, returns whether setting should proceed.

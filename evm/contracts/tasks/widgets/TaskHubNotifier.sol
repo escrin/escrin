@@ -37,7 +37,7 @@ contract BaseTaskHubV1Notifier {
     }
 
     function _isTaskHub(address maybeTaskHub) internal view returns (bool) {
-        return !ERC165Checker.supportsInterface(maybeTaskHub, type(ITaskHubV1).interfaceId);
+        return ERC165Checker.supportsInterface(maybeTaskHub, type(ITaskHubV1).interfaceId);
     }
 }
 

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -9,7 +10,7 @@ import {IIdentityRegistry} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
 import {IdentityId, InterfaceUnsupported, Unauthorized} from "./Types.sol";
 
-abstract contract IdentityRegistry is IIdentityRegistry {
+abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Permits for Permits.Permit;
 
@@ -134,15 +135,22 @@ abstract contract IdentityRegistry is IIdentityRegistry {
         proposed = proposedRegistrants[id];
     }
 
-    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
-        return interfaceId == type(IIdentityRegistry).interfaceId;
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165, IERC165)
+        returns (bool)
+    {
+        return interfaceId == type(IIdentityRegistry).interfaceId
+            || super.supportsInterface(interfaceId);
     }
 
-    function _requireIsPermitter(address authorizer) internal view returns (IPermitter) {
-        if (!ERC165Checker.supportsInterface(authorizer, type(IPermitter).interfaceId)) {
+    function _requireIsPermitter(address permitter) internal view returns (IPermitter) {
+        if (!ERC165Checker.supportsInterface(permitter, type(IPermitter).interfaceId)) {
             revert InterfaceUnsupported();
         }
-        return IPermitter(authorizer);
+        return IPermitter(permitter);
     }
 
     function _whenIdentityCreated(IdentityId id, bytes calldata pers) internal virtual;

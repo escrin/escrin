@@ -40,7 +40,7 @@ contract PermitterProxy is IPermitterProxy {
     }
 
     function _isPermitter(address maybePermitter) internal view returns (bool) {
-        return !ERC165Checker.supportsInterface(maybePermitter, type(IPermitter).interfaceId);
+        return ERC165Checker.supportsInterface(maybePermitter, type(IPermitter).interfaceId);
     }
 
     /// Called before a new permitter is set, returns whether setting should proceed.

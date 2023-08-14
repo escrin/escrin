@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ITaskAcceptorV1, TaskIdSelectorOps} from "./ITaskAcceptor.sol";
 
 /// The input task ids were not sorted.
@@ -8,7 +9,7 @@ error SubmisionTaskIdsNotSorted(); // E+1Qrg== 13ed50ae
 /// The set of accepted task ids was not sorted.
 error AcceptedTaskIdsNotSorted(); // WjXPLQ== 5a35cf2d
 
-abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
+abstract contract TaskAcceptorV1 is ITaskAcceptorV1, ERC165 {
     using TaskIdSelectorOps for TaskIdSelector;
 
     function acceptTaskResults(
@@ -26,6 +27,17 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1 {
         sel = _acceptTaskResults(taskIds, proof, report, msg.sender);
         if (!_isSortedSet(sel.taskIds)) revert AcceptedTaskIdsNotSorted();
         _afterTaskResultsAccepted(taskIds, report, msg.sender, sel);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC165, IERC165)
+        returns (bool)
+    {
+        return
+            interfaceId == type(ITaskAcceptorV1).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /// Accepts one or more elements of a task runner's task results submission, returning the set of tasks that were accepted.
