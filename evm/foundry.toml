@@ -6,15 +6,12 @@ remappings = [
   "@oasisprotocol/sapphire-contracts/contracts=lib/sapphire-paratime/contracts/contracts",
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts",
   "openzeppelin/contracts/=lib/openzeppelin-contracts/contracts",
+  "escrin/=src/",
 ]
 
 [rpc_endpoints]
-hardhat = "http://127.0.0.1:8545"
-localhost8546 = "http://127.0.0.1:8546"
 sapphire-testnet = "https://testnet.sapphire.oasis.dev"
 sapphire-mainnet = "https://sapphire.oasis.io"
-emerald-testnet = "https://testnet.emerald.oasis.dev"
-emerald-mainnet = "https://emerald.oasis.io"
 
 [fmt]
 line_length = 100

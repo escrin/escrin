@@ -2,14 +2,15 @@
 pragma solidity ^0.8.18;
 
 import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import {ITaskAcceptorV1, TaskIdSelectorOps} from "./ITaskAcceptor.sol";
+
+import {ITaskAcceptor, TaskIdSelectorOps} from "../ITaskAcceptor.sol";
 
 /// The input task ids were not sorted.
 error SubmisionTaskIdsNotSorted(); // E+1Qrg== 13ed50ae
 /// The set of accepted task ids was not sorted.
 error AcceptedTaskIdsNotSorted(); // WjXPLQ== 5a35cf2d
 
-abstract contract TaskAcceptorV1 is ITaskAcceptorV1, ERC165 {
+abstract contract TaskAcceptor is ITaskAcceptor, ERC165 {
     using TaskIdSelectorOps for TaskIdSelector;
 
     function acceptTaskResults(
@@ -18,15 +19,10 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1, ERC165 {
         bytes calldata report
     ) external virtual returns (TaskIdSelector memory sel) {
         if (!_isSortedSet(taskIds)) revert SubmisionTaskIdsNotSorted();
-        _beforeTaskResultsAccepted({
-            taskIds: taskIds,
-            proof: proof,
-            report: report,
-            submitter: msg.sender
-        });
-        sel = _acceptTaskResults(taskIds, proof, report, msg.sender);
+        _beforeTaskResultsAccepted({taskIds: taskIds, proof: proof, report: report});
+        sel = _acceptTaskResults({taskIds: taskIds, proof: proof, report: report});
         if (!_isSortedSet(sel.taskIds)) revert AcceptedTaskIdsNotSorted();
-        _afterTaskResultsAccepted(taskIds, report, msg.sender, sel);
+        _afterTaskResultsAccepted({taskIds: taskIds, report: report, selected: sel});
     }
 
     function supportsInterface(bytes4 interfaceId)
@@ -37,39 +33,35 @@ abstract contract TaskAcceptorV1 is ITaskAcceptorV1, ERC165 {
         returns (bool)
     {
         return
-            interfaceId == type(ITaskAcceptorV1).interfaceId || super.supportsInterface(interfaceId);
+            interfaceId == type(ITaskAcceptor).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /// Accepts one or more elements of a task runner's task results submission, returning the set of tasks that were accepted.
     /// @param taskIds a sorted set of taskIds completed in this submission
     /// @param proof some proof of having completed the identified tasks that the acceptor can verify.
     /// @param report Some data provided by the submitter that the requester may or may not trust
-    /// @param submitter The account that submitted the task results.
     /// @return A selection of the accepted task results, which may be empty.
     function _acceptTaskResults(
         uint256[] calldata taskIds,
         bytes calldata proof,
-        bytes calldata report,
-        address submitter
+        bytes calldata report
     ) internal virtual returns (TaskIdSelector memory);
 
     /// Runs before tasks are accepted.
     function _beforeTaskResultsAccepted(
         uint256[] calldata taskIds,
         bytes calldata proof,
-        bytes calldata report,
-        address submitter
+        bytes calldata report
     ) internal virtual {
-        (taskIds, proof, report, submitter);
+        (taskIds, proof, report);
     }
 
     function _afterTaskResultsAccepted(
         uint256[] calldata taskIds,
         bytes calldata report,
-        address submitter,
         TaskIdSelector memory selected
     ) internal virtual {
-        (taskIds, report, submitter, selected);
+        (taskIds, report, selected);
     }
 
     function _isSortedSet(uint256[] memory input) internal pure returns (bool) {
