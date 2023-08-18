@@ -1,1 +1,9 @@
 dist/
+
+**/.terraform/*
+.terraform.lock.hcl
+*.terra
+*.tfstate*
+*.tfplan
+*.tfvars
+*.tfvars.json

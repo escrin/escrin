@@ -8,17 +8,17 @@
 
 This is the source code for the [@escrin/evm](https://www.npmjs.com/package/@escrin/evm) Solidity library.
 
-You can get started by installing `pnpm` and running `pnpm install`.
+You can get started by installing `forge` (Foundry) and running `forge install`.
 
-Once the dependencies have been installed, this is just like any other [Hardhat](https://hardhat.org/hardhat-runner/docs/getting-started) project, meaning that you can do things like
+Once the dependencies have been installed, this is just like any other [Foundry](https://book.getfoundry.sh/projects/working-on-an-existing-project) project, meaning that you can do things like
 
-* `pnpm hardhat compile` (or just `pnpm build`) - builds the contracts
-* `pnpm hardhat test` (or just `pnpm test`) - tests the contracts
+* `forge compile [--watch]` - builds the contracts
+* `forge test` - tests the contracts
 
-There are also several convenience scripts including
-* `pnpm lint` - reports formatting errors and Solidity lints
-* `pnpm format` - attempts to fix lints in-place
-* `pnpm watch`, `pnpm watch:build` - watches files and runs the appropriate commands when they change
+The `Makefile` also offers conveniences such as
+* `make lint` - checks contracts for formatting issues
+* `make format` - applies consistent formatting to contracts
+* `make test` - runs tests
 
 ### Publishing
 
