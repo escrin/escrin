@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {DELEGATED_CONTEXT_MARKER} from "./DelegatedPermitter.sol";
 import {IdentityId, Permitter} from "./Permitter.sol";
 
 abstract contract TrustedRelayerPermitter is Permitter {
@@ -15,32 +14,21 @@ abstract contract TrustedRelayerPermitter is Permitter {
         return trustedRelayer_;
     }
 
-    function _grantPermit(
+    function _acquireIdentity(
         IdentityId identity,
         address requester,
+        uint64 duration,
         bytes calldata context,
         bytes calldata
     ) internal virtual override returns (bool allow, uint64 expiry) {
-        address relayer = msg.sender;
-        if (context.length > 159) {
-            uint256 maybeMarker;
-            assembly {
-                maybeMarker := mload(add(context.offset, 64))
-            }
-            if (maybeMarker == DELEGATED_CONTEXT_MARKER) {
-                assembly {
-                    relayer := mload(add(context.offset, 96))
-                }
-            }
-        }
-        allow = _isTrustedRelayer(relayer);
+        allow = _isTrustedRelayer(msg.sender);
         if (allow) {
-            uint64 lifetime = _getPermitLifetime(identity, requester, context);
+            uint64 lifetime = _getPermitLifetime(identity, requester, duration, context);
             expiry = uint64(block.timestamp + lifetime);
         }
     }
 
-    function _revokePermit(IdentityId, address, bytes calldata, bytes calldata)
+    function _releaseIdentity(IdentityId, address, bytes calldata, bytes calldata)
         internal
         virtual
         override
@@ -53,12 +41,13 @@ abstract contract TrustedRelayerPermitter is Permitter {
         return addr == trustedRelayer_;
     }
 
-    function _getPermitLifetime(IdentityId, address, /*requester*/ bytes calldata /*context*/ )
-        internal
-        view
-        virtual
-        returns (uint64)
-    {
-        return 3 hours; // sane default
+    function _getPermitLifetime(
+        IdentityId,
+        address requester,
+        uint64 requestedDuration,
+        bytes calldata context
+    ) internal view virtual returns (uint64) {
+        (requester, context);
+        return requestedDuration;
     }
 }

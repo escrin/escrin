@@ -6,13 +6,13 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import {randomBytes} from "../../Utilities.sol";
-import {IIdentityRegistry} from "./IIdentityRegistry.sol";
+import {IIdentityRegistry, Permits} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
 import {IdentityId, InterfaceUnsupported, Unauthorized} from "./Types.sol";
 
 abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Permits for Permits.Permit;
+    using Permits for Permit;
 
     struct Registration {
         bool registered;
@@ -25,15 +25,20 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
     mapping(IdentityId => IPermitter) private permitters;
 
     mapping(IdentityId => EnumerableSet.AddressSet) private permittedAccounts;
-    mapping(address => mapping(IdentityId => Permits.Permit)) private permits;
+    mapping(address => mapping(IdentityId => Permit)) private permits;
 
     modifier onlyRegistrant(IdentityId id) {
         if (msg.sender != registrations[id].registrant) revert Unauthorized();
         _;
     }
 
-    modifier onlyPermitted(IdentityId id) {
-        if (!permits[msg.sender][id].isCurrent()) revert Unauthorized();
+    modifier onlyPermitted(IdentityId identity) {
+        if (!permits[msg.sender][identity].isActive()) revert Unauthorized();
+        _;
+    }
+
+    modifier onlyPermitter(IdentityId id) {
+        if (msg.sender != address(permitters[id])) revert Unauthorized();
         _;
     }
 
@@ -85,44 +90,29 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
         delete proposedRegistrants[id];
     }
 
-    function acquireIdentity(
-        IdentityId id,
-        address requester,
-        bytes calldata context,
-        bytes calldata authorization
-    ) external override {
-        (bool allow, uint64 expiry) = permitters[id].grantPermit({
-            identity: id,
-            requester: requester,
-            context: context,
-            authorization: authorization
-        });
-        if (!allow) revert Unauthorized();
-        permits[requester][id] = Permits.Permit({allow: allow, expiry: expiry});
-        permittedAccounts[id].add(requester);
-        emit IdentityAcquired(id, requester);
+    function grantIdentity(IdentityId id, address to, uint64 expiry)
+        external
+        override
+        onlyPermitter(id)
+    {
+        permits[to][id] = Permit({expiry: expiry});
+        permittedAccounts[id].add(to);
+        emit IdentityGranted(id, to);
     }
 
-    function releaseIdentity(
-        IdentityId id,
-        address requester,
-        bytes calldata context,
-        bytes calldata authorization
-    ) external override {
-        bool allow = permitters[id].revokePermit({
-            identity: id,
-            requester: requester,
-            context: context,
-            authorization: authorization
-        });
-        if (!allow) revert Unauthorized();
-        delete permits[requester][id];
-        permittedAccounts[id].remove(requester);
-        emit IdentityReleased(id, requester);
+    function revokeIdentity(IdentityId id, address from) external override onlyPermitter(id) {
+        delete permits[from][id];
+        permittedAccounts[id].remove(from);
+        emit IdentityRevoked(id, from);
     }
 
-    function hasIdentity(address account, IdentityId id) external view override returns (bool) {
-        return permits[account][id].isCurrent();
+    function readPermit(address holder, IdentityId id)
+        external
+        view
+        override
+        returns (Permit memory)
+    {
+        return permits[holder][id];
     }
 
     function getRegistrant(IdentityId id)
@@ -156,15 +146,4 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
     function _whenIdentityCreated(IdentityId id, bytes calldata pers) internal virtual;
 
     function _whenIdentityDestroyed(IdentityId id) internal virtual;
-}
-
-library Permits {
-    struct Permit {
-        bool allow;
-        uint64 expiry;
-    }
-
-    function isCurrent(Permit memory p) internal view returns (bool) {
-        return p.allow && (p.expiry == 0 || p.expiry > block.timestamp);
-    }
 }

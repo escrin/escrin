@@ -4,10 +4,12 @@ pragma solidity ^0.8.18;
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 import {InterfaceUnsupported} from "escrin/Types.sol";
-import {IdentityId, IIdentityRegistry} from "escrin/identity/v1/IIdentityRegistry.sol";
+import {IdentityId, IIdentityRegistry, Permits} from "escrin/identity/v1/IIdentityRegistry.sol";
 import {TaskAcceptor} from "./TaskAcceptor.sol";
 
 abstract contract PermittedSubmitterTaskAcceptor is TaskAcceptor {
+    using Permits for IIdentityRegistry.Permit;
+
     IIdentityRegistry private identityRegistry_;
     IdentityId private trustedIdentity_;
 
@@ -35,7 +37,9 @@ abstract contract PermittedSubmitterTaskAcceptor is TaskAcceptor {
     }
 
     function _isPermittedSubmitter(address submitter) internal view returns (bool) {
-        return identityRegistry_.hasIdentity(submitter, trustedIdentity_);
+        IIdentityRegistry.Permit memory permit =
+            identityRegistry_.readPermit(submitter, trustedIdentity_);
+        return permit.isActive();
     }
 
     function _requireIsIdentityRegistry(address registry)

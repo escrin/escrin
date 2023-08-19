@@ -7,28 +7,31 @@ import {IPermitter} from "../IPermitter.sol";
 import {IdentityId} from "../Types.sol";
 
 abstract contract Permitter is IPermitter, ERC165 {
-    function grantPermit(
+    function acquireIdentity(
         IdentityId identity,
         address requester,
+        uint64 duration,
         bytes calldata context,
         bytes calldata authorization
     ) external virtual override returns (bool allow, uint64 expiry) {
-        _beforeGrantPermit({
+        _beforeAcquireIdentity({
             identity: identity,
             requester: requester,
+            duration: duration,
             context: context,
             authorization: authorization
         });
-        (allow, expiry) = _grantPermit({
+        (allow, expiry) = _acquireIdentity({
             identity: identity,
             requester: requester,
+            duration: duration,
             context: context,
             authorization: authorization
         });
-        _afterGrantPermit(identity, requester, context, allow);
+        _afterAcquireIdentity(identity, requester, context, allow);
     }
 
-    function revokePermit(
+    function releaseIdentity(
         IdentityId identity,
         address requester,
         bytes calldata context,
@@ -40,7 +43,7 @@ abstract contract Permitter is IPermitter, ERC165 {
             context: context,
             authorization: authorization
         });
-        allow = _revokePermit({
+        allow = _releaseIdentity({
             identity: identity,
             requester: requester,
             context: context,
@@ -59,28 +62,30 @@ abstract contract Permitter is IPermitter, ERC165 {
         return interfaceId == type(IPermitter).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    function _grantPermit(
+    function _acquireIdentity(
         IdentityId identity,
         address requester,
+        uint64 duration,
         bytes calldata context,
         bytes calldata authorization
     ) internal virtual returns (bool allow, uint64 expiry);
 
-    function _revokePermit(
+    function _releaseIdentity(
         IdentityId identity,
         address requester,
         bytes calldata context,
         bytes calldata authorization
     ) internal virtual returns (bool allow);
 
-    function _beforeGrantPermit(
+    function _beforeAcquireIdentity(
         IdentityId identity,
         address requester,
+        uint64 duration,
         bytes calldata context,
         bytes calldata authorization
     ) internal virtual {}
 
-    function _afterGrantPermit(
+    function _afterAcquireIdentity(
         IdentityId identity,
         address requester,
         bytes calldata context,
