@@ -3,10 +3,13 @@ SOURCES := $(foreach dir,$(SRC_DIR),$(wildcard $(dir)/*.sol))
 
 .PHONY: all build test
 
-all: build
+all: build generate
 
 build:
 	forge build
+
+generate: build
+	node export-abis.js
 
 test:
 	forge test

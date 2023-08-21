@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {randomBytes} from "../../Utilities.sol";
-import {IdentityId, IdentityRegistry} from "./IdentityRegistry.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-contract OmniKeyStore is IdentityRegistry {
+import {randomBytes} from "../../Utilities.sol";
+import {IdentityId, IdentityRegistry, Permits} from "./IdentityRegistry.sol";
+import {Unauthorized} from "./Types.sol";
+
+contract OmniKeyStore is IdentityRegistry, EIP712 {
+    using Permits for Permit;
+
     type Key is bytes32;
 
     /// The requested key has not been provisioned.
@@ -12,20 +18,50 @@ contract OmniKeyStore is IdentityRegistry {
     /// The requested key has already been provisioned.
     error KeyAlreadyProvisioned();
 
+    struct SignedKeyRequest {
+        KeyRequest req;
+        bytes sig;
+    }
+
+    struct KeyRequest {
+        IdentityId identity;
+        address requester;
+        uint256 expiry;
+    }
+
     mapping(IdentityId => Key) private primaryKeys;
     mapping(IdentityId => Key) private secondaryKeys;
 
-    function getKey(IdentityId identityId) external view onlyPermitted(identityId) returns (Key) {
-        return primaryKeys[identityId];
+    constructor() EIP712("OmniKeyStore", "1") {}
+
+    modifier onlyPermitted(SignedKeyRequest calldata signedKeyReq) {
+        KeyRequest calldata req = signedKeyReq.req;
+        if (block.number >= req.expiry) revert Unauthorized();
+        bytes32 typeHash =
+            keccak256("KeyRequest(uint256 identity,address requester,uint256 expiry)");
+        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(typeHash, req)));
+        address signer = ECDSA.recover(digest, signedKeyReq.sig);
+        Permit memory permit = readPermit(req.requester, req.identity);
+        if (signer != req.requester || !permit.isActive()) revert Unauthorized();
+        _;
     }
 
-    function getSecondaryKey(IdentityId identityId)
+    function getKey(SignedKeyRequest calldata signedKeyReq)
         external
         view
-        onlyPermitted(identityId)
+        onlyPermitted(signedKeyReq)
         returns (Key)
     {
-        Key key = secondaryKeys[identityId];
+        return primaryKeys[signedKeyReq.req.identity];
+    }
+
+    function getSecondaryKey(SignedKeyRequest calldata signedKeyReq)
+        external
+        view
+        onlyPermitted(signedKeyReq)
+        returns (Key)
+    {
+        Key key = secondaryKeys[signedKeyReq.req.identity];
         if (Key.unwrap(key) == 0) revert KeyNotProvisioned();
         return key;
     }

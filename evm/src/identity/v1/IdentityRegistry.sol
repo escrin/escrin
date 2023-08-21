@@ -32,11 +32,6 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
         _;
     }
 
-    modifier onlyPermitted(IdentityId identity) {
-        if (!permits[msg.sender][identity].isActive()) revert Unauthorized();
-        _;
-    }
-
     modifier onlyPermitter(IdentityId id) {
         if (msg.sender != address(permitters[id])) revert Unauthorized();
         _;
@@ -107,7 +102,7 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
     }
 
     function readPermit(address holder, IdentityId id)
-        external
+        public
         view
         override
         returns (Permit memory)
