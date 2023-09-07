@@ -11,5 +11,8 @@
   ],
   "exports": {
     "./abi": "./abi/index.js"
+  },
+  "scripts": {
+    "build": "make build"
   }
 }

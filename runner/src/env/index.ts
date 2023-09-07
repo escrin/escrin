@@ -1,9 +1,9 @@
-export const cacheability = Symbol('escrin.env.cacheable');
+// export const cacheability = Symbol('escrin.env.cacheable');
 
-type CacheMetadata = {
-  expiry: Date;
-};
+// type CacheMetadata = {
+//   expiry: Date;
+// };
 
-export type Cacheable<T> = T & {
-  [cacheability]: CacheMetadata;
-};
+// export type Cacheable<T> = T & {
+//   [cacheability]: CacheMetadata;
+// };

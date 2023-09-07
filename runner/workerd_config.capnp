@@ -5,7 +5,7 @@ const config :Workerd.Config = (
     (name = "@escrin/runner", worker = .runner),
     (name = "@escrin/env", worker = .env),
     (name = "internet", network = (
-        # allow = ["public", "local"],
+        allow = ["public", "local"],
         tlsOptions = ( trustBrowserCas = true )
       )
     )
