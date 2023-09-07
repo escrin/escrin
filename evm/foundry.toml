@@ -1,6 +1,6 @@
 [profile.default]
 optimizer = false
-solc_version = "0.8.19"
+solc_version = "0.8.21"
 
 remappings = [
   "@oasisprotocol/sapphire-contracts/contracts=lib/sapphire-paratime/contracts/contracts",

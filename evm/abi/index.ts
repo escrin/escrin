@@ -754,6 +754,33 @@ export const OmniKeyStore = [
   },
   {
     "inputs": [],
+    "name": "ECDSAInvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureLength",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureS",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InterfaceUnsupported",
     "type": "error"
   },
@@ -1895,7 +1922,7 @@ export const TrustedSubmitterTaskAcceptor = [
   }
 ] as const;
 
-export const ITaskHubV1 = [
+export const ITaskHub = [
   {
     "anonymous": false,
     "inputs": [
@@ -1956,7 +1983,7 @@ export const ITaskHubV1 = [
   }
 ] as const;
 
-export const TaskHubV1 = [
+export const TaskHub = [
   {
     "anonymous": false,
     "inputs": [
@@ -2010,6 +2037,90 @@ export const TaskHubV1 = [
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+
+export const BaseTaskHubNotifier = [
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "taskHub",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "NotTaskHub",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "TaskHubChanged",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "getTaskHub",
+    "outputs": [
+      {
+        "internalType": "contract ITaskHub",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+
+export const TaskHubNotifier = [
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "NotTaskHub",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "TaskHubChanged",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "getTaskHub",
+    "outputs": [
+      {
+        "internalType": "contract ITaskHub",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

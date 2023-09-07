@@ -1,15 +1,18 @@
+.PHONY: all build test generate lint format
+
 SRC_DIR := src test scripts
 SOURCES := $(foreach dir,$(SRC_DIR),$(wildcard $(dir)/*.sol))
-
-.PHONY: all build test
 
 all: build generate
 
 build:
 	forge build
 
-generate: build
+generate: build | abi
 	node export-abis.js
+
+abi:
+	mkdir abi
 
 test:
 	forge test

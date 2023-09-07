@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-interface ITaskHubV1 is IERC165 {
+interface ITaskHub is IERC165 {
     event TasksAvailable(address indexed generator, bytes32 indexed context);
 
     /// Alerts any listening task runners that there are new tasks available.
