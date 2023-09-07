@@ -153,6 +153,25 @@ export const IIdentityRegistry = [
         "type": "uint256"
       }
     ],
+    "name": "getPermitter",
+    "outputs": [
+      {
+        "internalType": "contract IPermitter",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "IdentityId",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
     "name": "getRegistrant",
     "outputs": [
       {
@@ -563,6 +582,25 @@ export const IdentityRegistry = [
         "type": "uint256"
       }
     ],
+    "name": "getPermitter",
+    "outputs": [
+      {
+        "internalType": "contract IPermitter",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "IdentityId",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
     "name": "getRegistrant",
     "outputs": [
       {
@@ -948,27 +986,27 @@ export const OmniKeyStore = [
   {
     "inputs": [
       {
-        "internalType": "IdentityId",
-        "name": "identityId",
-        "type": "uint256"
-      },
-      {
         "components": [
           {
             "components": [
               {
+                "internalType": "IdentityId",
+                "name": "identity",
+                "type": "uint256"
+              },
+              {
                 "internalType": "address",
-                "name": "sub",
+                "name": "requester",
                 "type": "address"
               },
               {
                 "internalType": "uint256",
-                "name": "exp",
+                "name": "expiry",
                 "type": "uint256"
               }
             ],
-            "internalType": "struct OmniKeyStore.Claims",
-            "name": "claims",
+            "internalType": "struct OmniKeyStore.KeyRequest",
+            "name": "req",
             "type": "tuple"
           },
           {
@@ -977,8 +1015,8 @@ export const OmniKeyStore = [
             "type": "bytes"
           }
         ],
-        "internalType": "struct OmniKeyStore.Bearer",
-        "name": "tok",
+        "internalType": "struct OmniKeyStore.SignedKeyRequest",
+        "name": "signedKeyReq",
         "type": "tuple"
       }
     ],
@@ -988,6 +1026,25 @@ export const OmniKeyStore = [
         "internalType": "OmniKeyStore.Key",
         "name": "",
         "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "IdentityId",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPermitter",
+    "outputs": [
+      {
+        "internalType": "contract IPermitter",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -1020,27 +1077,27 @@ export const OmniKeyStore = [
   {
     "inputs": [
       {
-        "internalType": "IdentityId",
-        "name": "identityId",
-        "type": "uint256"
-      },
-      {
         "components": [
           {
             "components": [
               {
+                "internalType": "IdentityId",
+                "name": "identity",
+                "type": "uint256"
+              },
+              {
                 "internalType": "address",
-                "name": "sub",
+                "name": "requester",
                 "type": "address"
               },
               {
                 "internalType": "uint256",
-                "name": "exp",
+                "name": "expiry",
                 "type": "uint256"
               }
             ],
-            "internalType": "struct OmniKeyStore.Claims",
-            "name": "claims",
+            "internalType": "struct OmniKeyStore.KeyRequest",
+            "name": "req",
             "type": "tuple"
           },
           {
@@ -1049,8 +1106,8 @@ export const OmniKeyStore = [
             "type": "bytes"
           }
         ],
-        "internalType": "struct OmniKeyStore.Bearer",
-        "name": "tok",
+        "internalType": "struct OmniKeyStore.SignedKeyRequest",
+        "name": "signedKeyReq",
         "type": "tuple"
       }
     ],

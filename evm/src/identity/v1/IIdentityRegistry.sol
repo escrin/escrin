@@ -37,6 +37,8 @@ interface IIdentityRegistry is IERC165 {
     /// Called by the identity's permitter to revoke the identity to the recipient.
     function revokeIdentity(IdentityId id, address from) external;
 
+    function getPermitter(IdentityId id) external view returns (IPermitter);
+
     function readPermit(address holder, IdentityId identity)
         external
         view

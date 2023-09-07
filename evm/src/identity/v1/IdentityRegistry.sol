@@ -101,6 +101,10 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
         emit IdentityRevoked(id, from);
     }
 
+    function getPermitter(IdentityId id) external view override returns (IPermitter) {
+        return permitters[id];
+    }
+
     function readPermit(address holder, IdentityId id)
         public
         view
