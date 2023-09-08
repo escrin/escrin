@@ -10,7 +10,7 @@ import {IIdentityRegistry, Permits} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
 import {IdentityId, InterfaceUnsupported, Unauthorized} from "./Types.sol";
 
-abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
+contract IdentityRegistry is IIdentityRegistry, ERC165 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Permits for Permit;
 
@@ -142,7 +142,7 @@ abstract contract IdentityRegistry is IIdentityRegistry, ERC165 {
         return IPermitter(permitter);
     }
 
-    function _whenIdentityCreated(IdentityId id, bytes calldata pers) internal virtual;
+    function _whenIdentityCreated(IdentityId id, bytes calldata pers) internal virtual {}
 
-    function _whenIdentityDestroyed(IdentityId id) internal virtual;
+    function _whenIdentityDestroyed(IdentityId id) internal virtual {}
 }
