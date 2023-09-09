@@ -23,11 +23,11 @@
     "build:typecheck": "tsc -b",
     "build:lib": "tsc -b",
     "build:runner": "esbuild --bundle ./src/service/runner.ts --outfile=./dist/service/escrin-runner.js --minify --target=es2022 --format=esm",
-    "build:env": "esbuild --bundle ./src/service/env.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm",
+    "build:env": "esbuild --bundle ./src/service/env/index.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm",
     "build": "npm-run-all --parallel build:**",
     "watch:build:lib": "tsc -b --watch --preserveWatchOutput",
     "watch:build:runner": "esbuild --bundle ./src/service/runner.ts --outfile=./dist/service/escrin-runner.js --minify --target=es2022 --format=esm --watch",
-    "watch:build:env": "esbuild --bundle ./src/service/env.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm --watch",
+    "watch:build:env": "esbuild --bundle ./src/service/env/index.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm --watch",
     "watch:build": "npm-run-all --parallel watch:build:**",
     "watch": "npm-run-all --parallel watch:**"
   },
