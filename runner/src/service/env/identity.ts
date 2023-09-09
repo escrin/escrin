@@ -18,13 +18,15 @@ export async function handleAcquireIdentity(
   const {
     network: { chainId, rpcUrl },
     identity: { registry, id: identityIdHex },
-    permit: { lifetime, requiredDuration, permitter, authz } = {},
+    permit: { ttl, permitter } = {},
+    authz,
+    duration,
   } = opts;
   const requester = allocateAccount(requesterService);
   let publicClient = getPublicClient(chainId, rpcUrl);
   const identityId = hexToBigInt(identityIdHex);
 
-  if (requiredDuration) {
+  if (duration) {
     // If the permit key only needs to last a little while and it's already current, reuse it.
     const now = Math.ceil(Date.now() / 1000);
     const { expiry } = await publicClient.readContract({
@@ -33,7 +35,7 @@ export async function handleAcquireIdentity(
       functionName: 'readPermit',
       args: [requester.address, identityId],
     });
-    if (now + requiredDuration < Number(expiry)) return;
+    if (now + duration < Number(expiry)) return;
   }
 
   let gasWallet = getWalletClient(gasKey, chainId, rpcUrl);
@@ -49,7 +51,7 @@ export async function handleAcquireIdentity(
       args: [identityId],
     });
   }
-  const permitDuration = lifetime ? BigInt(lifetime) : 60n * 60n;
+  const permitDuration = ttl ? BigInt(ttl) : 60n * 60n;
   const context = '0x'; // TODO: include context
   const hash = await gasWallet.writeContract({
     address: permitterAddress,

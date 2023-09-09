@@ -83,11 +83,17 @@ export function decodeBase64Bytes(base64: string): Uint8Array {
   return bytes;
 }
 
-export async function rpc<ResponseType>(
+export type RequestType = {
+  method: string;
+  params: Record<string, unknown>;
+  response: void | Record<string, unknown>;
+};
+
+export async function rpc<T extends RequestType>(
   remote: Fetcher,
-  method: string,
-  params: Record<string, any>,
-): Promise<ResponseType> {
+  method: T['method'],
+  params: T['params'],
+): Promise<T['response']> {
   const res = await remote.fetch(`http://escrin`, {
     method: 'POST',
     headers: {

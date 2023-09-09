@@ -35,46 +35,58 @@ export function parseIdentity(identity: unknown): { registry: Address; id: Hash 
   return { registry, id };
 }
 
+export type AcquireIdentityRequest = {
+  method: 'acquire-identity';
+  params: AcquireIdentityParams;
+  response: void;
+};
+
 export type AcquireIdentityParams = {
   network: Network;
   identity: Identity;
-  permit?: Partial<{
-    lifetime: number;
-    requiredDuration: number;
+  permit: Partial<{
+    ttl: number;
     permitter: Address;
-    authz: Hex;
   }>;
+  authz: Hex | undefined;
+  duration: number | undefined;
 };
 
 export function parseAcquireIdentityParams(params: Record<string, unknown>): AcquireIdentityParams {
-  const { network, identity, permit } = params;
+  const { network, identity, permit, authz, duration } = params;
 
   if (typeof permit !== 'undefined' && typeof permit !== 'object')
     throw new ApiError(400, 'invalid permit params');
-  let permitParams = undefined;
+  let permitParams = {};
   if (permit) {
-    const { authz, permitter, requiredDuration, lifetime } = permit as Record<string, unknown>;
-    if (authz !== undefined && !isHex(authz)) throw new ApiError(400, 'invalid authz');
+    const { permitter, ttl } = permit as Record<string, unknown>;
     if (permitter !== undefined && !isAddress(permitter))
       throw new ApiError(400, 'invalid permitter');
-    if (requiredDuration !== undefined && typeof requiredDuration !== 'number')
-      throw new ApiError(400, 'invalid permit requiredDuration');
-    if (lifetime !== undefined && typeof lifetime !== 'number')
-      throw new ApiError(400, 'invalid permit lifetime');
+    if (ttl !== undefined && typeof ttl !== 'number') throw new ApiError(400, 'invalid permit ttl');
     permitParams = {
-      lifetime,
-      requiredDuration,
+      ttl,
       permitter,
-      authz,
     };
   }
+
+  if (authz !== undefined && !isHex(authz)) throw new ApiError(400, 'invalid authz');
+  if (duration !== undefined && typeof duration !== 'number')
+    throw new ApiError(400, 'invalid permit duration');
 
   return {
     network: parseNetwork(network),
     identity: parseIdentity(identity),
     permit: permitParams,
+    authz,
+    duration,
   };
 }
+
+export type GetKeyRequest = {
+  method: 'get-key';
+  params: GetKeyParams;
+  response: { key: string };
+};
 
 export type GetKeyParams = {
   keyId: 'omni';

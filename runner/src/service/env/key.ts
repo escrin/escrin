@@ -11,8 +11,8 @@ import * as types from './types.js';
 
 export async function handleGetKey(
   requester: string,
-  params: types.GetKeyParams,
-): Promise<{ key: string }> {
+  params: types.GetKeyRequest['params'],
+): Promise<types.GetKeyRequest['response']> {
   const requesterAccount = allocateAccount(requester);
   const key = await getSapphireOmniKey(params, requesterAccount);
 
