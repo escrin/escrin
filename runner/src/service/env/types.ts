@@ -1,9 +1,9 @@
-import { Address, Hash, Hex, isHash, isHex } from 'viem';
+import { Address, Hash, Hex, isAddress as stringIsAddress, isHash, isHex } from 'viem';
 
 import { ApiError } from '../../rpc.js';
 
 export const isU256 = (v: unknown): v is Hex => typeof v === 'string' && isHash(v);
-export const isAddress = (v: unknown): v is Hex => typeof v === 'string' && isAddress(v);
+export const isAddress = (v: unknown): v is Hex => typeof v === 'string' && stringIsAddress(v);
 
 export type Network = {
   chainId: number;

@@ -35,7 +35,7 @@ export async function handleAcquireIdentity(
       functionName: 'readPermit',
       args: [requester.address, identityId],
     });
-    if (now + duration < Number(expiry)) return;
+    if (now + duration < expiry) return;
   }
 
   let gasWallet = getWalletClient(gasKey, chainId, rpcUrl);
