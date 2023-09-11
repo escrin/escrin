@@ -1,10 +1,9 @@
 import { wrapPublicClient } from '@oasisprotocol/sapphire-paratime/compat/viem';
-import { PrivateKeyAccount, hexToBigInt, toBytes } from 'viem';
+import { Hex, PrivateKeyAccount, hexToBigInt } from 'viem';
 
 import { OmniKeyStore as OmniKeyStoreAbi } from '@escrin/evm/abi';
 
-import { encodeBase64Bytes } from '../../rpc.js';
-import { allocateAccount } from './account.js';
+import { allocateAccount, allocateAccountKey } from './account.js';
 import { getPublicClient } from './chains.js';
 
 import * as types from './types.js';
@@ -13,10 +12,17 @@ export async function handleGetKey(
   requester: string,
   params: types.GetKeyRequest['params'],
 ): Promise<types.GetKeyRequest['response']> {
-  const requesterAccount = allocateAccount(requester);
-  const key = await getSapphireOmniKey(params, requesterAccount);
+  if (params.keyId === 'omni') {
+    const requesterAccount = allocateAccount(requester);
+    return { key: await getSapphireOmniKey(params, requesterAccount) };
+  }
 
-  return { key: encodeBase64Bytes(key) };
+  if (params.keyId === 'ephemeral-account') {
+    return { key: allocateAccountKey(requester) };
+  }
+
+  const _exhaustiveCheck: never = params;
+  return _exhaustiveCheck;
 }
 
 async function getSapphireOmniKey(

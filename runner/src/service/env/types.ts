@@ -79,12 +79,16 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
 export type GetKeyRequest = {
   method: 'get-key';
   params: GetKeyParams;
-  response: { key: string };
+  response: { key: Hex };
 };
 
-export type GetKeyParams = {
-  keyId: 'omni';
-} & EvmKeyStoreParams;
+export type GetKeyParams =
+  | ({
+      keyId: 'omni';
+    } & EvmKeyStoreParams)
+  | {
+      keyId: 'ephemeral-account';
+    };
 
 export type EvmKeyStoreParams = {
   network: Network;
