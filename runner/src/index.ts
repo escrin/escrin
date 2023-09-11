@@ -2,14 +2,12 @@ import { ExecutionContext, Fetcher, Request } from '@cloudflare/workers-types/ex
 import { Address, Hash, Hex, toHex } from 'viem';
 
 import { ApiError, decodeBase64Bytes, decodeRequest, rpc, wrapFetch } from './rpc.js';
-import type * as envTypes from './service/env/types.js';
+import * as envTypes from './service/env/types.js';
 
 export { ApiError } from './rpc.js';
+export * from './service/env/types.js';
 
-export type KmNetwork = `sapphire-${'local' | 'testnet' | 'mainnet'}`;
-export type StateNetwork = `sapphire-${'local' | 'testnet' | 'mainnet'}`;
-
-export interface EscrinRunner {
+export interface Runner {
   getConfig(): Promise<Record<string, any>>;
 
   getOmniKey(params: GetOmniKeyParams): Promise<CryptoKey>;
@@ -31,17 +29,14 @@ export type AcquireIdentityParams = {
   duration?: number;
 };
 
-type NetworkNameOrNetwork =
-  | 'local'
-  | `sapphire-${'testnet' | 'mainnet'}`
-  | { chainId: number; rpcUrl: string };
-type IdentityIdOrIdentity = Hash | { registry: Address; id: Hash };
+export type NetworkNameOrNetwork = 'local' | `sapphire-${'testnet' | 'mainnet'}` | envTypes.Network;
+export type IdentityIdOrIdentity = Hash | envTypes.Identity;
 
-export interface EscrinCallbacks {
-  tasks(rnr: EscrinRunner): Promise<void>;
+export interface Callbacks {
+  tasks(rnr: Runner): Promise<void>;
 }
 
-export default function (callbacks: EscrinCallbacks) {
+export default function (callbacks: Callbacks) {
   return {
     fetch: wrapFetch(
       async (
@@ -53,7 +48,7 @@ export default function (callbacks: EscrinCallbacks) {
         ctx.waitUntil(
           (async () => {
             if (method === 'tasks') {
-              await callbacks.tasks(new EscrinRunnerInterface(env));
+              await callbacks.tasks(new RunnerInterface(env));
             } else {
               throw new ApiError(404, `unrecognized method ${method}`);
             }
@@ -66,12 +61,12 @@ export default function (callbacks: EscrinCallbacks) {
       env: { escrin: Fetcher; config: Record<string, any> },
       ctx: ExecutionContext,
     ) {
-      ctx.waitUntil(callbacks.tasks(new EscrinRunnerInterface(env)));
+      ctx.waitUntil(callbacks.tasks(new RunnerInterface(env)));
     },
   };
 }
 
-class EscrinRunnerInterface implements EscrinRunner {
+class RunnerInterface implements Runner {
   #service: Fetcher;
   #config: Record<string, any>;
 
