@@ -64,25 +64,6 @@ export async function decodeRequest(
   };
 }
 
-export function encodeBase64Bytes(bytes: Uint8Array): string {
-  const binaryParts: string[] = [];
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binaryParts.push(String.fromCharCode(bytes[i]));
-  }
-  const binary = binaryParts.join('');
-  return btoa(binary);
-}
-
-export function decodeBase64Bytes(base64: string): Uint8Array {
-  const binary = atob(base64);
-  let bytes = new Uint8Array(base64.length);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
 export type RequestType = {
   method: string;
   params: Record<string, unknown>;

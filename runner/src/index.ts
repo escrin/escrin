@@ -1,7 +1,8 @@
 import { ExecutionContext, Fetcher, Request } from '@cloudflare/workers-types/experimental';
-import { Address, Hash, Hex, toHex } from 'viem';
+import { Address, Hash, Hex, hexToBytes, toHex } from 'viem';
+import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 
-import { ApiError, decodeBase64Bytes, decodeRequest, rpc, wrapFetch } from './rpc.js';
+import { ApiError, decodeRequest, rpc, wrapFetch } from './rpc.js';
 import * as envTypes from './service/env/types.js';
 
 export { ApiError } from './rpc.js';
@@ -106,13 +107,15 @@ class RunnerInterface implements Runner {
     const { network: networkNameOrNetwork, identity: identityIdOrIdentity } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
-    const { key: keyB64 } = await rpc<envTypes.GetKeyRequest>(this.#service, 'get-key', {
+    const { key } = await rpc<envTypes.GetKeyRequest>(this.#service, 'get-key', {
       keyId: 'omni',
       network,
       identity,
     });
-    const key = decodeBase64Bytes(keyB64);
-    return crypto.subtle.importKey('raw', key, 'HKDF', false, ['deriveKey', 'deriveBits']);
+    return crypto.subtle.importKey('raw', hexToBytes(key), 'HKDF', false, [
+      'deriveKey',
+      'deriveBits',
+    ]);
   }
 }
 

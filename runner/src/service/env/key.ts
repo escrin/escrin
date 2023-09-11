@@ -22,7 +22,7 @@ export async function handleGetKey(
 async function getSapphireOmniKey(
   params: types.EvmKeyStoreParams,
   requesterAccount: PrivateKeyAccount,
-): Promise<Uint8Array> {
+): Promise<Hex> {
   const { network, identity } = params;
 
   let publicClient = getPublicClient(network.chainId, network.rpcUrl);
@@ -53,17 +53,15 @@ async function getSapphireOmniKey(
     primaryType: 'KeyRequest',
     message: keyRequest,
   });
-  return toBytes(
-    await publicClient.readContract({
-      address: identity.registry,
-      abi: OmniKeyStoreAbi,
-      functionName: 'getKey',
-      args: [
-        {
-          req: keyRequest,
-          sig: keyRequestSig,
-        },
-      ],
-    }),
-  );
+  return publicClient.readContract({
+    address: identity.registry,
+    abi: OmniKeyStoreAbi,
+    functionName: 'getKey',
+    args: [
+      {
+        req: keyRequest,
+        sig: keyRequestSig,
+      },
+    ],
+  });
 }
