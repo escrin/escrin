@@ -73,10 +73,6 @@ export function getWalletClient(
 }
 
 export function getChain(chainId: number, rpcUrl?: string): Chain {
-  if (chainId === 0x5afe) return sapphire;
-  if (chainId === 0x5aff) return sapphireTestnet;
-  if (chainId === 31337) return foundry;
-  if (chainId === 1337) return localhost;
   if (rpcUrl) {
     return {
       id: chainId,
@@ -89,5 +85,9 @@ export function getChain(chainId: number, rpcUrl?: string): Chain {
       },
     };
   }
+  if (chainId === 0x5afe) return sapphire;
+  if (chainId === 0x5aff) return sapphireTestnet;
+  if (chainId === 31337) return foundry;
+  if (chainId === 1337) return localhost;
   throw new Error(`the chain with id ${chainId} is unrecognized, so \`rpcUrl\` is required`);
 }
