@@ -18,7 +18,8 @@ export async function handleAcquireIdentity(
   const {
     network: { chainId, rpcUrl },
     identity: { registry, id: identityIdHex },
-    permit: { ttl, permitter } = {},
+    permitter,
+    permitTtl,
     authz,
     duration,
   } = opts;
@@ -51,7 +52,7 @@ export async function handleAcquireIdentity(
       args: [identityId],
     });
   }
-  const permitDuration = ttl ? BigInt(ttl) : 60n * 60n;
+  const permitDuration = permitTtl ? BigInt(permitTtl) : 60n * 60n;
   const context = '0x'; // TODO: include context
   const hash = await gasWallet.writeContract({
     address: permitterAddress,

@@ -88,17 +88,17 @@ class RunnerInterface implements Runner {
       permitTtl,
       authorization,
       duration,
+      recipient,
     } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
     await rpc<envTypes.AcquireIdentityRequest>(this.#service, 'acquire-identity', {
       network,
       identity,
-      permit: {
-        ttl: permitTtl,
-        permitter,
-      },
+      permitTtl,
+      permitter,
       authz: authorization instanceof Uint8Array ? toHex(authorization) : authorization,
+      recipient,
       duration,
     });
   }

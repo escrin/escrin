@@ -44,30 +44,22 @@ export type AcquireIdentityRequest = {
 export type AcquireIdentityParams = {
   network: Network;
   identity: Identity;
-  permit: Partial<{
-    ttl: number;
-    permitter: Address;
-  }>;
+  permitter?: Address;
+  permitTtl?: number;
+  recipient?: Address;
   authz: Hex | undefined;
   duration: number | undefined;
 };
 
 export function parseAcquireIdentityParams(params: Record<string, unknown>): AcquireIdentityParams {
-  const { network, identity, permit, authz, duration } = params;
+  const { network, identity, permitter, permitTtl, recipient, authz, duration } = params;
 
-  if (typeof permit !== 'undefined' && typeof permit !== 'object')
-    throw new ApiError(400, 'invalid permit params');
-  let permitParams = {};
-  if (permit) {
-    const { permitter, ttl } = permit as Record<string, unknown>;
-    if (permitter !== undefined && !isAddress(permitter))
-      throw new ApiError(400, 'invalid permitter');
-    if (ttl !== undefined && typeof ttl !== 'number') throw new ApiError(400, 'invalid permit ttl');
-    permitParams = {
-      ttl,
-      permitter,
-    };
-  }
+  if (recipient !== undefined && !isAddress(recipient))
+    throw new ApiError(400, 'invalid recipient');
+  if (permitter !== undefined && !isAddress(permitter))
+    throw new ApiError(400, 'invalid permitter');
+  if (permitTtl !== undefined && typeof permitTtl !== 'number')
+    throw new ApiError(400, 'invalid permit ttl');
 
   if (authz !== undefined && !isHex(authz)) throw new ApiError(400, 'invalid authz');
   if (duration !== undefined && typeof duration !== 'number')
@@ -76,7 +68,9 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
   return {
     network: parseNetwork(network),
     identity: parseIdentity(identity),
-    permit: permitParams,
+    permitter,
+    permitTtl,
+    recipient,
     authz,
     duration,
   };
