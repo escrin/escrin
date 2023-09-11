@@ -36,7 +36,7 @@ contract OmniKeyStore is IdentityRegistry, EIP712 {
 
     modifier onlyPermitted(SignedKeyRequest calldata signedKeyReq) {
         KeyRequest calldata req = signedKeyReq.req;
-        if (block.number >= req.expiry) revert Unauthorized();
+        if (block.timestamp >= req.expiry) revert Unauthorized();
         bytes32 typeHash =
             keccak256("KeyRequest(uint256 identity,address requester,uint256 expiry)");
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(typeHash, req)));

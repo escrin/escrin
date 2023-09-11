@@ -34,7 +34,7 @@ async function getSapphireOmniKey(
   const keyRequest = {
     identity: hexToBigInt(identity.id),
     requester: requesterAccount.address,
-    expiry: 5n, // five blocks
+    expiry: BigInt(Math.floor(Date.now() / 1000) + 60), // one minute
   };
   const keyRequestSig = await requesterAccount.signTypedData({
     domain: {
