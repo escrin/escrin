@@ -1,12 +1,12 @@
 import type { ExecutionContext, Fetcher, Request } from '@cloudflare/workers-types/experimental';
 
 export class ApiResponse extends Response {
-  constructor(status?: number, content?: object) {
+  constructor(status?: number, content?: unknown) {
     if (status === 204) {
-      super('', { status });
+      super(null, { status });
       return;
     }
-    super(JSON.stringify(content), {
+    super(content ? JSON.stringify(content) : '{}', {
       status,
       headers: {
         'content-type': 'application/json',
@@ -31,7 +31,7 @@ export function wrapFetch<Env>(
       const result = await handler(req, env, ctx);
       if (result instanceof Response) return result;
       const statusCode = result === null || result === undefined || result === '' ? 204 : 200;
-      return new ApiResponse(statusCode, result ?? '');
+      return new ApiResponse(statusCode, result);
     } catch (e: any) {
       if (e instanceof ApiError) {
         return new ApiResponse(e.statusCode, { error: e.message });
@@ -112,6 +112,7 @@ export async function rpc<T extends RequestType>(
     } catch {}
     throw new ApiError(res.status, errorMsg);
   }
+  if (res.status === 204) return;
   return res.json();
 }
 
