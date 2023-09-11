@@ -1,7 +1,6 @@
 .PHONY: all build test generate lint format
 
 SRC_DIR := src test scripts
-SOURCES := $(foreach dir,$(SRC_DIR),$(wildcard $(dir)/*.sol))
 
 all: build generate
 
@@ -17,8 +16,8 @@ abi:
 test:
 	forge test
 
-lint: $(SOURCES)
-	forge fmt --check $^
+lint:
+	forge fmt --check
 
-format: $(SOURCES)
+format:
 	forge fmt $^

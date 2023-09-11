@@ -5,14 +5,14 @@ import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC16
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import {randomBytes} from "../../Utilities.sol";
-import {IIdentityRegistry, Permits} from "./IIdentityRegistry.sol";
+import {InterfaceUnsupported, Unauthorized} from "escrin/Types.sol";
+import {randomBytes} from "escrin/Utilities.sol";
+import {IIdentityRegistry} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
-import {IdentityId, InterfaceUnsupported, Unauthorized} from "./Types.sol";
+import {IdentityId} from "./Types.sol";
 
 contract IdentityRegistry is IIdentityRegistry, ERC165 {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Permits for Permit;
 
     struct Registration {
         bool registered;

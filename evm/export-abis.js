@@ -35,4 +35,6 @@ for await (const solFile of findFiles(srcdir, '.sol')) {
   }
 }
 
-await fs.writeFile(path.join(abidir, 'index.ts'), abiStrs.join('\n\n'));
+const outfile = path.join(abidir, 'index.ts');
+await fs.unlink(outfile);
+await fs.writeFile(outfile, abiStrs.join('\n\n'));

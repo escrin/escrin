@@ -49,9 +49,3 @@ interface IIdentityRegistry is IERC165 {
         view
         returns (address current, address proposed);
 }
-
-library Permits {
-    function isActive(IIdentityRegistry.Permit memory permit) internal view returns (bool) {
-        return permit.expiry > block.timestamp;
-    }
-}

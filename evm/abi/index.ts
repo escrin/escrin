@@ -349,11 +349,6 @@ export const IPermitter = [
     "name": "acquireIdentity",
     "outputs": [
       {
-        "internalType": "bool",
-        "name": "allow",
-        "type": "bool"
-      },
-      {
         "internalType": "uint64",
         "name": "expiry",
         "type": "uint64"
@@ -386,13 +381,7 @@ export const IPermitter = [
       }
     ],
     "name": "releaseIdentity",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "gone",
-        "type": "bool"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -1311,6 +1300,11 @@ export const OmniKeyStore = [
 
 export const Permitter = [
   {
+    "inputs": [],
+    "name": "InterfaceUnsupported",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "IdentityId",
@@ -1341,17 +1335,25 @@ export const Permitter = [
     "name": "acquireIdentity",
     "outputs": [
       {
-        "internalType": "bool",
-        "name": "allow",
-        "type": "bool"
-      },
-      {
         "internalType": "uint64",
         "name": "expiry",
         "type": "uint64"
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "identityRegistry",
+    "outputs": [
+      {
+        "internalType": "contract IIdentityRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1378,13 +1380,7 @@ export const Permitter = [
       }
     ],
     "name": "releaseIdentity",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "allow",
-        "type": "bool"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -1411,6 +1407,16 @@ export const Permitter = [
 
 export const TrustedRelayerPermitter = [
   {
+    "inputs": [],
+    "name": "InterfaceUnsupported",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "IdentityId",
@@ -1441,11 +1447,6 @@ export const TrustedRelayerPermitter = [
     "name": "acquireIdentity",
     "outputs": [
       {
-        "internalType": "bool",
-        "name": "allow",
-        "type": "bool"
-      },
-      {
         "internalType": "uint64",
         "name": "expiry",
         "type": "uint64"
@@ -1460,6 +1461,19 @@ export const TrustedRelayerPermitter = [
     "outputs": [
       {
         "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "identityRegistry",
+    "outputs": [
+      {
+        "internalType": "contract IIdentityRegistry",
         "name": "",
         "type": "address"
       }
@@ -1491,13 +1505,7 @@ export const TrustedRelayerPermitter = [
       }
     ],
     "name": "releaseIdentity",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "allow",
-        "type": "bool"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
