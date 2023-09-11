@@ -26,6 +26,7 @@ export type AcquireIdentityParams = {
   identity: IdentityIdOrIdentity;
   permitter?: Address;
   permitTtl?: number;
+  recipient?: Address;
   authorization?: Uint8Array | Hex;
   duration?: number;
 };

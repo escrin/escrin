@@ -20,10 +20,11 @@ export async function handleAcquireIdentity(
     identity: { registry, id: identityIdHex },
     permitter,
     permitTtl,
+    recipient,
     authz,
     duration,
   } = opts;
-  const requester = allocateAccount(requesterService);
+  const requester = recipient ?? allocateAccount(requesterService).address;
   let publicClient = getPublicClient(chainId, rpcUrl);
   const identityId = hexToBigInt(identityIdHex);
 
@@ -34,7 +35,7 @@ export async function handleAcquireIdentity(
       address: registry,
       abi: IdentityRegistryAbi,
       functionName: 'readPermit',
-      args: [requester.address, identityId],
+      args: [requester, identityId],
     });
     if (now + duration < expiry) return;
   }
@@ -58,7 +59,7 @@ export async function handleAcquireIdentity(
     address: permitterAddress,
     abi: PermitterAbi,
     functionName: 'acquireIdentity',
-    args: [identityId, requester.address, permitDuration, context, authz ?? '0x'],
+    args: [identityId, requester, permitDuration, context, authz ?? '0x'],
   });
   const { status } = await publicClient.waitForTransactionReceipt({ hash });
   if (status !== 'success') throw new Error(`failed to acquire identity in ${hash}`);
