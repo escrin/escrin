@@ -9,17 +9,22 @@ function randomBytes(uint256 count, bytes calldata pers) view returns (bytes mem
     }
     uint256 words = (count + 31) >> 5;
     bytes memory out = new bytes(words << 5);
-    bytes32 seed = keccak256(
-        abi.encodePacked(
-            msg.sender,
-            blockhash(block.number),
-            block.timestamp,
-            block.prevrandao,
-            block.coinbase,
-            count,
-            pers
-        )
-    );
+    bytes32 seed;
+    if (block.chainid == 1337 || block.chainid == 31337) {
+        seed = keccak256(abi.encodePacked(msg.sender, count, pers));
+    } else {
+        seed = keccak256(
+            abi.encodePacked(
+                msg.sender,
+                blockhash(block.number),
+                block.timestamp,
+                block.prevrandao,
+                block.coinbase,
+                count,
+                pers
+            )
+        );
+    }
     for (uint256 i = 0; i < words; i++) {
         seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i)));
         assembly {
