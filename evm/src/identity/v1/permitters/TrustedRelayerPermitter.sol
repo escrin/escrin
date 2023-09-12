@@ -2,12 +2,12 @@
 pragma solidity ^0.8.18;
 
 import {Unauthorized} from "escrin/Types.sol";
-import {IdentityId, Permitter} from "./Permitter.sol";
+import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
 
-abstract contract TrustedRelayerPermitter is Permitter {
+contract TrustedRelayerPermitter is Permitter {
     address private immutable trustedRelayer_;
 
-    constructor(address trustedRelayer) {
+    constructor(IIdentityRegistry registry, address trustedRelayer) Permitter(registry) {
         trustedRelayer_ = trustedRelayer;
     }
 

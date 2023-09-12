@@ -12,11 +12,11 @@ import {IdentityId} from "../Types.sol";
 abstract contract Permitter is IPermitter, ERC165 {
     IIdentityRegistry public immutable identityRegistry;
 
-    constructor(address registry) {
-        if (!ERC165Checker.supportsInterface(registry, type(IIdentityRegistry).interfaceId)) {
+    constructor(IIdentityRegistry registry) {
+        if (!ERC165Checker.supportsInterface(address(registry), type(IIdentityRegistry).interfaceId)) {
             revert InterfaceUnsupported();
         }
-        identityRegistry = IIdentityRegistry(registry);
+        identityRegistry = registry;
     }
 
     function acquireIdentity(

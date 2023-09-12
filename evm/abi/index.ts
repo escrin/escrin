@@ -1407,6 +1407,22 @@ export const Permitter = [
 
 export const TrustedRelayerPermitter = [
   {
+    "inputs": [
+      {
+        "internalType": "contract IIdentityRegistry",
+        "name": "registry",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "trustedRelayer",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
     "inputs": [],
     "name": "InterfaceUnsupported",
     "type": "error"
