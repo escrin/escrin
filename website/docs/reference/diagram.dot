@@ -1,0 +1,45 @@
+digraph {
+    graph [compound=true, fontname="Helvetica"]
+    edge [fontname="Helvetica"]
+    node [shape=record fontname="Helvetica"];
+
+    orchestrator [label=<Task Scheduler>]
+    agent;
+    storage [label=<Storage Subsystem>]
+
+
+    subgraph cluster_ledger {
+        penwidth=2
+        label=<Decentralized Ledger>
+        agent [shape=none, label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+      <tr><td>Smart Contract</td></tr>
+
+      <TR><TD PORT="acceptTasks"><font color="#eeaa00" point-size="12">(escrin)  </font><font face="courier" point-size="12">acceptTaskResults(results,proof)</font></TD></TR>
+      <TR><TD PORT="state"><font face="courier" point-size="12">public state</font></TD></TR>
+
+      <TR><TD PORT="acquireIdentity"><font color="#eeaa00" point-size="12">(escrin)  </font><font face="courier" point-size="12">acquireIdentity(id,credentials)</font></TD></TR>
+    </TABLE>>];
+    }
+
+    subgraph cluster_runner {
+        label=<Task Executor>
+        subgraph cluster_escrin {
+            penwidth=2
+            pencolor="#eeaa00"
+            label=<Escrin Worker<br/><font point-size="12">(in a TEE)</font>>
+            tasks [label=<Task|Task|...>]
+        }
+    }
+
+    orchestrator -> agent:state  [label=<1. detect tasks<br/>&amp; policies>, style=dashed, constraint=false]
+    orchestrator -> tasks [label=<2. dispatch tasks>, lhead=cluster_runner]
+
+    km [label=<Secret Sharing Network>,penwidth=2]
+
+    agent:approveSecret -> tasks [lhead=cluster_escrin, ltail=cluster_escrin, label=<4. acquire identity  >,dir=back,color="#eeaa00"]
+    tasks -> storage [ltail=cluster_escrin,label=<3. fetch program &amp; inputs  >, style=dashed,color="#eeaa00"]
+    tasks -> storage [ltail=cluster_escrin,label=<  7. post side effects>,color="#eeaa00"]
+    tasks -> agent:acceptTasks [lhead=cluster_escrin, ltail=cluster_escrin, taillabel=<<br/>                     8. update shared state>,constraint=false,color="#eeaa00"]
+    km -> tasks [lhead=cluster_escrin, ltail=cluster_escrin, label=< 5.  fetch secret>, style=dashed, dir=back, color="#eeaa00"]
+    agent:state -> km [xlabel=<<br/><br/>6. verify identity>, dir=back, style=dashed]
+}
