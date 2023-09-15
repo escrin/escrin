@@ -6,68 +6,6 @@
     </p>
     <ul class="flex flex-wrap flex-row justify-around items-center">
       <li>
-        <a class="flex items-center" href="https://enshrine.ai" target="_blank">
-          <svg
-            class="enshrine-logo"
-            xmlns="http://www.w3.org/2000/svg"
-            width="500mm"
-            height="500mm"
-            viewBox="0 0 500 500"
-          >
-            <path
-              d="M-1503.033 595.175V839.91l211.947 122.368 211.946-122.368V595.175l-30.926 17.855v209.025l-181.02 104.512-181.02-104.512V613.03z"
-              style="
-                color: #000;
-                fill: #18899f;
-                fill-opacity: 1;
-                stroke-width: 211.667;
-                stroke-dasharray: none;
-              "
-            />
-            <path
-              d="M306.274 172.007c0 31.08-25.195 56.274-56.274 56.274-31.08 0-56.274-25.195-56.274-56.274S250 38.87 250 38.87s56.274 102.058 56.274 133.137z"
-              style="
-                fill: #e58a68;
-                stroke-width: 18.3391;
-                stroke-linecap: square;
-                stroke-miterlimit: 100;
-                fill-opacity: 1;
-              "
-            />
-            <path
-              d="M729.959 52.06v175.25l-151.77 87.624-151.771-87.623V52.06l-43.297-24.998v225.244L578.19 364.93l195.069-112.623V27.063Z"
-              style="
-                color: #000;
-                fill: #18899f;
-                stroke-linecap: square;
-                stroke-miterlimit: 100;
-                -inkscape-stroke: none;
-                stroke: none;
-                stroke-opacity: 1;
-                fill-opacity: 1;
-              "
-              transform="matrix(1.03376 0 0 1.03376 -347.71 105.6)"
-            />
-            <path
-              d="m751.608 239.809-173.42 100.123L404.77 239.81V39.56L578.19-60.563l173.42 100.124z"
-              style="
-                fill: none;
-                fill-opacity: 1;
-                stroke: #000;
-                stroke-width: 43.2976;
-                stroke-linecap: square;
-                stroke-linejoin: miter;
-                stroke-miterlimit: 100;
-                stroke-dasharray: none;
-                stroke-opacity: 1;
-              "
-              transform="matrix(1.03376 0 0 1.03376 -1899.089 -524.172)"
-            />
-          </svg>
-          <span class="text-left leading-6 pl-2 font-medium text-xl">Enshrine&nbsp;CC</span>
-        </a>
-      </li>
-      <li>
         <a href="https://oasisprotocol.org" target="_blank">
           <svg
             class="oasis-logo"
