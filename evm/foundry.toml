@@ -10,6 +10,8 @@ remappings = [
 ]
 
 [rpc_endpoints]
+emerald-testnet = "https://testnet.emerald.oasis.dev"
+emerald-mainnet = "https://emerald.oasis.dev"
 sapphire-testnet = "https://testnet.sapphire.oasis.dev"
 sapphire-mainnet = "https://sapphire.oasis.io"
 
@@ -17,5 +19,6 @@ sapphire-mainnet = "https://sapphire.oasis.io"
 line_length = 100
 
 [profile.release]
+optimizer = true
 optimizer_runs = 30_000
 via_ir = true
