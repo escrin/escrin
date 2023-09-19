@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {Unauthorized} from "../../../Types.sol";
 import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
 
 contract TrustedRelayerPermitter is Permitter {

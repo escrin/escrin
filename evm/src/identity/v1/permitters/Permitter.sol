@@ -4,12 +4,16 @@ pragma solidity ^0.8.18;
 import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-import {InterfaceUnsupported} from "../../../Types.sol";
-import {IIdentityRegistry} from "../IIdentityRegistry.sol";
+import {IdentityId, IIdentityRegistry} from "../IIdentityRegistry.sol";
 import {IPermitter} from "../IPermitter.sol";
-import {IdentityId} from "../Types.sol";
 
 abstract contract Permitter is IPermitter, ERC165 {
+    /// The provided contract address does not support the correct interface.
+    error InterfaceUnsupported(); // bbaa55aa u6pVqg==
+
+    /// The action is disallowed.
+    error Unauthorized(); // 82b42900 grQpAA==
+
     IIdentityRegistry public immutable identityRegistry;
 
     constructor(IIdentityRegistry registry) {

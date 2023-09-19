@@ -4,7 +4,8 @@ pragma solidity ^0.8.18;
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import {IPermitter} from "./IPermitter.sol";
-import {IdentityId} from "./Types.sol";
+
+type IdentityId is uint256;
 
 interface IIdentityRegistry is IERC165 {
     struct Permit {

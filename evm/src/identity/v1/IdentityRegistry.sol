@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
+import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import {InterfaceUnsupported, Unauthorized} from "../../Types.sol";
-import {randomBytes} from "../../Utilities.sol";
-import {IIdentityRegistry} from "./IIdentityRegistry.sol";
+import {IdentityId, IIdentityRegistry} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
-import {IdentityId} from "./Types.sol";
 
 contract IdentityRegistry is IIdentityRegistry, ERC165 {
+    /// The action is disallowed.
+    error Unauthorized(); // 82b42900 grQpAA==
+
+    /// The provided contract address does not support the correct interface.
+    error InterfaceUnsupported(); // bbaa55aa u6pVqg==
+
     using EnumerableSet for EnumerableSet.AddressSet;
 
     struct Registration {
@@ -42,7 +46,7 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
         override
         returns (IdentityId id)
     {
-        id = IdentityId.wrap(uint256(bytes32(randomBytes(32, pers))));
+        id = IdentityId.wrap(uint256(bytes32(_randomBytes(32, pers))));
         require(!registrations[id].registered, "unlucky");
         registrations[id] = Registration({registered: true, registrant: msg.sender});
         permitters[id] = _requireIsPermitter(permitter);
@@ -145,4 +149,42 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
     function _whenIdentityCreated(IdentityId id, bytes calldata pers) internal virtual {}
 
     function _whenIdentityDestroyed(IdentityId id) internal virtual {}
+
+    function _randomBytes(uint256 count, bytes calldata pers)
+        internal
+        view
+        returns (bytes memory)
+    {
+        if (block.chainid == 0x5aff || block.chainid == 0x5afe) {
+            return Sapphire.randomBytes(count, pers);
+        }
+        uint256 words = (count + 31) >> 5;
+        bytes memory out = new bytes(words << 5);
+        bytes32 seed;
+        if (block.chainid == 1337 || block.chainid == 31337) {
+            seed = keccak256(abi.encodePacked(msg.sender, count, pers));
+        } else {
+            seed = keccak256(
+                abi.encodePacked(
+                    msg.sender,
+                    blockhash(block.number),
+                    block.timestamp,
+                    block.prevrandao,
+                    block.coinbase,
+                    count,
+                    pers
+                )
+            );
+        }
+        for (uint256 i = 0; i < words; i++) {
+            seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i)));
+            assembly {
+                mstore(add(out, add(32, mul(32, i))), seed)
+            }
+        }
+        assembly {
+            mstore(out, count)
+        }
+        return out;
+    }
 }

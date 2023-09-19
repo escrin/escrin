@@ -5,12 +5,12 @@ import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC16
 
 import {ITaskAcceptor, TaskIdSelectorOps} from "../ITaskAcceptor.sol";
 
-/// The input task ids were not sorted.
-error SubmisionTaskIdsNotSorted(); // E+1Qrg== 13ed50ae
-/// The set of accepted task ids was not sorted.
-error AcceptedTaskIdsNotSorted(); // WjXPLQ== 5a35cf2d
-
 abstract contract TaskAcceptor is ITaskAcceptor, ERC165 {
+    /// The input task ids were not sorted.
+    error SubmisionTaskIdsNotSorted(); // E+1Qrg== 13ed50ae
+    /// The set of accepted task ids was not sorted.
+    error AcceptedTaskIdsNotSorted(); // WjXPLQ== 5a35cf2d
+
     using TaskIdSelectorOps for TaskIdSelector;
 
     function acceptTaskResults(

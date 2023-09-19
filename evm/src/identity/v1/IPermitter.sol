@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import {IdentityId} from "./Types.sol";
+import {IdentityId} from "./IIdentityRegistry.sol";
 
 interface IPermitter is IERC165 {
     /// Requests that the permitter trigger the upstream identity registry to grant an identity.

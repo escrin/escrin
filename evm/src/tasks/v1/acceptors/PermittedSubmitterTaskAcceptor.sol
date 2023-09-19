@@ -3,11 +3,13 @@ pragma solidity ^0.8.18;
 
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-import {InterfaceUnsupported} from "../../../Types.sol";
 import {IdentityId, IIdentityRegistry} from "../../../identity/v1/IIdentityRegistry.sol";
 import {TaskAcceptor} from "./TaskAcceptor.sol";
 
 abstract contract PermittedSubmitterTaskAcceptor is TaskAcceptor {
+    /// The provided contract address does not support the correct interface.
+    error InterfaceUnsupported(); // bbaa55aa u6pVqg==
+
     IIdentityRegistry private identityRegistry_;
     IdentityId private trustedIdentity_;
 

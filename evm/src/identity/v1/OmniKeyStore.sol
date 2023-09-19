@@ -4,8 +4,6 @@ pragma solidity ^0.8.18;
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-import {Unauthorized} from "../../Types.sol";
-import {randomBytes} from "../../Utilities.sol";
 import {IdentityId, IdentityRegistry} from "./IdentityRegistry.sol";
 
 contract OmniKeyStore is IdentityRegistry, EIP712 {
@@ -88,6 +86,6 @@ contract OmniKeyStore is IdentityRegistry, EIP712 {
     }
 
     function _generateKey(bytes calldata pers) internal view returns (Key) {
-        return Key.wrap(bytes32(randomBytes(32, pers)));
+        return Key.wrap(bytes32(_randomBytes(32, pers)));
     }
 }
