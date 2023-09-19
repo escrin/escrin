@@ -13,7 +13,9 @@ abstract contract Permitter is IPermitter, ERC165 {
     IIdentityRegistry public immutable identityRegistry;
 
     constructor(IIdentityRegistry registry) {
-        if (!ERC165Checker.supportsInterface(address(registry), type(IIdentityRegistry).interfaceId)) {
+        if (
+            !ERC165Checker.supportsInterface(address(registry), type(IIdentityRegistry).interfaceId)
+        ) {
             revert InterfaceUnsupported();
         }
         identityRegistry = registry;
