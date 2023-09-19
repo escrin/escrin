@@ -155,7 +155,7 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
         view
         returns (bytes memory)
     {
-        if (block.chainid == 0x5aff || block.chainid == 0x5afe) {
+        if (block.chainid == 0x5aff || block.chainid == 0x5afe || block.chainid == 0x5afd) {
             return Sapphire.randomBytes(count, pers);
         }
         uint256 words = (count + 31) >> 5;
