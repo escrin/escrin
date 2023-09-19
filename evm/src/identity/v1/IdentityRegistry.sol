@@ -10,12 +10,6 @@ import {IdentityId, IIdentityRegistry} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
 
 contract IdentityRegistry is IIdentityRegistry, ERC165 {
-    /// The action is disallowed.
-    error Unauthorized(); // 82b42900 grQpAA==
-
-    /// The provided contract address does not support the correct interface.
-    error InterfaceUnsupported(); // bbaa55aa u6pVqg==
-
     using EnumerableSet for EnumerableSet.AddressSet;
 
     struct Registration {

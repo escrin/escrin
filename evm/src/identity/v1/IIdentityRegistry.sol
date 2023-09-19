@@ -8,6 +8,12 @@ import {IPermitter} from "./IPermitter.sol";
 type IdentityId is uint256;
 
 interface IIdentityRegistry is IERC165 {
+    /// The action is disallowed.
+    error Unauthorized(); // 82b42900 grQpAA==
+
+    /// The provided contract address does not support the correct interface.
+    error InterfaceUnsupported(); // bbaa55aa u6pVqg==
+
     struct Permit {
         uint64 expiry;
     }

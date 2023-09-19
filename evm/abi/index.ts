@@ -1,5 +1,15 @@
 export const IIdentityRegistry = [
   {
+    "inputs": [],
+    "name": "InterfaceUnsupported",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -1302,6 +1312,11 @@ export const Permitter = [
   {
     "inputs": [],
     "name": "InterfaceUnsupported",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
     "type": "error"
   },
   {
