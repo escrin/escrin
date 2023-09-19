@@ -3,8 +3,8 @@ pragma solidity ^0.8.18;
 
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-import {InterfaceUnsupported} from "escrin/Types.sol";
-import {IdentityId, IIdentityRegistry} from "escrin/identity/v1/IIdentityRegistry.sol";
+import {InterfaceUnsupported} from "../../../Types.sol";
+import {IdentityId, IIdentityRegistry} from "../../../identity/v1/IIdentityRegistry.sol";
 import {TaskAcceptor} from "./TaskAcceptor.sol";
 
 abstract contract PermittedSubmitterTaskAcceptor is TaskAcceptor {

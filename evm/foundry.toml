@@ -4,9 +4,6 @@ solc_version = "0.8.21"
 
 remappings = [
   "@oasisprotocol/sapphire-contracts/contracts=lib/sapphire-paratime/contracts/contracts",
-  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts",
-  "openzeppelin/contracts/=lib/openzeppelin-contracts/contracts",
-  "escrin/=src/",
 ]
 
 [rpc_endpoints]

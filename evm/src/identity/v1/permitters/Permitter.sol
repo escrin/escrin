@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-import {InterfaceUnsupported} from "escrin/Types.sol";
+import {InterfaceUnsupported} from "../../../Types.sol";
 import {IIdentityRegistry} from "../IIdentityRegistry.sol";
 import {IPermitter} from "../IPermitter.sol";
 import {IdentityId} from "../Types.sol";
