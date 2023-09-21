@@ -1,0 +1,13 @@
+*
+
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+
+!evm/abi
+!evm/package.json
+
+!runner/package.json
+!runner/src
+!runner/tsconfig.json
+!runner/workerd_config.capnp
+!runner/oasisprotocol-sapphire-paratime-1.1.1.tgz
