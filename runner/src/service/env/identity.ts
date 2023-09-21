@@ -1,4 +1,4 @@
-import { Address, Hash, hexToBigInt } from 'viem';
+import { Address, BlockNotFoundError, Hash, TransactionNotFoundError, hexToBigInt } from 'viem';
 
 import {
   IIdentityRegistry as IdentityRegistryAbi,
@@ -61,6 +61,21 @@ export async function handleAcquireIdentity(
     functionName: 'acquireIdentity',
     args: [identityId, requester, permitDuration, context, authz ?? '0x'],
   });
-  const { status } = await publicClient.waitForTransactionReceipt({ hash });
-  if (status !== 'success') throw new Error(`failed to acquire identity in ${hash}`);
+
+  let retriesRemaining = 3;
+  while (true) {
+    try {
+      const { status } = await publicClient.waitForTransactionReceipt({ hash, confirmations: 2 });
+      if (status !== 'success') throw new Error(`failed to acquire identity in ${hash}`);
+      return;
+    } catch (e: any) {
+      if (e instanceof BlockNotFoundError || e instanceof TransactionNotFoundError) {
+        if (retriesRemaining === 0) throw e;
+        retriesRemaining--;
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        continue;
+      }
+      throw e;
+    }
+  }
 }
