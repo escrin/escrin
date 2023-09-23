@@ -2,6 +2,8 @@
 optimizer = false
 solc_version = "0.8.21"
 
+fs_permissions = [{ access = "read", path = "./test/identity/v1/permitters/att_doc_sample.bin"}]
+
 remappings = [
   "@oasisprotocol/sapphire-contracts/contracts=lib/sapphire-paratime/contracts/contracts",
 ]
