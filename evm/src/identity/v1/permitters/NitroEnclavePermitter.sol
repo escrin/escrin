@@ -3,10 +3,19 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
 
+import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+
 contract NitroEnclaveAttestationVerifier {
+    // CN: aws.nitro-enclaves
+    bytes constant ROOT_CA_KEY =
+        hex"04fc0254eba608c1f36870e29ada90be46383292736e894bfff672d989444b5051e534a4b1f6dbe3c0bc581a32b7b176070ede12d69a3fea211b66e752cf7dd1dd095f6f1370f4170843d9dc100121e4cf63012809664487c9796284304dc53ff4";
+    uint256 constant ROOT_CA_EXPIRY = 2519044085;
+
     function verifyAttestationDocument(bytes calldata doc) external view {
+        require(block.timestamp >= ROOT_CA_EXPIRY, "root ca expired");
+
         // Array(4) - 84
-        // Bytes(4) - 44
+        // Bytes(4) - 44 // 4 bytes of cbor-encoded protected header
         // Map(1) - a1 // protected header
         // Key: Unsigned(1) - 01
         // Value: Signed(-35) - 3822 // P-384
@@ -24,13 +33,29 @@ contract NitroEnclaveAttestationVerifier {
         uint256 sigStart = payloadEnd + 2;
         uint256 sigEnd = sigStart + 0x60;
 
-        verifyPayload(payload);
-        verifySignature(payload, doc[sigStart:sigEnd]);
+        bytes calldata pk = verifyPayload(payload);
+        verifySignature({payload: payload, pk: pk, sig: doc[sigStart:sigEnd]});
     }
 
-    function verifySignature(bytes calldata payload, bytes calldata sig) internal view {}
+    function verifySignature(bytes calldata payload, bytes calldata pk, bytes calldata sig)
+        internal
+        view
+    {
+        bytes memory coseSign1 = bytes.concat(
+            // COSE Sign1 structure:
+            // Array(4) - 84
+            // Text(10) "Signature1" - 6a_5369676E617475726531
+            // the protected header from before - 44_A1013822
+            // Bytes(0) - 40
+            // Bytes(long) - 59
+            bytes19(0x84_6a_5369676E617475726531_44_A1013822_40_59),
+            bytes2(uint16(payload.length)),
+            payload
+        );
+        // require(Sapphire.verifyP384Prehashed(pk, Sapphire.sha384(coseSign1), sig), "invalid sig");
+    }
 
-    function verifyPayload(bytes calldata payload) internal view {
+    function verifyPayload(bytes calldata payload) internal view returns (bytes calldata pk) {
         // https://docs.aws.amazon.com/enclaves/latest/user/verify-root.html#doc-spec
         // The key order seems to reliably be module_id, digest, timestamp, pcrs, certificate, cabundle, public_key, user_data, nonce.
 
@@ -75,11 +100,14 @@ contract NitroEnclaveAttestationVerifier {
             bytes13(payload[cursor:cursor += 13]) == bytes13(0x6b_6365727469666963617465_59),
             "expected certificate"
         );
-        cursor += _verifyCerts(payload[cursor:]);
+        (bytes calldata enclavePublicKey, uint256 certsLen) = _verifyCerts(payload[cursor:]);
+        cursor += certsLen;
 
         cursor += _verifyUserData(payload[cursor:]);
 
         require(cursor == payload.length, "unparsed payload");
+
+        return enclavePublicKey;
     }
 
     function _verifyPCRs(bytes calldata input) internal view returns (uint256 adv) {
@@ -94,12 +122,12 @@ contract NitroEnclaveAttestationVerifier {
         return 15 * (48 + 3) + 48;
     }
 
-    function _verifyCerts(bytes calldata input) internal pure returns (uint256 adv) {
+    function _verifyCerts(bytes calldata input)
+        internal
+        pure
+        returns (bytes calldata publicKey, uint256 adv)
+    {
         uint256 cursor;
-
-        uint256 certLen = uint256(uint16(bytes2(input[cursor:cursor += 2])));
-        uint256 certStart = cursor;
-        uint256 certEnd = cursor += certLen;
 
         // Key: Text(8) "cabundle" - 68_636162756e646c65
         // Value: Array(n) - 80
@@ -109,21 +137,51 @@ contract NitroEnclaveAttestationVerifier {
             "expected cabundle"
         );
         uint256 cabundleLen = uint256(uint8(input[cursor - 1]) & 0xf);
+        bytes calldata pk = input[0:0];
         for (uint256 i; i < cabundleLen; i++) {
             cursor += 1; // skip the bytes marker (59)
             uint256 len = uint256(uint16(bytes2(input[cursor:cursor += 2])));
+
+            bytes32 issuerHash = keccak256("aws.nitro-enclaves");
+
             if (i == 1) {
+                (bytes calldata issuer, bytes calldata subject, bytes calldata nextPk) =
+                    _parseX509(input[cursor:cursor + len]);
+                require(keccak256(issuer) == issuerHash, "mismatched issuer");
+                issuerHash = keccak256(issuer);
+                pk = nextPk;
                 // cert = input[cursor:cursor + len];
                 // TODO: verify against stored root CA
             } else if (i > 1) {
                 // TODO: verify i against i-1
             }
+            /// else do nothing because the root ca is loaded from storage
             cursor += len;
         }
 
         // TODO: verify end entity cert
 
-        return cursor;
+        return (pk, cursor);
+    }
+
+    function _parseX509(bytes calldata cert)
+        internal
+        pure
+        returns (bytes calldata issuer, bytes calldata subject, bytes calldata publicKey)
+    {
+        uint256 cursor;
+
+        // SEQUENCE(var) - 30 82
+        require(bytes2(cert[cursor:cursor += 2]) == bytes2(0x30_82), "not tbs");
+        uint256 tbsLen = uint16(bytes2(cert[cursor:cursor += 2]));
+        cursor += tbsLen;
+
+        // SEQUENCE(10) - 30_0a
+        // OID(8) - 06_08
+        // ecdsaWithSHA384 - 2a8648ce3d040303
+        require(bytes12(cert[cursor:cursor += 12]) == bytes12(0x30_0a_06_08_2a8648ce3d040303), "not alg id");
+
+        return (cert, cert, cert);
     }
 
     function _verifyUserData(bytes calldata input) internal view returns (uint256 adv) {
@@ -132,7 +190,7 @@ contract NitroEnclaveAttestationVerifier {
         // Key: Text(10) "public_key" - 6a_7075626c69635f6b6579
         require(
             bytes11(input[cursor:cursor += 11]) == bytes11(0x6a_7075626c69635f6b6579),
-            "expected public key"
+            "expected public_key"
         );
         (bytes calldata publicKey, uint256 pkConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += pkConsumed;
@@ -140,7 +198,7 @@ contract NitroEnclaveAttestationVerifier {
         // Key: Text(9) "user_data" - 69_757365725f64617461
         require(
             bytes10(input[cursor:cursor += 10]) == bytes10(0x69_757365725f64617461),
-            "expected user data"
+            "expected user_data"
         );
         (bytes calldata userdata, uint256 userdataConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += userdataConsumed;
