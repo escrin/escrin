@@ -9,6 +9,9 @@ export default defineConfig({
     ['link', { rel: 'shortcut icon', href: '/logo.svg' }],
     ['meta', { name: 'theme-color', content: '#eeaa00' }],
   ],
+  sitemap: {
+    hostname: 'https://escrin.org'
+  },
   themeConfig: {
     logo: '/logo.svg',
     // https://vitepress.dev/reference/default-theme-config
