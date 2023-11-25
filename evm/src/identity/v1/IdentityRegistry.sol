@@ -144,6 +144,8 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
 
     function _whenIdentityDestroyed(IdentityId id) internal virtual {}
 
+    /// Generates pseudorandom bytes.
+    /// When run on Sapphire, the random bytes are privte and cryptographically secure.
     function _randomBytes(uint256 count, bytes calldata pers)
         internal
         view
@@ -171,7 +173,7 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
             );
         }
         for (uint256 i = 0; i < words; i++) {
-            seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i)));
+            seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i - 1)));
             assembly {
                 mstore(add(out, add(32, mul(32, i))), seed)
             }
