@@ -13,7 +13,8 @@ contract NitroEnclaveAttestationVerifierTest is Test {
         v = new NitroEnclaveAttestationVerifier();
     }
 
-    function testVerifyAttestation() public view {
+    function testVerifyAttestation() public {
+        vm.warp(1680000000);
         v.verifyAttestationDocument(
             bytes(vm.readFileBinary("./test/identity/v1/permitters/att_doc_sample.bin"))
         );
