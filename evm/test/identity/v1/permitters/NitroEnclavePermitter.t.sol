@@ -19,4 +19,9 @@ contract NitroEnclaveAttestationVerifierTest is Test {
             bytes(vm.readFileBinary("./test/identity/v1/permitters/att_doc_sample.bin"))
         );
     }
+
+    function testFuzz_verifyAttestation(bytes calldata attestationDocument) public {
+        vm.expectRevert();
+        v.verifyAttestationDocument(attestationDocument);
+    }
 }
