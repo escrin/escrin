@@ -5,6 +5,9 @@ pragma solidity ^0.8.18;
 
 import {Sapphire, sha384} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 
+// Whether to strictly parse the input by validating exons. Costs up to 30k more gas. Codons are always checked.
+bool constant STRICT = true;
+
 contract NitroEnclaveAttestationVerifier {
     error ContractExpired();
 
@@ -16,22 +19,26 @@ contract NitroEnclaveAttestationVerifier {
     function verifyAttestationDocument(bytes calldata doc) external view {
         if (block.timestamp >= ROOT_CA_EXPIRY) revert ContractExpired();
 
-        // Array(4) - 84
-        // Bytes(4) - 44 // 4 bytes of cbor-encoded protected header
-        // Map(1) - a1 // protected header
-        // Key: Unsigned(1) - 01
-        // Value: Signed(-35) - 3822 // P-384
-        // Map(0) - a0 // unprotected header
-        // Bytes(long) - 59 // payload
-        require(bytes8(doc[0:8]) == bytes8(0x84_44_a1_01_3822_a0_59), "invalid doc");
+        if (STRICT) {
+            // Array(4) - 84
+            // Bytes(4) - 44 // 4 bytes of cbor-encoded protected header
+            // Map(1) - a1 // protected header
+            // Key: Unsigned(1) - 01
+            // Value: Signed(-35) - 3822 // P-384
+            // Map(0) - a0 // unprotected header
+            // Bytes(long) - 59 // payload
+            require(bytes8(doc[0:8]) == bytes8(0x84_44_a1_01_3822_a0_59), "invalid doc");
+        }
         uint256 payloadSize = uint16(bytes2(doc[8:10]));
         uint256 payloadStart = 10;
         uint256 payloadEnd = payloadStart + payloadSize;
         bytes calldata payload = doc[payloadStart:payloadEnd];
 
-        // Bytes(short) - 58
-        // Unsigned(96) - 60
-        require(bytes2(doc[payloadEnd:payloadEnd + 2]) == bytes2(0x58_60));
+        if (STRICT) {
+            // Bytes(short) - 58
+            // Unsigned(96) - 60
+            require(bytes2(doc[payloadEnd:payloadEnd + 2]) == bytes2(0x58_60));
+        }
         uint256 sigStart = payloadEnd + 2;
 
         _verifyCoseSignature({
@@ -47,26 +54,32 @@ contract NitroEnclaveAttestationVerifier {
 
         uint256 cursor;
 
-        // Map(9) - a9
-        // Key: Text(9) - 69
-        // Value: Text(9) "module_id" - 69_6D6F64756C655F6964
-        // Text(var) - 78
-        require(
-            bytes12(payload[cursor:cursor += 12]) == bytes12(0xa9_69_6d6f64756c655f6964_78),
-            "expected module_id"
-        );
+        if (STRICT) {
+            // Map(9) - a9
+            // Key: Text(9) - 69
+            // Value: Text(9) "module_id" - 69_6D6F64756C655F6964
+            // Text(var) - 78
+            require(
+                bytes12(payload[cursor:cursor + 12]) == bytes12(0xa9_69_6d6f64756c655f6964_78),
+                "expected module_id"
+            );
+        }
+        cursor += 12;
         uint256 moduleIdLen = uint256(uint8(payload[cursor]));
         cursor += 1 + moduleIdLen;
 
-        // Key: Text(6) "digest" - 66_646967657374
-        // Value: Text(6) "SHA384" - 66_534841333834
-        // Key: Text(9) "timestamp" - 69_74696D657374616D70
-        // Unsigned - 1b
-        require(
-            bytes25(payload[cursor:cursor += 25])
-                == bytes25(0x66_646967657374_66_534841333834_69_74696d657374616d70_1b),
-            "expected digest & timestamp"
-        );
+        if (STRICT) {
+            // Key: Text(6) "digest" - 66_646967657374
+            // Value: Text(6) "SHA384" - 66_534841333834
+            // Key: Text(9) "timestamp" - 69_74696D657374616D70
+            // Unsigned - 1b
+            require(
+                bytes25(payload[cursor:cursor + 25])
+                    == bytes25(0x66_646967657374_66_534841333834_69_74696d657374616d70_1b),
+                "expected digest & timestamp"
+            );
+        }
+        cursor += 25;
         verifyTimestamp(uint64(bytes8(payload[cursor:cursor += 8])));
 
         cursor += _verifyPCRs(payload[cursor:]);
@@ -88,22 +101,28 @@ contract NitroEnclaveAttestationVerifier {
     {
         uint256 cursor;
 
-        // Key: Text(11) "certificate" - 6b_6365727469666963617465
-        // Value: Bytes(long) - 59
-        require(
-            bytes13(input[cursor:cursor += 13]) == bytes13(0x6b_6365727469666963617465_59),
-            "expected certificate"
-        );
+        if (STRICT) {
+            // Key: Text(11) "certificate" - 6b_6365727469666963617465
+            // Value: Bytes(long) - 59
+            require(
+                bytes13(input[cursor:cursor + 13]) == bytes13(0x6b_6365727469666963617465_59),
+                "expected certificate"
+            );
+        }
+        cursor += 13;
         uint256 certLen = uint16(bytes2(input[cursor:cursor += 2]));
         bytes calldata cert = input[cursor:cursor += certLen];
 
-        // Key: Text(8) "cabundle" - 68_636162756e646c65
-        // Value: Array(n) - 80
-        require(
-            bytes10(input[cursor:cursor += 10]) & 0xfffffffffffffffffff0
-                == bytes10(0x68_636162756e646c65_80),
-            "expected cabundle"
-        );
+        if (STRICT) {
+            // Key: Text(8) "cabundle" - 68_636162756e646c65
+            // Value: Array(n) - 80
+            require(
+                bytes10(input[cursor:cursor + 10]) & 0xfffffffffffffffffff0
+                    == bytes10(0x68_636162756e646c65_80),
+                "expected cabundle"
+            );
+        }
+        cursor += 10;
         uint256 cabundleLen = uint256(uint8(input[cursor - 1]) & 0xf);
         bytes calldata pk = input[0:0];
 
@@ -111,9 +130,11 @@ contract NitroEnclaveAttestationVerifier {
         bytes32 serial;
 
         for (uint256 i; i < cabundleLen; i++) {
-            // Bytes(long) - 59
-            // require(bytes1(input[cursor:cursor += 1]) == 0x59, "invalid cabundle");
-            cursor += 1; // skip the bytes marker to save some gas
+            if (STRICT) {
+                // Bytes(long) - 59
+                require(bytes1(input[cursor:cursor + 1]) == 0x59, "invalid cabundle");
+            }
+            cursor += 1;
             uint256 len = uint256(uint16(bytes2(input[cursor:cursor += 2])));
 
             if (i == 0) {
@@ -122,8 +143,8 @@ contract NitroEnclaveAttestationVerifier {
                 continue;
             }
 
-            bytes calldata tbs = input[cursor:cursor += len];
-            (serial, issuerHash, pk) = X509.verify(tbs, issuerHash, i == 1 ? ROOT_CA_KEY : pk);
+            bytes calldata icert = input[cursor:cursor += len];
+            (serial, issuerHash, pk) = X509.verify(icert, issuerHash, i == 1 ? ROOT_CA_KEY : pk);
         }
 
         (serial,, pk) = X509.verify(cert, issuerHash, pk);
@@ -132,12 +153,14 @@ contract NitroEnclaveAttestationVerifier {
     }
 
     function _verifyPCRs(bytes calldata input) internal view returns (uint256 adv) {
-        // Note: PCR length depends on the digest, but SHA384 is currently the default.
-        // Key: Text(4) "pcrs" - 64_70637273
-        // Value: Map(16) - b0
-        // Key: Unsigned(0) - 00
-        // Value: Bytes(short) - 58_30
-        require(bytes9(input[0:9]) == bytes9(0x64_70637273_b0_00_58_30), "expected pcrs");
+        if (STRICT) {
+            // Note: PCR length depends on the digest, but SHA384 is currently the default.
+            // Key: Text(4) "pcrs" - 64_70637273
+            // Value: Map(16) - b0
+            // Key: Unsigned(0) - 00
+            // Value: Bytes(short) - 58_30
+            require(bytes9(input[0:9]) == bytes9(0x64_70637273_b0_00_58_30), "expected pcrs");
+        }
         input = input[9:];
         verifyPCRs(
             input[0 * (48 + 3):0 * (48 + 3) + 48],
@@ -173,24 +196,33 @@ contract NitroEnclaveAttestationVerifier {
     function _verifyUserData(bytes calldata input) internal view returns (uint256 adv) {
         uint256 cursor;
 
-        // Key: Text(10) "public_key" - 6a_7075626c69635f6b6579
-        require(
-            bytes11(input[cursor:cursor += 11]) == bytes11(0x6a_7075626c69635f6b6579),
-            "expected public_key"
-        );
+        if (STRICT) {
+            // Key: Text(10) "public_key" - 6a_7075626c69635f6b6579
+            require(
+                bytes11(input[cursor:cursor + 11]) == bytes11(0x6a_7075626c69635f6b6579),
+                "expected public_key"
+            );
+        }
+        cursor += 11;
         (bytes calldata publicKey, uint256 pkConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += pkConsumed;
 
-        // Key: Text(9) "user_data" - 69_757365725f64617461
-        require(
-            bytes10(input[cursor:cursor += 10]) == bytes10(0x69_757365725f64617461),
-            "expected user_data"
-        );
+        if (STRICT) {
+            // Key: Text(9) "user_data" - 69_757365725f64617461
+            require(
+                bytes10(input[cursor:cursor + 10]) == bytes10(0x69_757365725f64617461),
+                "expected user_data"
+            );
+        }
+        cursor += 10;
         (bytes calldata userdata, uint256 userdataConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += userdataConsumed;
 
-        // Key: Text(5) "nonce" - 65_6e6f6e6365
-        require(bytes6(input[cursor:cursor += 6]) == bytes6(0x65_6e6f6e6365), "expected nonce");
+        if (STRICT) {
+            // Key: Text(5) "nonce" - 65_6e6f6e6365
+            require(bytes6(input[cursor:cursor + 6]) == bytes6(0x65_6e6f6e6365), "expected nonce");
+        }
+        cursor += 6;
         (bytes calldata nonce, uint256 nonceConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += nonceConsumed;
 
@@ -206,7 +238,9 @@ contract NitroEnclaveAttestationVerifier {
     {
         if (input[0] == 0xf6) return (input[0:0], 1);
 
-        require(input[0] == 0x59, "expected pk/ud/nonce bytes");
+        if (STRICT) {
+            require(input[0] == 0x59, "expected pk/ud/nonce bytes");
+        }
         uint256 len = uint256(uint16(bytes2(input[1:3])));
         return (input[3:3 + len], len + 3);
     }
@@ -284,20 +318,34 @@ library X509 {
             bytes calldata sig
         )
     {
-        uint256 cursor = 4; // skip the initial sequence and length
-
-        // SEQUENCE(var(2)) - 30_8_2
-        require(bytes2(cert[cursor:cursor += 2]) == bytes2(0x30_8_2), "not tbs");
+        if (STRICT) {
+            // SEQUENCE(var(2)) - 30_82
+            require(bytes2(cert[0:2]) == bytes2(0x30_82), "not cert");
+            uint256 certLen = uint16(bytes2(cert[2:4]));
+            require(cert.length == certLen + 4, "not cert len");
+            require(bytes2(cert[4:6]) == bytes2(0x30_8_2), "not tbs");
+        }
+        uint256 cursor = 6;
         uint256 tbsLen = uint16(bytes2(cert[cursor:cursor += 2]));
         tbs = cert[cursor - 4:cursor += tbsLen];
         (serial, iss, sub, pk) = _parseTbs(tbs);
 
-        // SEQUENCE(10) - 30_0a
-        // OID(8) - 06_08
-        // ecdsaWithSHA384 - 2a8648ce3d040303
-        // require(bytes12(tbs[cursor:cursor += 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303), "wrong sig");
-        cursor += 12; // skip checking the public key format, as only P-384 is supported
-        cursor += 3; // skip bit string header
+        if (STRICT) {
+            // SEQUENCE(10) - 30_0a
+            // OID(8) - 06_08
+            // ecdsaWithSHA384 - 2a8648ce3d040303
+            require(
+                bytes12(cert[cursor:cursor + 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303),
+                "wrong sig"
+            );
+        }
+        cursor += 12;
+
+        if (STRICT) {
+            // BITSTRING(n) - 03_nn_00
+            require(cert[cursor] == 0x03 && cert[cursor + 2] == 0, "not sig");
+        }
+        cursor += 3;
         sig = cert[cursor:];
     }
 
@@ -306,27 +354,44 @@ library X509 {
         view
         returns (bytes32 serial, bytes32 iss, bytes32 sub, bytes calldata pk)
     {
-        uint256 cursor = 4; // skip framing
+        uint256 cursor = 4; // skip framing that was already checked in `parse`
 
-        // version_element(3) - a0_03
-        // integer(1) - 02_02
-        // version 2 - 02
-        require(bytes5(tbs[cursor:cursor += 5]) == bytes5(0xa0_03_02_01_02), "not v2 tbs");
+        if (STRICT) {
+            // version_element(3) - a0_03
+            // integer(1) - 02_02
+            // version 2 - 02
+            require(bytes5(tbs[cursor:cursor + 5]) == bytes5(0xa0_03_02_01_02), "not v2 tbs");
+        }
+        cursor += 5;
 
-        // INTEGER - 02
-        // require(bytes1(tbs[cursor:cursor += 1]) == bytes1(0x02), "not serial");
-        cursor += 1; // ignore integer tag
+        if (STRICT) {
+            // INTEGER - 02
+            require(bytes1(tbs[cursor:cursor + 1]) == bytes1(0x02), "not serial");
+        }
+        cursor += 1;
         uint256 serialLen = uint256(uint8(bytes1(tbs[cursor:cursor += 1])));
         serial = keccak256(tbs[cursor:cursor += serialLen]);
 
-        // require(bytes12(tbs[cursor:cursor += 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303), "wrong sig");
-        cursor += 12; // skip checking the public key format, as only P-384 is supported
+        if (STRICT) {
+            // SEQUENCE(10) - 30_0a
+            // OID(8) - 06_08
+            // ecdsaWithSHA384 - 2a8648ce3d040303
+            require(
+                bytes12(tbs[cursor:cursor + 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303),
+                "wrong sig"
+            );
+        }
+        cursor += 12;
 
         (bytes calldata issuer, uint256 issuerSeqLen) = _getVarLenSeq(tbs[cursor:]);
         cursor += issuerSeqLen;
         iss = keccak256(_extractCN(issuer));
 
-        cursor += 1; // skip validity's sequence tag (0x30)
+        if (STRICT) {
+            // SEQUENCE - 30
+            require(bytes1(tbs[cursor:cursor + 1]) == bytes1(0x30), "not seq");
+        }
+        cursor += 1;
         uint256 validityLen = uint8(bytes1(tbs[cursor:cursor += 1]));
         _checkValidity(tbs[cursor:cursor += validityLen]);
 
@@ -334,7 +399,11 @@ library X509 {
         cursor += subjectSeqLen;
         sub = keccak256(_extractCN(subject));
 
-        cursor += 1; // skip the SPKI sequence tag (0x30)
+        if (STRICT) {
+            // SEQUENCE - 30
+            require(bytes1(tbs[cursor:cursor + 1]) == bytes1(0x30), "not seq");
+        }
+        cursor += 1;
         uint256 spkiLen = uint256(uint8(bytes1(tbs[cursor:cursor += 1])));
         cursor += spkiLen;
         pk = tbs[cursor - 97:cursor];
@@ -345,16 +414,22 @@ library X509 {
     function _extractCN(bytes calldata input) internal pure returns (bytes calldata) {
         uint256 cursor;
         while (cursor != input.length) {
-            // require(bytes1(input[cursor:cursor += 1]) == bytes1(0x31), "not rdn");
-            cursor += 1; // skip tag byte (0x31)
+            if (STRICT) {
+                require(bytes1(input[cursor:cursor + 1]) == bytes1(0x31), "not rdn");
+            }
+            cursor += 1;
             uint256 rdnLen = uint256(uint8(bytes1(input[cursor:cursor += 1])));
             // SEQUENCE(n)- 30_xx
-            // OID(commnName) - _06_03_550403
+            // OID(commonName) - 06_03_550403
             if (bytes7(input[cursor:cursor + 7]) & 0xff00ffffffffff != bytes7(0x30_00_0603550403)) {
                 cursor += rdnLen;
                 continue;
             }
-            cursor += 8;
+            cursor += 7; // already checked the OID above
+            if (STRICT) {
+                require(bytes1(input[cursor:cursor + 1]) == bytes1(0x0c), "not cn");
+            }
+            cursor += 1;
             uint256 cnLen = uint256(uint8(bytes1(input[cursor:cursor += 1])));
             return input[cursor:cursor + cnLen];
         }
@@ -372,24 +447,26 @@ library X509 {
 
     /// Parses an ISO-8601 timestamp (YYMMddHHmmssZ) into an approximate unix timestamp.
     function _parseISO8601(bytes13 isodate) internal pure returns (uint256) {
-        require(isodate[12] == 0x5a, "not utc tz");
+        if (STRICT) {
+            require(isodate[12] == 0x5a, "not utc tz");
+        }
         uint256 isonums = (uint256(bytes32(isodate)) >> 160) - 0x303030303030303030303030;
-        uint256 ss = ((isonums >> (8 * 0x1)) & 0xff) * 10 + ((isonums >> (8 * 0x0)) & 0xff);
-        uint256 mm = ((isonums >> (8 * 0x3)) & 0xff) * 10 + ((isonums >> (8 * 0x2)) & 0xff);
-        uint256 hh = ((isonums >> (8 * 0x5)) & 0xff) * 10 + ((isonums >> (8 * 0x4)) & 0xff);
-        uint256 dd = ((isonums >> (8 * 0x7)) & 0xff) * 10 + ((isonums >> (8 * 0x6)) & 0xff);
-        uint256 mM = ((isonums >> (8 * 0x9)) & 0xff) * 10 + ((isonums >> (8 * 0x8)) & 0xff);
-        uint256 yy = ((isonums >> (8 * 0xb)) & 0xff) * 10 + ((isonums >> (8 * 0xa)) & 0xff);
+        uint256 ss = ((isonums >> 0x08) & 0xff) * 10 + ((isonums >> 0x00) & 0xff);
+        uint256 mm = ((isonums >> 0x18) & 0xff) * 10 + ((isonums >> 0x10) & 0xff);
+        uint256 hh = ((isonums >> 0x28) & 0xff) * 10 + ((isonums >> 0x20) & 0xff);
+        uint256 dd = ((isonums >> 0x38) & 0xff) * 10 + ((isonums >> 0x30) & 0xff);
+        uint256 mM = ((isonums >> 0x48) & 0xff) * 10 + ((isonums >> 0x40) & 0xff);
+        uint256 yy = ((isonums >> 0x58) & 0xff) * 10 + ((isonums >> 0x50) & 0xff);
         uint256 cd = _cumulativeDays(mM, yy);
         return (
             ss + (1 minutes * mm) + (1 hours * hh) + 1 days * (dd - 1 + cd)
-                + (365.2425 days * yy + 946702800)
+                + (365.25 days * yy + 946702800)
         );
     }
 
     function _cumulativeDays(uint256 month, uint256 year) internal pure returns (uint256) {
         if (month == 1) return 0;
-        uint256 leap = (year & 3) == 0 && (year % 100 != 0 || year % 400 == 0) ? 1 : 0;
+        uint256 leap = (year & 3) == 0 ? 1 : 0; // anti-leaps and anti-anti-leps are not required as root cert expires before2100
         if (month == 2) return 31;
         if (month == 3) return 59 + leap;
         if (month == 4) return 90 + leap;
@@ -411,7 +488,10 @@ library X509 {
         returns (bytes calldata, uint256 adv)
     {
         uint256 cursor;
-        require(bytes1(input[cursor:cursor += 1]) == bytes1(0x30), "not seq");
+        if (STRICT) {
+            require(bytes1(input[cursor:cursor + 1]) == bytes1(0x30), "not seq");
+        }
+        cursor += 1;
         uint256 len = uint256(uint8(bytes1(input[cursor:cursor += 1])));
         if (len == 0x81) {
             len = uint256(uint8(bytes1(input[cursor:cursor += 1])));
