@@ -1,22 +1,148 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-// import "forge-std/console2.sol";
+import "forge-std/console2.sol";
 
-import {Sapphire, sha384} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import {
+    Sapphire, sha384 as _sha384
+} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-// Whether to strictly parse the input by validating exons. Costs up to 30k more gas. Codons are always checked.
+import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
+
+// Whether to strictly validate attestation doc exons in return for paying up to 30k more gas.
 bool constant STRICT = true;
 
-contract NitroEnclaveAttestationVerifier {
+abstract contract BaseNitroEnclavePermitter is Permitter {
+    /// The presented attestation document has already been used to acquire an identity using this permitter.
+    /// If you want a batch identity acquisition function, please file an issue and it will be made!
+    error DocAlreadyUsed();
+
+    mapping(bytes32 => IdentityId) public burnt;
+
+    constructor(IIdentityRegistry registry) Permitter(registry) {}
+
+    function _acquireIdentity(
+        IdentityId identity,
+        address requester,
+        uint64 duration,
+        bytes calldata context,
+        bytes calldata authorization
+    ) internal virtual override returns (uint64 expiry) {
+        uint256 maxDuration = _getPermitMaxDuration(identity, requester, context);
+        if (maxDuration < uint256(duration)) revert DurationTooLong();
+        _processAttestation(identity, requester, context, authorization, false);
+        return uint64(block.timestamp + uint256(duration));
+    }
+
+    function _releaseIdentity(
+        IdentityId identity,
+        address requester,
+        bytes calldata context,
+        bytes calldata authorization
+    ) internal virtual override {
+        _processAttestation(identity, requester, context, authorization, true);
+    }
+
+    function _processAttestation(
+        IdentityId identity,
+        address requester,
+        bytes calldata context,
+        bytes calldata doc,
+        bool release
+    ) internal {
+        uint256 nbf = block.timestamp - _getPermitMaxDuration(identity, requester, context);
+        NE.UserData memory userdata = NE.verifyAttestationDocument(doc, _getPCRs(identity), nbf);
+        if (IdentityId.unwrap(burnt[userdata.nonce]) != 0) revert DocAlreadyUsed();
+        bytes32 leaf =
+            keccak256(abi.encodePacked(block.chainid, address(this), identity, release ? "-" : "+"));
+        (bytes32[] memory proofs) = abi.decode(context, (bytes32[]));
+        MerkleProof.verify(proofs, userdata.merkleRoot, leaf);
+        burnt[userdata.nonce] = identity;
+    }
+
+    function _getPCRs(IdentityId identity) internal view virtual returns (NE.PcrSelector memory);
+
+    function _getPermitMaxDuration(IdentityId identity, address requester, bytes calldata context)
+        internal
+        view
+        virtual
+        returns (uint256)
+    {
+        (identity, requester, context) = (identity, requester, context);
+        return 30 minutes;
+    }
+}
+
+contract StaticNitroEnclavePermitter is BaseNitroEnclavePermitter {
+    uint16 public immutable pcrMask;
+    bytes32 public immutable pcrHash;
+
+    constructor(IIdentityRegistry registry, uint16 mask, bytes32 hash)
+        BaseNitroEnclavePermitter(registry)
+    {
+        pcrMask = mask;
+        pcrHash = hash;
+    }
+
+    function _getPCRs(IdentityId) internal view virtual override returns (NE.PcrSelector memory) {
+        return NE.PcrSelector({mask: pcrMask, hash: pcrHash});
+    }
+}
+
+contract MultiNitroEnclavePermitter is BaseNitroEnclavePermitter {
+    mapping(IdentityId => NE.PcrSelector) public pcrs;
+
+    constructor(IIdentityRegistry registry) BaseNitroEnclavePermitter(registry) {}
+
+    function setPCRs(IdentityId identity, NE.PcrSelector calldata pcrSel) external {
+        (address registrant,) = identityRegistry.getRegistrant(identity);
+        if (msg.sender != registrant) revert Unauthorized();
+        pcrs[identity] = pcrSel;
+    }
+
+    function _getPCRs(IdentityId identity)
+        internal
+        view
+        virtual
+        override
+        returns (NE.PcrSelector memory)
+    {
+        return pcrs[identity];
+    }
+}
+
+library NE {
     error ContractExpired();
+
+    struct PcrSelector {
+        /// A 16-bit flags field, defining which PCRs are included in the hash. Only valid PCRs may be specified.
+        /// pcr0 A contiguous measure of the contents of the image file, without the section data.
+        /// pcr1 A contiguous measurement of the kernel and boot ramfs data.
+        /// pcr2 A contiguous, in-order measurement of the user applications, without the boot ramfs.
+        /// pcr3 A contiguous measurement of the IAM role assigned to the parent instance. Ensures that the attestation process succeeds only when the parent instance has the correct IAM role.
+        /// pcr4 A contiguous measurement of the ID of the parent instance. Ensures that the attestation process succeeds only when the parent instance has a specific instance ID.
+        /// pcr8 A measure of the signing certificate specified for the enclave image file. Ensures that the attestation process succeeds only when the enclave was booted from an enclave image file signed by a specific certificate.
+        uint16 mask;
+        /// The hash of `uint256(mask & 0x11f) || concat(pcr[i] if mask[i] else "" for i in (0, 1, 2, 3, 4, 8))`
+        bytes32 hash;
+    }
+
+    struct UserData {
+        bytes32 merkleRoot;
+        bytes32 nonce;
+    }
 
     // CN: aws.nitro-enclaves
     bytes constant ROOT_CA_KEY =
         hex"04fc0254eba608c1f36870e29ada90be46383292736e894bfff672d989444b5051e534a4b1f6dbe3c0bc581a32b7b176070ede12d69a3fea211b66e752cf7dd1dd095f6f1370f4170843d9dc100121e4cf63012809664487c9796284304dc53ff4";
     uint256 constant ROOT_CA_EXPIRY = 2519044085;
 
-    function verifyAttestationDocument(bytes calldata doc) external view {
+    function verifyAttestationDocument(bytes calldata doc, PcrSelector memory pcrs, uint256 nbf)
+        internal
+        view
+        returns (UserData memory userdata)
+    {
         if (block.timestamp >= ROOT_CA_EXPIRY) revert ContractExpired();
 
         if (STRICT) {
@@ -41,14 +167,30 @@ contract NitroEnclaveAttestationVerifier {
         }
         uint256 sigStart = payloadEnd + 2;
 
-        _verifyCoseSignature({
-            payload: payload,
-            pk: verifyPayload(payload),
-            sig: doc[sigStart:sigStart + 0x60]
-        });
+        bytes calldata pk;
+        (pk, userdata) = verifyPayload(payload, pcrs, nbf);
+        bytes calldata sig = doc[sigStart:sigStart + 0x60];
+        bytes memory coseSign1 = bytes.concat(
+            // COSE Sign1 structure:
+            // Array(4) - 84
+            // Text(10) "Signature1" - 6a_5369676E617475726531
+            // the protected header from before - 44_A1013822
+            // Bytes(0) - 40
+            // Bytes(long) - 59
+            bytes19(0x84_6a_5369676E617475726531_44_A1013822_40_59),
+            bytes2(uint16(payload.length)),
+            payload
+        );
+        bytes memory sigDer =
+            abi.encodePacked(bytes5(0x3065023100), sig[0:48], bytes2(0x0230), sig[48:96]);
+        Sig.verifyP384(pk, coseSign1, sigDer);
     }
 
-    function verifyPayload(bytes calldata payload) internal view returns (bytes calldata pk) {
+    function verifyPayload(bytes calldata payload, PcrSelector memory pcrs, uint256 nbf)
+        internal
+        view
+        returns (bytes calldata pk, UserData memory userdata)
+    {
         // https://docs.aws.amazon.com/enclaves/latest/user/verify-root.html#doc-spec
         // The key order seems to reliably be module_id, digest, timestamp, pcrs, certificate, cabundle, public_key, user_data, nonce.
 
@@ -80,18 +222,20 @@ contract NitroEnclaveAttestationVerifier {
             );
         }
         cursor += 25;
-        verifyTimestamp(uint64(bytes8(payload[cursor:cursor += 8])));
+        uint256 timestamp = uint256(uint64(bytes8(payload[cursor:cursor += 8])));
+        require(timestamp > nbf, "old attestation");
 
-        cursor += _verifyPCRs(payload[cursor:]);
+        cursor += _verifyPCRs(payload[cursor:], pcrs);
 
-        (bytes calldata enclavePublicKey, uint256 certsLen) = _verifyCerts(payload[cursor:]);
-        cursor += certsLen;
+        uint256 adv;
 
-        cursor += _verifyUserData(payload[cursor:]);
+        (pk, adv) = _verifyCerts(payload[cursor:]);
+        cursor += adv;
+
+        (userdata, adv) = _getUserData(payload[cursor:]);
+        cursor += adv;
 
         require(cursor == payload.length, "unparsed payload");
-
-        return enclavePublicKey;
     }
 
     function _verifyCerts(bytes calldata input)
@@ -152,7 +296,11 @@ contract NitroEnclaveAttestationVerifier {
         return (pk, cursor);
     }
 
-    function _verifyPCRs(bytes calldata input) internal view returns (uint256 adv) {
+    function _verifyPCRs(bytes calldata input, PcrSelector memory sel)
+        internal
+        pure
+        returns (uint256 adv)
+    {
         if (STRICT) {
             // Note: PCR length depends on the digest, but SHA384 is currently the default.
             // Key: Text(4) "pcrs" - 64_70637273
@@ -162,38 +310,27 @@ contract NitroEnclaveAttestationVerifier {
             require(bytes9(input[0:9]) == bytes9(0x64_70637273_b0_00_58_30), "expected pcrs");
         }
         input = input[9:];
-        verifyPCRs(
-            input[0 * (48 + 3):0 * (48 + 3) + 48],
-            input[1 * (48 + 3):1 * (48 + 3) + 48],
-            input[2 * (48 + 3):2 * (48 + 3) + 48],
-            input[3 * (48 + 3):3 * (48 + 3) + 48],
-            input[4 * (48 + 3):4 * (48 + 3) + 48],
-            input[8 * (48 + 3):8 * (48 + 3) + 48]
+        uint256 mask = uint256(sel.mask) & 0x011f;
+        bytes32 pcrHash = keccak256(
+            abi.encodePacked(
+                mask,
+                ((mask >> 0) & 1) == 1 ? input[0 * (48 + 3):0 * (48 + 3) + 48] : input[0:0],
+                ((mask >> 1) & 1) == 1 ? input[1 * (48 + 3):1 * (48 + 3) + 48] : input[0:0],
+                ((mask >> 2) & 1) == 1 ? input[2 * (48 + 3):2 * (48 + 3) + 48] : input[0:0],
+                ((mask >> 3) & 1) == 1 ? input[3 * (48 + 3):3 * (48 + 3) + 48] : input[0:0],
+                ((mask >> 4) & 1) == 1 ? input[4 * (48 + 3):4 * (48 + 3) + 48] : input[0:0],
+                ((mask >> 8) & 1) == 1 ? input[8 * (48 + 3):8 * (48 + 3) + 48] : input[0:0]
+            )
         );
+        require(pcrHash == sel.hash, "wrong pcrs");
         return 15 * (48 + 3) + 48 + 9;
     }
 
-    function _verifyCoseSignature(bytes calldata payload, bytes calldata pk, bytes calldata sig)
+    function _getUserData(bytes calldata input)
         internal
-        view
+        pure
+        returns (UserData memory userdata, uint256 adv)
     {
-        bytes memory coseSign1 = bytes.concat(
-            // COSE Sign1 structure:
-            // Array(4) - 84
-            // Text(10) "Signature1" - 6a_5369676E617475726531
-            // the protected header from before - 44_A1013822
-            // Bytes(0) - 40
-            // Bytes(long) - 59
-            bytes19(0x84_6a_5369676E617475726531_44_A1013822_40_59),
-            bytes2(uint16(payload.length)),
-            payload
-        );
-        bytes memory sigDer =
-            abi.encodePacked(bytes5(0x3065023100), sig[0:48], bytes2(0x0230), sig[48:96]);
-        _verifyP384Prehashed(pk, sha384(coseSign1), sigDer);
-    }
-
-    function _verifyUserData(bytes calldata input) internal view returns (uint256 adv) {
         uint256 cursor;
 
         if (STRICT) {
@@ -204,7 +341,7 @@ contract NitroEnclaveAttestationVerifier {
             );
         }
         cursor += 11;
-        (bytes calldata publicKey, uint256 pkConsumed) = _consumeOptionalBytes(input[cursor:]);
+        (, uint256 pkConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += pkConsumed;
 
         if (STRICT) {
@@ -215,8 +352,10 @@ contract NitroEnclaveAttestationVerifier {
             );
         }
         cursor += 10;
-        (bytes calldata userdata, uint256 userdataConsumed) = _consumeOptionalBytes(input[cursor:]);
+        (bytes calldata merkleRoot, uint256 userdataConsumed) =
+            _consumeOptionalBytes(input[cursor:]);
         cursor += userdataConsumed;
+        userdata.merkleRoot = bytes32(merkleRoot);
 
         if (STRICT) {
             // Key: Text(5) "nonce" - 65_6e6f6e6365
@@ -225,10 +364,9 @@ contract NitroEnclaveAttestationVerifier {
         cursor += 6;
         (bytes calldata nonce, uint256 nonceConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += nonceConsumed;
+        userdata.nonce = bytes32(nonce);
 
-        handleUserData(publicKey, userdata, nonce);
-
-        return cursor;
+        adv = cursor;
     }
 
     function _consumeOptionalBytes(bytes calldata input)
@@ -237,44 +375,12 @@ contract NitroEnclaveAttestationVerifier {
         returns (bytes calldata data, uint256 adv)
     {
         if (input[0] == 0xf6) return (input[0:0], 1);
-
         if (STRICT) {
-            require(input[0] == 0x59, "expected pk/ud/nonce bytes");
+            require(input[0] == 0x59, "expected userdata");
         }
         uint256 len = uint256(uint16(bytes2(input[1:3])));
         return (input[3:3 + len], len + 3);
     }
-
-    /// @param timestamp The timestamp at which the attestation doc was generated.
-    function verifyTimestamp(uint64 timestamp) internal view virtual {}
-
-    /**
-     * @param pcr0 A contiguous measure of the contents of the image file, without the section data.
-     * @param pcr1 A contiguous measurement of the kernel and boot ramfs data.
-     * @param pcr2 A contiguous, in-order measurement of the user applications, without the boot ramfs.
-     * @param pcr3 A contiguous measurement of the IAM role assigned to the parent instance. Ensures that the attestation process succeeds only when the parent instance has the correct IAM role.
-     * @param pcr4 A contiguous measurement of the ID of the parent instance. Ensures that the attestation process succeeds only when the parent instance has a specific instance ID.
-     * @param pcr8 A measure of the signing certificate specified for the enclave image file. Ensures that the attestation process succeeds only when the enclave was booted from an enclave image file signed by a specific certificate.
-     */
-    function verifyPCRs(
-        bytes calldata pcr0,
-        bytes calldata pcr1,
-        bytes calldata pcr2,
-        bytes calldata pcr3,
-        bytes calldata pcr4,
-        bytes calldata pcr8
-    ) internal view virtual {}
-
-    /**
-     * @param publicKey An optional DER-encoded key the attestation consumer can use to encrypt data with
-     * @param userdata Additional signed user data, defined by protocol
-     * @param nonce An optional cryptographic nonce provided by the attestation consumer as a proof of authenticity
-     */
-    function handleUserData(bytes calldata publicKey, bytes calldata userdata, bytes calldata nonce)
-        internal
-        view
-        virtual
-    {}
 }
 
 library X509 {
@@ -303,7 +409,7 @@ library X509 {
         (serial, iss, subjectHash, tbs, pk, sig) = parse(cert);
 
         require(iss == issuerHash, "wrong issuer");
-        _verifyP384Prehashed(issuerPk, sha384(tbs), sig);
+        Sig.verifyP384(issuerPk, tbs, sig);
     }
 
     function parse(bytes calldata cert)
@@ -504,12 +610,15 @@ library X509 {
     }
 }
 
-error InvalidSignature();
+library Sig {
+    error InvalidSignature();
 
-function _verifyP384Prehashed(bytes memory pk, bytes memory hash, bytes memory sig) view {
-    if (block.chainid == 1337 || block.chainid == 31337) return;
-    if (block.chainid - 0x5afd > 2) revert("no p384");
-    if (!Sapphire.verify(Sapphire.SigningAlg.Secp384r1PrehashedSha384, pk, hash, "", sig)) {
-        revert InvalidSignature();
+    function verifyP384(bytes memory pk, bytes memory message, bytes memory sig) internal view {
+        if (block.chainid == 1337 || block.chainid == 31337) return;
+        if (block.chainid - 0x5afd > 2) revert("no p384");
+        bytes memory hash = _sha384(message);
+        if (!Sapphire.verify(Sapphire.SigningAlg.Secp384r1PrehashedSha384, pk, hash, "", sig)) {
+            revert InvalidSignature();
+        }
     }
 }

@@ -13,6 +13,8 @@ abstract contract Permitter is IPermitter, ERC165 {
 
     /// The action is disallowed.
     error Unauthorized(); // 82b42900 grQpAA==
+    /// The requested duration of the permit was too long.
+    error DurationTooLong();
 
     IIdentityRegistry public immutable identityRegistry;
 

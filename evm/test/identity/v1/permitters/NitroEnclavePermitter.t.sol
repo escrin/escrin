@@ -3,14 +3,22 @@ pragma solidity ^0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 
-import {NitroEnclaveAttestationVerifier} from
+import {NE} from
     "../../../../src/identity/v1/permitters/NitroEnclavePermitter.sol";
 
+contract VerifierContract {
+    function verifyAttestationDocument(bytes calldata doc) external view {
+        NE.PcrSelector memory pcrs =
+            NE.PcrSelector({mask: 0, hash: keccak256(abi.encodePacked(bytes32(0)))});
+        NE.verifyAttestationDocument(doc, pcrs, 0);
+    }
+}
+
 contract NitroEnclaveAttestationVerifierTest is Test {
-    NitroEnclaveAttestationVerifier v;
+    VerifierContract v;
 
     function setUp() public {
-        v = new NitroEnclaveAttestationVerifier();
+        v = new VerifierContract();
     }
 
     function testVerifyAttestation() public {
