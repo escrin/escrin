@@ -11,7 +11,6 @@
   ],
   "author": "Nick Hynes <nick@escrin.org>",
   "type": "module",
-  "service": "./dist/service/escrin-runner.js",
   "module": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
   "files": [
@@ -38,13 +37,13 @@
   "dependencies": {
     "@escrin/evm": "workspace:^",
     "@oasisprotocol/sapphire-paratime": "file:oasisprotocol-sapphire-paratime-1.1.1.tgz",
-    "viem": "^1.10.7"
+    "viem": "^1.19.11"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20230904.0",
-    "@types/node": "^20.5.9",
-    "esbuild": "^0.19.2",
+    "@cloudflare/workers-types": "^4.20231121.0",
+    "@types/node": "^20.10.3",
+    "esbuild": "^0.19.8",
     "npm-run-all": "^4.1.5",
-    "typescript": "^5.2.2"
+    "typescript": "^5.3.2"
   }
 }
