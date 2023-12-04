@@ -10,6 +10,20 @@ type WorkerConfig = {
   args?: object;
   config?: string | Record<string, object>;
   debug?: boolean;
+  keystore?: SapphireKeystoreConfig | LocalKeystoreConfig;
+};
+
+type SapphireKeystoreConfig = {
+  kind: 'sapphire';
+  identity?: {
+    registry: `0x${string}`;
+    id: `0x${string}`;
+  };
+};
+
+type LocalKeystoreConfig = {
+  kind: 'local';
+  path?: string;
 };
 
 async function parseWorkerConfig(contentType: string | null, body: Body): Promise<WorkerConfig> {

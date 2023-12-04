@@ -1,11 +1,11 @@
 {
   "include": ["src"],
   "compilerOptions": {
-    "declaration": true,
     "esModuleInterop": true,
     "lib": ["es2022", "dom"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
+    "noEmit": true,
     "outDir": "dist/lib",
     "skipLibCheck": true,
     "strict": true,

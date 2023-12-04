@@ -2,8 +2,14 @@
   "name": "@escrin/worker",
   "version": "1.0.0-alpha.4",
   "license": "MIT",
-  "keywords": [],
-  "author": "Nick Hynes <nick@enshrine.ai>",
+  "keywords": [
+    "web3",
+    "web4",
+    "tee",
+    "worker",
+    "escrin-runner"
+  ],
+  "author": "Nick Hynes <nick@escrin.org>",
   "type": "module",
   "service": "./dist/service/escrin-runner.js",
   "module": "./dist/lib/index.js",
@@ -16,20 +22,18 @@
     "pnpm": ">=7"
   },
   "scripts": {
-    "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' 'src/**/*.ts'",
+    "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' 'src/**/*.ts' '*.js'",
     "lint": "npm-run-all lint:**",
-    "format:prettier": "prettier --write --plugin-search-dir=. --cache '*.json' 'src/**/*.ts'",
+    "format:prettier": "prettier --write --plugin-search-dir=. --cache '*.json' 'src/**/*.ts' '*.js'",
     "format": "npm-run-all format:**",
     "build:typecheck": "tsc -b",
-    "build:lib": "tsc -b",
-    "build:runner": "esbuild --bundle ./src/service/runner.ts --outfile=./dist/service/escrin-runner.js --minify --target=es2022 --format=esm",
-    "build:env": "esbuild --bundle ./src/service/env/index.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm",
+    "build:lib": "tsc -p tsconfig.lib.json",
+    "build:svc": "node esbuild.js",
     "build": "npm-run-all --parallel build:**",
-    "watch:build:lib": "tsc -b --watch --preserveWatchOutput",
-    "watch:build:runner": "esbuild --bundle ./src/service/runner.ts --outfile=./dist/service/escrin-runner.js --minify --target=es2022 --format=esm --watch",
-    "watch:build:env": "esbuild --bundle ./src/service/env/index.ts --outfile=./dist/service/escrin-env.js --minify --target=es2022 --format=esm --watch",
-    "watch:build": "npm-run-all --parallel watch:build:**",
-    "watch": "npm-run-all --parallel watch:**"
+    "watch:typecheck": "tsc -b --watch --preserveWatchOutput",
+    "watch:build:lib": "tsc -p tsconfig.lib.json --watch --preserveWatchOutput",
+    "watch:build:svc": "node esbuild.js --watch",
+    "watch:build": "npm-run-all --parallel watch:build:**"
   },
   "dependencies": {
     "@escrin/evm": "workspace:^",

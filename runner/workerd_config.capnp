@@ -3,7 +3,7 @@ using Workerd = import "/workerd/workerd.capnp";
 const config :Workerd.Config = (
   services = [
     (name = "@escrin/runner", worker = .runner),
-    (name = "@escrin/env", worker = .env),
+    (name = "@escrin/iam", worker = .iam),
     (name = "internet", network = (
         allow = ["public", "local"],
         tlsOptions = ( trustBrowserCas = true )
@@ -14,22 +14,13 @@ const config :Workerd.Config = (
 );
 
 const runner :Workerd.Worker = (
-  compatibilityDate = "2023-02-28",
-  modules = [
-    (name = "runner", esModule = embed "dist/service/escrin-runner.js")
-  ],
-  bindings = [
-    (name = "workerd", service = "@workerd"),
-    (name = "mode", fromEnvironment = "ESCRIN_MODE")
-  ],
+  compatibilityDate = "2023-11-08",
+  modules = [ (name = "runner", esModule = embed "dist/svc/run.js")] ,
+  bindings = [ (name = "workerd", service = "@workerd") ],
 );
 
-const env :Workerd.Worker = (
-  compatibilityDate = "2023-02-28",
-  modules = [
-    (name = "worker", esModule = embed "dist/service/escrin-env.js"),
-  ],
-  bindings = [
-    (name = "gasKey", fromEnvironment = "GAS_KEY"),
-  ],
+const iam :Workerd.Worker = (
+  compatibilityDate = "2023-11-08",
+  modules = [ (name = "worker", esModule = embed "dist/svc/iam.js") ],
+  bindings = [ (name = "gasKey", fromEnvironment = "GAS_KEY") ],
 );
