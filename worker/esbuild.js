@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import esbuild from 'esbuild';
 
-const SRC_DIR = path.join('.', 'src', 'svc');
+const SRC_DIR = path.join('.', 'src', 'env');
 
 const ctx = await esbuild.context({
   entryPoints: fs.readdirSync(SRC_DIR).map((service) => {
@@ -16,7 +16,7 @@ const ctx = await esbuild.context({
   bundle: true,
   format: 'esm',
   minify: true,
-  outdir: path.join('dist', 'svc'),
+  outdir: path.join('dist', 'env'),
   platform: 'browser',
   sourcemap: 'external',
   target: 'es2022',

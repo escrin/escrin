@@ -27,11 +27,11 @@
     "format": "npm-run-all format:**",
     "build:typecheck": "tsc -b",
     "build:lib": "tsc -p tsconfig.lib.json",
-    "build:svc": "node esbuild.js",
+    "build:env": "node esbuild.js",
     "build": "npm-run-all --parallel build:**",
     "watch:typecheck": "tsc -b --watch --preserveWatchOutput",
     "watch:build:lib": "tsc -p tsconfig.lib.json --watch --preserveWatchOutput",
-    "watch:build:svc": "node esbuild.js --watch",
+    "watch:build:env": "node esbuild.js --watch",
     "watch:build": "npm-run-all --parallel watch:build:**"
   },
   "dependencies": {

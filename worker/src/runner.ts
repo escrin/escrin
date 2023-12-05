@@ -1,6 +1,6 @@
 import { Body, Fetcher, Request } from '@cloudflare/workers-types/experimental';
 
-import { ApiResponse, ApiError, wrapFetch } from '../rpc.js';
+import { ApiResponse, ApiError, wrapFetch } from './rpc.js';
 
 type WorkerConfig = {
   code: string;

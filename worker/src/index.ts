@@ -3,10 +3,10 @@ import { Address, Hash, Hex, hexToBytes, toHex } from 'viem';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 
 import { ApiError, decodeRequest, rpc, wrapFetch } from './rpc.js';
-import * as envTypes from './svc/iam/types.js';
+import * as envTypes from './env/iam/types.js';
 
 export { ApiError } from './rpc.js';
-export * from './svc/iam/types.js';
+export * from './env/iam/types.js';
 
 export interface Runner {
   getConfig(): Promise<Record<string, any>>;
