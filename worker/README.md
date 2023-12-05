@@ -1,4 +1,4 @@
-<h1><img width="38" height="38" src="../website/public/logo.svg"/>Escrin - Runner</h1>
+<h1><img width="38" height="38" src="../website/public/logo.svg"/>Escrin - Worker</h1>
 
 <a href="https://escrin.org"><img src="https://img.shields.io/badge/Get_Started-eeaa00?style=for-the-badge"/></a>&nbsp;
 <a href="https://enshrine.ai/discord"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white"/></a>&nbsp;
@@ -12,7 +12,7 @@ This is the source code for the `escrin-runner` platform services and the [@escr
 
 You can get started by installing `pnpm` and running `pnpm install`.
 
-Once the dependencies have been installed, you can run the [package scripts](https://github.com/escrin/escrin/blob/main/runner/package.json#L18).
+Once the dependencies have been installed, you can run the [package scripts](https://github.com/escrin/escrin/blob/main/worker/package.json#L18).
 The important ones are:
 
 * `pnpm lint` - reports formatting errors and Solidity lints
@@ -34,9 +34,9 @@ To publish this library, bump the version in `package.json`, push that change to
 
 ## Points of Interest
 
-- [workerd_config.capnp](./workerd_config.capnp) - the configuration of the `escrin/workerd` that runs the platform services and sets up the Smart Worker sandbo
-- [src/services/runner.ts](./src/services/runner.ts) - the entrypoint service of the `escrin-runner` that spawns Smart Workers when requested
-- [src/services/env.ts](./src/services/env.ts) - a service linked to Smart Workers spawned by the runner service that provides platform services like key and data management
 - [src/index.ts](./src/index.ts) - the entrypoint of the [@escrin/worker](https://www.npmjs.com/package/@escrin/worker) TypeScript library
+- [workerd_config.capnp](./workerd_config.capnp) - the configuration of the `escrin/workerd` that runs the platform services and sets up the Smart Worker sandbox
+- [src/runner.ts](./src/runner.ts) - the entrypoint service of the `escrin-runner` that spawns Smart Workers when requested
+- [src/env/iam](./src/env/iam/) - a service linked to Smart Workers that provides decentrized key and identity management.
 
 As you work on the code, please feel encouraged to [file issues](https://github.com/escrin/escrin/issues) or participate in [the Discord community](https://enshrine.ai/discord)!

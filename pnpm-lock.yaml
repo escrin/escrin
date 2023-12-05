@@ -8,14 +8,29 @@ importers:
 
   evm: {}
 
-  runner:
+  website:
+    devDependencies:
+      postcss-preset-env:
+        specifier: ^9.1.4
+        version: 9.1.4(postcss@8.4.32)
+      tailwindcss:
+        specifier: ^3.3.3
+        version: 3.3.3
+      vitepress:
+        specifier: 1.0.0-rc.20
+        version: 1.0.0-rc.20(@algolia/client-search@4.20.0)(postcss@8.4.32)(search-insights@2.11.0)
+      vue:
+        specifier: ^3.3.4
+        version: 3.3.4
+
+  worker:
     dependencies:
       '@escrin/evm':
         specifier: workspace:^
         version: link:../evm
       '@oasisprotocol/sapphire-paratime':
         specifier: file:oasisprotocol-sapphire-paratime-1.1.1.tgz
-        version: file:runner/oasisprotocol-sapphire-paratime-1.1.1.tgz(typescript@5.3.2)
+        version: file:worker/oasisprotocol-sapphire-paratime-1.1.1.tgz(typescript@5.3.2)
       viem:
         specifier: ^1.19.11
         version: 1.19.11(typescript@5.3.2)
@@ -35,21 +50,6 @@ importers:
       typescript:
         specifier: ^5.3.2
         version: 5.3.2
-
-  website:
-    devDependencies:
-      postcss-preset-env:
-        specifier: ^9.1.4
-        version: 9.1.4(postcss@8.4.32)
-      tailwindcss:
-        specifier: ^3.3.3
-        version: 3.3.3
-      vitepress:
-        specifier: 1.0.0-rc.20
-        version: 1.0.0-rc.20(@algolia/client-search@4.20.0)(postcss@8.4.32)(search-insights@2.11.0)
-      vue:
-        specifier: ^3.3.4
-        version: 3.3.4
 
 packages:
 
@@ -2237,12 +2237,6 @@ packages:
       has: 1.0.3
     dev: true
 
-  /is-core-module@2.13.1:
-    resolution: {integrity: sha512-hHrIjvZsftOsvKSn2TRYl63zvxsgE0K+0mYMoH6gD4omR5IWB2KynivBQczo3+wF1cCkjzvptnI9Q0sPU66ilw==}
-    dependencies:
-      hasown: 2.0.0
-    dev: true
-
   /is-date-object@1.0.5:
     resolution: {integrity: sha512-9YQaSxsAiSwcvS33MBk3wTCVnWK+HhF8VZR2jRxehM16QcVOdHqPn4VPHmRK4lSr38n9JriurInLcP90xsYNfQ==}
     engines: {node: '>= 0.4'}
@@ -2451,7 +2445,7 @@ packages:
     resolution: {integrity: sha512-/5CMN3T0R4XTj4DcGaexo+roZSdSFW/0AOOTROrjxzCG1wrWXEsGbRKevjlIL+ZDE4sZlJr5ED4YW0yqmkK+eA==}
     dependencies:
       hosted-git-info: 2.8.9
-      resolve: 1.22.8
+      resolve: 1.22.6
       semver: 5.7.2
       validate-npm-package-license: 3.0.4
     dev: true
@@ -3026,15 +3020,6 @@ packages:
       supports-preserve-symlinks-flag: 1.0.0
     dev: true
 
-  /resolve@1.22.8:
-    resolution: {integrity: sha512-oKWePCxqpd6FlLvGV1VU0x7bkPmmCNolxzjMf4NczoDnQcIWrAF+cPtZn5i6n+RfD2d9i0tzpKnG6Yk168yIyw==}
-    hasBin: true
-    dependencies:
-      is-core-module: 2.13.1
-      path-parse: 1.0.7
-      supports-preserve-symlinks-flag: 1.0.0
-    dev: true
-
   /reusify@1.0.4:
     resolution: {integrity: sha512-U9nH88a3fc/ekCF1l0/UP1IosiuIjyTh7hBvXVMHYgVcfGvt897Xguj2UOLDeI5BG2m7/uwyaLVT6fbtCwTyzw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
@@ -3603,9 +3588,9 @@ packages:
     engines: {node: '>= 14'}
     dev: true
 
-  file:runner/oasisprotocol-sapphire-paratime-1.1.1.tgz(typescript@5.3.2):
-    resolution: {integrity: sha512-wOs7NTiGV9JMrKh4cI4Yn0djWzQAa2lKa/62Ij786g25SvEsvxpj1LDzxtwLHfJNwHOd8+tXSecDLnhGRj8dNg==, tarball: file:runner/oasisprotocol-sapphire-paratime-1.1.1.tgz}
-    id: file:runner/oasisprotocol-sapphire-paratime-1.1.1.tgz
+  file:worker/oasisprotocol-sapphire-paratime-1.1.1.tgz(typescript@5.3.2):
+    resolution: {integrity: sha512-wOs7NTiGV9JMrKh4cI4Yn0djWzQAa2lKa/62Ij786g25SvEsvxpj1LDzxtwLHfJNwHOd8+tXSecDLnhGRj8dNg==, tarball: file:worker/oasisprotocol-sapphire-paratime-1.1.1.tgz}
+    id: file:worker/oasisprotocol-sapphire-paratime-1.1.1.tgz
     name: '@oasisprotocol/sapphire-paratime'
     version: 1.1.1
     dependencies:

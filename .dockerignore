@@ -6,8 +6,9 @@
 !evm/abi
 !evm/package.json
 
-!runner/package.json
-!runner/src
-!runner/tsconfig.json
-!runner/workerd_config.capnp
-!runner/oasisprotocol-sapphire-paratime-1.1.1.tgz
+!worker/esbuild.js
+!worker/oasisprotocol-sapphire-paratime-1.1.1.tgz
+!worker/package.json
+!worker/src
+!worker/tsconfig*.json
+!worker/workerd_config.capnp

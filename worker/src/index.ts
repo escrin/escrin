@@ -38,42 +38,34 @@ export interface Callbacks {
   tasks(rnr: Runner): Promise<void>;
 }
 
+export type WorkerEnv = { iam: Fetcher; config: Record<string, any> };
+
 export default function (callbacks: Callbacks) {
   return {
-    fetch: wrapFetch(
-      async (
-        req: Request,
-        env: { escrin: Fetcher; config: Record<string, any> },
-        ctx: ExecutionContext,
-      ) => {
-        const { method, params: _ } = await decodeRequest(req);
-        ctx.waitUntil(
-          (async () => {
-            if (method === 'tasks') {
-              await callbacks.tasks(new RunnerInterface(env));
-            } else {
-              throw new ApiError(404, `unrecognized method ${method}`);
-            }
-          })(),
-        );
-      },
-    ),
-    scheduled(
-      _event: ScheduledEvent,
-      env: { escrin: Fetcher; config: Record<string, any> },
-      ctx: ExecutionContext,
-    ) {
+    fetch: wrapFetch(async (req: Request, env: WorkerEnv, ctx: ExecutionContext) => {
+      const { method, params: _ } = await decodeRequest(req);
+      ctx.waitUntil(
+        (async () => {
+          if (method === 'tasks') {
+            await callbacks.tasks(new RunnerInterface(env));
+          } else {
+            throw new ApiError(404, `unrecognized method ${method}`);
+          }
+        })(),
+      );
+    }),
+    scheduled(_event: ScheduledEvent, env: WorkerEnv, ctx: ExecutionContext) {
       ctx.waitUntil(callbacks.tasks(new RunnerInterface(env)));
     },
   };
 }
 
 class RunnerInterface implements Runner {
-  #service: Fetcher;
+  #iam: Fetcher;
   #config: Record<string, any>;
 
-  constructor(env: { escrin: Fetcher; config: Record<string, any> }) {
-    this.#service = env.escrin;
+  constructor(env: { iam: Fetcher; config: Record<string, any> }) {
+    this.#iam = env.iam;
     this.#config = env.config;
   }
 
@@ -93,7 +85,7 @@ class RunnerInterface implements Runner {
     } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
-    await rpc<envTypes.AcquireIdentityRequest>(this.#service, 'acquire-identity', {
+    await rpc<envTypes.AcquireIdentityRequest>(this.#iam, 'acquire-identity', {
       network,
       identity,
       permitTtl,
@@ -108,7 +100,7 @@ class RunnerInterface implements Runner {
     const { network: networkNameOrNetwork, identity: identityIdOrIdentity } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
-    const { key } = await rpc<envTypes.GetKeyRequest>(this.#service, 'get-key', {
+    const { key } = await rpc<envTypes.GetKeyRequest>(this.#iam, 'get-key', {
       keyId: 'omni',
       network,
       identity,

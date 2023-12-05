@@ -115,7 +115,7 @@ export default new (class {
         serviceWorkerScript: modular ? undefined : config.code,
         modules: modular ? [{ name: 'main', esModule: config.code }] : undefined,
         bindings: [
-          { name: 'escrin', service: { name: '@escrin/env' } },
+          { name: 'iam', service: { name: '@escrin/iam' } },
           {
             name: 'config',
             json: typeof config.config === 'string' ? config.config : JSON.stringify(config.config),

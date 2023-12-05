@@ -1,1 +1,1 @@
-packages: [evm, runner, website]
+packages: [evm, website, worker]

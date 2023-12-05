@@ -1,22 +1,22 @@
 import fs from 'node:fs';
-import path from 'node:path';
+import { basename, extname, join } from 'node:path';
 
 import esbuild from 'esbuild';
 
-const SRC_DIR = path.join('.', 'src', 'env');
+const SRC_DIR = 'src';
+const ENV_DIR = join(SRC_DIR, 'env');
+
+const srcs = [join(SRC_DIR, 'runner.ts'), ...fs.readdirSync(ENV_DIR).map((p) => join(ENV_DIR, p))];
 
 const ctx = await esbuild.context({
-  entryPoints: fs.readdirSync(SRC_DIR).map((service) => {
-    const entryPoint = path.extname(service) === '.ts' ? service : path.join(service, 'index.ts');
-    return {
-      in: path.join(SRC_DIR, entryPoint),
-      out: path.basename(service, path.extname(service)),
-    };
-  }),
+  entryPoints: srcs.map((service) => ({
+    in: extname(service) === '.ts' ? service : join(service, 'index.ts'),
+    out: basename(service, extname(service)),
+  })),
   bundle: true,
   format: 'esm',
   minify: true,
-  outdir: path.join('dist', 'env'),
+  outdir: join('dist', 'worker'),
   platform: 'browser',
   sourcemap: 'external',
   target: 'es2022',

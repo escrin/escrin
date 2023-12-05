@@ -26,7 +26,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          file: runner/Dockerfile
+          file: worker/Dockerfile
           build-args: WORKERD_TAG=v1.20230918.0
           tags: ghcr.io/escrin/runner:${{ github.sha }}
           push: true
