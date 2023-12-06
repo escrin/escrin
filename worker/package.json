@@ -37,6 +37,9 @@
   "dependencies": {
     "@escrin/evm": "workspace:^",
     "@oasisprotocol/sapphire-paratime": "file:oasisprotocol-sapphire-paratime-1.1.1.tgz",
+    "@openzeppelin/merkle-tree": "^1.0.5",
+    "cborg": "^4.0.5",
+    "ethereum-cryptography": "^2.1.2",
     "viem": "^1.19.11"
   },
   "devDependencies": {

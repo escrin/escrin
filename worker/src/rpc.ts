@@ -43,7 +43,7 @@ export function wrapFetch<Env>(
 
 export async function decodeRequest(
   req: Request,
-): Promise<{ method: string; params: Record<string, any> }> {
+): Promise<{ method: string; params: Record<string, unknown> }> {
   if (req.headers.get('content-type') !== 'application/json')
     throw new ApiError(400, 'invalid content-type. application/json is required');
   let bodyJson: unknown;
@@ -60,7 +60,7 @@ export async function decodeRequest(
     throw new ApiError(400, `invalid request body: missing or invalid params`);
   return {
     method: bodyJson.method,
-    params: bodyJson.params,
+    params: bodyJson.params as Record<string, unknown>,
   };
 }
 

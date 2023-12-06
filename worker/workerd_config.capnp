@@ -17,7 +17,13 @@ const runner :Workerd.Worker = (
 );
 
 const iam :Workerd.Worker = (
-  compatibilityDate = "2023-08-01",
+  compatibilityDate = "2023-11-08",
   modules = [ (name = "", esModule = embed "dist/worker/iam.js") ],
   bindings = [ (name = "gasKey", fromEnvironment = "GAS_KEY") ],
+);
+
+const nsm :Workerd.Worker = (
+  compatibilityDate = "2023-11-08",
+  modules = [ (name = "", esModule = embed "dist/worker/nsm.js") ],
+  # bindings = [ (name = "nsm", nsm = void) ],
 );
