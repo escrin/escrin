@@ -6,9 +6,8 @@ on:
       - main
 
 jobs:
-  build-and-push:
+  docker-build-and-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,3 +30,31 @@ jobs:
           tags: ghcr.io/escrin/runner:${{ github.sha }}
           push: true
           cache-to: type=inline
+
+  eif-build-and-push:
+    needs: docker-build-and-push
+    runs-on: ubuntu-latest
+    container:
+      image: amazonlinux:2
+    steps:
+      - name: Install tools
+        run: |
+          amazon-linux-extras install aws-nitro-enclaves-cli -y
+          yum install aws-nitro-enclaves-cli-devel -y
+
+      - name: Build EIF
+        run: nitro-cli build-enclave --docker-uri ghcr.io/escrin/runner:latest --output-file escrin-runner.eif | tee escrin-runner.eif.json
+
+      - name: Upload EIF
+        uses: actions/upload-artifact@v3
+        with:
+          name: escrin-runner.eif
+          path: escrin-runner.eif
+          if-no-files-found: error
+
+      - name: Upload measurements
+        uses: actions/upload-artifact@v3
+        with:
+          name: escrin-runner.eif.json
+          path: escrin-runner.eif.json
+          if-no-files-found: error
