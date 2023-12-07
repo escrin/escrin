@@ -17,7 +17,7 @@ RUN pnpm --filter "@escrin/worker" install --frozen-lockfile
 RUN pnpm --filter "@escrin/worker" build
 RUN ./workerd compile worker/workerd_config.capnp > escrin-runner
 
-FROM gcr.io/distroless/cc:latest
+FROM gcr.io/distroless/cc-debian12
 
 COPY --from=runner-builder /escrin/escrin-runner /escrin-runner
 
