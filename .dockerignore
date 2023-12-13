@@ -12,3 +12,4 @@
 !worker/src
 !worker/tsconfig*.json
 !worker/workerd_config.capnp
+!worker/config
