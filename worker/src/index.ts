@@ -1,24 +1,34 @@
 import { ExecutionContext, Fetcher, Request } from '@cloudflare/workers-types/experimental';
-import { Address, Hash, Hex, hexToBytes, toHex } from 'viem';
-import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree';
+import { Address, Hash, Hex, encodeAbiParameters, hexToBigInt, hexToBytes, toHex } from 'viem';
 
 import { ApiError, decodeRequest, rpc, wrapFetch } from './rpc.js';
-import * as envTypes from './env/iam/types.js';
+import * as iamTypes from './env/iam/types.js';
+import * as tpmTypes from './env/tpm/types.js';
 
 export { ApiError } from './rpc.js';
 export * from './env/iam/types.js';
+export * from './env/tpm/types.js';
 
 export interface Runner {
   getConfig(): Promise<Record<string, any>>;
 
-  getOmniKey(params: GetOmniKeyParams): Promise<CryptoKey>;
+  getAttestation(params: GetAttestationParams): Promise<Attestation>;
 
   acquireIdentity(params: AcquireIdentityParams): Promise<void>;
+
+  getOmniKey(params: GetOmniKeyParams): Promise<CryptoKey>;
 }
 
-export type GetOmniKeyParams = {
+export type GetAttestationParams = {
   network: NetworkNameOrNetwork;
   identity: IdentityIdOrIdentity;
+  purpose?: 'acquire' | 'release';
+};
+
+export type Attestation = {
+  document: Uint8Array;
+  context: Hex;
 };
 
 export type AcquireIdentityParams = {
@@ -31,14 +41,19 @@ export type AcquireIdentityParams = {
   duration?: number;
 };
 
-export type NetworkNameOrNetwork = 'local' | `sapphire-${'testnet' | 'mainnet'}` | envTypes.Network;
-export type IdentityIdOrIdentity = Hash | envTypes.Identity;
+export type GetOmniKeyParams = {
+  network: NetworkNameOrNetwork;
+  identity: IdentityIdOrIdentity;
+};
+
+export type NetworkNameOrNetwork = 'local' | `sapphire-${'testnet' | 'mainnet'}` | iamTypes.Network;
+export type IdentityIdOrIdentity = Hash | iamTypes.Identity;
 
 export interface Callbacks {
   tasks(rnr: Runner): Promise<void>;
 }
 
-export type WorkerEnv = { iam: Fetcher; config: Record<string, any> };
+export type WorkerEnv = { config: Record<string, any>; iam: Fetcher; tpm?: Fetcher };
 
 export default function (callbacks: Callbacks) {
   return {
@@ -61,16 +76,46 @@ export default function (callbacks: Callbacks) {
 }
 
 class RunnerInterface implements Runner {
-  #iam: Fetcher;
   #config: Record<string, any>;
+  #iam: Fetcher;
+  #tpm?: Fetcher;
 
-  constructor(env: { iam: Fetcher; config: Record<string, any> }) {
+  constructor(env: WorkerEnv) {
     this.#iam = env.iam;
+    this.#tpm = env.tpm;
     this.#config = env.config;
   }
 
   async getConfig(): Promise<Record<string, any>> {
     return this.#config;
+  }
+
+  async getAttestation(params: GetAttestationParams): Promise<Attestation> {
+    if (!this.#tpm) throw new ApiError(404, 'no TPM');
+    const { network: networkNameOrNetwork, identity: identityIdOrIdentity } = params;
+    const network = getNetwork(networkNameOrNetwork);
+    const identity = getIdentity(identityIdOrIdentity, network);
+
+    const tree = StandardMerkleTree.of(
+      [
+        [
+          BigInt(network.chainId),
+          identity.registry,
+          hexToBigInt(identity.id),
+          !params.purpose || params.purpose === 'acquire',
+        ],
+      ],
+      ['uint256', 'address', 'uint256', 'boolean'],
+    );
+    const proof = tree.getProof(0) as Hash[];
+
+    const { document } = await rpc<tpmTypes.AttestationRequest>(this.#tpm, 'get-attestation', {
+      userdata: hexToBytes(tree.root as Hash),
+    });
+    return {
+      document,
+      context: encodeAbiParameters([{ name: 'proof', type: 'bytes32[]' }], [proof]),
+    };
   }
 
   async acquireIdentity(params: AcquireIdentityParams): Promise<void> {
@@ -85,7 +130,7 @@ class RunnerInterface implements Runner {
     } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
-    await rpc<envTypes.AcquireIdentityRequest>(this.#iam, 'acquire-identity', {
+    await rpc<iamTypes.AcquireIdentityRequest>(this.#iam, 'acquire-identity', {
       network,
       identity,
       permitTtl,
@@ -100,7 +145,7 @@ class RunnerInterface implements Runner {
     const { network: networkNameOrNetwork, identity: identityIdOrIdentity } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
-    const { key } = await rpc<envTypes.GetKeyRequest>(this.#iam, 'get-key', {
+    const { key } = await rpc<iamTypes.GetKeyRequest>(this.#iam, 'get-key', {
       keyId: 'omni',
       network,
       identity,
@@ -112,7 +157,7 @@ class RunnerInterface implements Runner {
   }
 }
 
-function getNetwork(nameOrNetwork: NetworkNameOrNetwork): envTypes.Network {
+function getNetwork(nameOrNetwork: NetworkNameOrNetwork): iamTypes.Network {
   if (typeof nameOrNetwork === 'string')
     throw new Error('unable to infer network parameters, so chainId and rpcUrl are required');
   return nameOrNetwork;
@@ -120,8 +165,8 @@ function getNetwork(nameOrNetwork: NetworkNameOrNetwork): envTypes.Network {
 
 function getIdentity(
   idOrIdentity: IdentityIdOrIdentity,
-  _network: envTypes.Network,
-): envTypes.Identity {
+  _network: iamTypes.Network,
+): iamTypes.Identity {
   if (typeof idOrIdentity === 'string')
     throw new Error('unable to infer identity registry, so id and registry are required');
   return idOrIdentity;
