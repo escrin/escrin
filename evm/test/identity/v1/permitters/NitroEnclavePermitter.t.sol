@@ -3,8 +3,7 @@ pragma solidity ^0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 
-import {NE} from
-    "../../../../src/identity/v1/permitters/NitroEnclavePermitter.sol";
+import {NE} from "../../../../src/identity/v1/permitters/NitroEnclavePermitter.sol";
 
 contract VerifierContract {
     function verifyAttestationDocument(bytes calldata doc) external view {

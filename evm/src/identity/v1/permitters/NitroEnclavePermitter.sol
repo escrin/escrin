@@ -3,7 +3,9 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
 
-import {Sapphire, sha384 as _sha384} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import {
+    Sapphire, sha384 as _sha384
+} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
@@ -52,10 +54,11 @@ abstract contract BaseNitroEnclavePermitter is Permitter {
         uint256 nbf = block.timestamp - _getPermitMaxDuration(identity, requester, context);
         NE.UserData memory userdata = NE.verifyAttestationDocument(doc, _getPCRs(identity), nbf);
         if (IdentityId.unwrap(burnt[userdata.nonce]) != 0) revert DocAlreadyUsed();
-        bytes32 leaf =
-            keccak256(abi.encodePacked(block.chainid, address(this), requester, identity, release ? "-" : "+"));
-        (bytes32[] memory proofs) = abi.decode(context, (bytes32[]));
-        MerkleProof.verify(proofs, userdata.merkleRoot, leaf);
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(block.chainid, identityRegistry, identity, !release)))
+        );
+        (bytes32[] memory proof) = abi.decode(context, (bytes32[]));
+        MerkleProof.verify(proof, userdata.merkleRoot, leaf);
         burnt[userdata.nonce] = identity;
     }
 
@@ -76,7 +79,9 @@ contract StaticNitroEnclavePermitter is BaseNitroEnclavePermitter {
     uint16 public immutable pcrMask;
     bytes32 public immutable pcrHash;
 
-    constructor(IIdentityRegistry registry, uint16 mask, bytes32 hash) BaseNitroEnclavePermitter(registry) {
+    constructor(IIdentityRegistry registry, uint16 mask, bytes32 hash)
+        BaseNitroEnclavePermitter(registry)
+    {
         pcrMask = mask;
         pcrHash = hash;
     }
@@ -97,7 +102,13 @@ contract MultiNitroEnclavePermitter is BaseNitroEnclavePermitter {
         pcrs[identity] = pcrSel;
     }
 
-    function _getPCRs(IdentityId identity) internal view virtual override returns (NE.PcrSelector memory) {
+    function _getPCRs(IdentityId identity)
+        internal
+        view
+        virtual
+        override
+        returns (NE.PcrSelector memory)
+    {
         return pcrs[identity];
     }
 }
@@ -171,7 +182,8 @@ library NE {
             bytes2(uint16(payload.length)),
             payload
         );
-        bytes memory sigDer = abi.encodePacked(bytes5(0x3065023100), sig[0:48], bytes2(0x0230), sig[48:96]);
+        bytes memory sigDer =
+            abi.encodePacked(bytes5(0x3065023100), sig[0:48], bytes2(0x0230), sig[48:96]);
         Sig.verifyP384(pk, coseSign1, sigDer);
     }
 
@@ -191,7 +203,8 @@ library NE {
             // Value: Text(9) "module_id" - 69_6D6F64756C655F6964
             // Text(var) - 78
             require(
-                bytes12(payload[cursor:cursor + 12]) == bytes12(0xa9_69_6d6f64756c655f6964_78), "expected module_id"
+                bytes12(payload[cursor:cursor + 12]) == bytes12(0xa9_69_6d6f64756c655f6964_78),
+                "expected module_id"
             );
         }
         cursor += 12;
@@ -226,14 +239,19 @@ library NE {
         require(cursor == payload.length, "unparsed payload");
     }
 
-    function _verifyCerts(bytes calldata input) internal view returns (bytes calldata publicKey, uint256 adv) {
+    function _verifyCerts(bytes calldata input)
+        internal
+        view
+        returns (bytes calldata publicKey, uint256 adv)
+    {
         uint256 cursor;
 
         if (STRICT) {
             // Key: Text(11) "certificate" - 6b_6365727469666963617465
             // Value: Bytes(long) - 59
             require(
-                bytes13(input[cursor:cursor + 13]) == bytes13(0x6b_6365727469666963617465_59), "expected certificate"
+                bytes13(input[cursor:cursor + 13]) == bytes13(0x6b_6365727469666963617465_59),
+                "expected certificate"
             );
         }
         cursor += 13;
@@ -244,7 +262,8 @@ library NE {
             // Key: Text(8) "cabundle" - 68_636162756e646c65
             // Value: Array(n) - 80
             require(
-                bytes10(input[cursor:cursor + 10]) & 0xfffffffffffffffffff0 == bytes10(0x68_636162756e646c65_80),
+                bytes10(input[cursor:cursor + 10]) & 0xfffffffffffffffffff0
+                    == bytes10(0x68_636162756e646c65_80),
                 "expected cabundle"
             );
         }
@@ -278,7 +297,11 @@ library NE {
         return (pk, cursor);
     }
 
-    function _verifyPCRs(bytes calldata input, PcrSelector memory sel) internal pure returns (uint256 adv) {
+    function _verifyPCRs(bytes calldata input, PcrSelector memory sel)
+        internal
+        pure
+        returns (uint256 adv)
+    {
         if (STRICT) {
             // Note: PCR length depends on the digest, but SHA384 is currently the default.
             // Key: Text(4) "pcrs" - 64_70637273
@@ -304,12 +327,19 @@ library NE {
         return 15 * (48 + 3) + 48 + 9;
     }
 
-    function _getUserData(bytes calldata input) internal pure returns (UserData memory userdata, uint256 adv) {
+    function _getUserData(bytes calldata input)
+        internal
+        pure
+        returns (UserData memory userdata, uint256 adv)
+    {
         uint256 cursor;
 
         if (STRICT) {
             // Key: Text(10) "public_key" - 6a_7075626c69635f6b6579
-            require(bytes11(input[cursor:cursor + 11]) == bytes11(0x6a_7075626c69635f6b6579), "expected public_key");
+            require(
+                bytes11(input[cursor:cursor + 11]) == bytes11(0x6a_7075626c69635f6b6579),
+                "expected public_key"
+            );
         }
         cursor += 11;
         (, uint256 pkConsumed) = _consumeOptionalBytes(input[cursor:]);
@@ -317,10 +347,14 @@ library NE {
 
         if (STRICT) {
             // Key: Text(9) "user_data" - 69_757365725f64617461
-            require(bytes10(input[cursor:cursor + 10]) == bytes10(0x69_757365725f64617461), "expected user_data");
+            require(
+                bytes10(input[cursor:cursor + 10]) == bytes10(0x69_757365725f64617461),
+                "expected user_data"
+            );
         }
         cursor += 10;
-        (bytes calldata merkleRoot, uint256 userdataConsumed) = _consumeOptionalBytes(input[cursor:]);
+        (bytes calldata merkleRoot, uint256 userdataConsumed) =
+            _consumeOptionalBytes(input[cursor:]);
         cursor += userdataConsumed;
         userdata.merkleRoot = bytes32(merkleRoot);
 
@@ -336,7 +370,11 @@ library NE {
         adv = cursor;
     }
 
-    function _consumeOptionalBytes(bytes calldata input) internal pure returns (bytes calldata data, uint256 adv) {
+    function _consumeOptionalBytes(bytes calldata input)
+        internal
+        pure
+        returns (bytes calldata data, uint256 adv)
+    {
         if (input[0] == 0xf6) return (input[0:0], 1);
         if (STRICT) {
             require(input[0] == 0x59, "expected userdata");
@@ -378,7 +416,14 @@ library X509 {
     function parse(bytes calldata cert)
         internal
         view
-        returns (bytes32 serial, bytes32 iss, bytes32 sub, bytes calldata tbs, bytes calldata pk, bytes calldata sig)
+        returns (
+            bytes32 serial,
+            bytes32 iss,
+            bytes32 sub,
+            bytes calldata tbs,
+            bytes calldata pk,
+            bytes calldata sig
+        )
     {
         if (STRICT) {
             // SEQUENCE(var(2)) - 30_82
@@ -396,7 +441,10 @@ library X509 {
             // SEQUENCE(10) - 30_0a
             // OID(8) - 06_08
             // ecdsaWithSHA384 - 2a8648ce3d040303
-            require(bytes12(cert[cursor:cursor + 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303), "wrong sig");
+            require(
+                bytes12(cert[cursor:cursor + 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303),
+                "wrong sig"
+            );
         }
         cursor += 12;
 
@@ -435,7 +483,10 @@ library X509 {
             // SEQUENCE(10) - 30_0a
             // OID(8) - 06_08
             // ecdsaWithSHA384 - 2a8648ce3d040303
-            require(bytes12(tbs[cursor:cursor + 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303), "wrong sig");
+            require(
+                bytes12(tbs[cursor:cursor + 12]) == bytes12(0x30_0a_06_08_2A8648CE3D040303),
+                "wrong sig"
+            );
         }
         cursor += 12;
 
@@ -514,7 +565,10 @@ library X509 {
         uint256 mM = ((isonums >> 0x48) & 0xff) * 10 + ((isonums >> 0x40) & 0xff);
         uint256 yy = ((isonums >> 0x58) & 0xff) * 10 + ((isonums >> 0x50) & 0xff);
         uint256 cd = _cumulativeDays(mM, yy);
-        return (ss + (1 minutes * mm) + (1 hours * hh) + 1 days * (dd - 1 + cd) + (365.25 days * yy + 946702800));
+        return (
+            ss + (1 minutes * mm) + (1 hours * hh) + 1 days * (dd - 1 + cd)
+                + (365.25 days * yy + 946702800)
+        );
     }
 
     function _cumulativeDays(uint256 month, uint256 year) internal pure returns (uint256) {
@@ -535,7 +589,11 @@ library X509 {
     }
 
     /// Extracts a sequence that may have 0, 1, or 2 additional length bytes.
-    function _getVarLenSeq(bytes calldata input) internal pure returns (bytes calldata, uint256 adv) {
+    function _getVarLenSeq(bytes calldata input)
+        internal
+        pure
+        returns (bytes calldata, uint256 adv)
+    {
         uint256 cursor;
         if (STRICT) {
             require(bytes1(input[cursor:cursor + 1]) == bytes1(0x30), "not seq");
