@@ -102,6 +102,7 @@ export default new (class {
         modules: modular ? [{ name: 'main', esModule: config.code }] : undefined,
         bindings: [
           { name: 'iam', service: { name: '@escrin/iam' } },
+          { name: 'tpm', service: { name: '@escrin/tpm' } },
           {
             name: 'config',
             json: typeof config.config === 'string' ? config.config : JSON.stringify(config.config),

@@ -21,9 +21,9 @@
     "pnpm": ">=7"
   },
   "scripts": {
-    "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' 'src/**/*.ts' '*.js'",
+    "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' '{src,test}/**/*.ts' '*.js'",
     "lint": "npm-run-all lint:**",
-    "format:prettier": "prettier --write --plugin-search-dir=. --cache '*.json' 'src/**/*.ts' '*.js'",
+    "format:prettier": "prettier --write --plugin-search-dir=. --cache '*.json' '{src,test}/**/*.ts' '*.js'",
     "format": "npm-run-all format:**",
     "build:typecheck": "tsc -b",
     "build:lib": "tsc -p tsconfig.lib.json",

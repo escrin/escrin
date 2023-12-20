@@ -1,7 +1,9 @@
+import { Hex, bytesToHex, hexToBytes } from 'viem';
+
 import { ApiError, decodeRequest, wrapFetch } from '../../rpc.js';
 
 import { Nsm, NsmBinding } from './nsm.js';
-import { AttestationRequest, GetRandomRequest } from './types.js';
+import { AttestationRequest, RandomBytesRequest } from './types.js';
 
 type Env = { nsm?: NsmBinding; gasKey?: string };
 
@@ -15,19 +17,23 @@ export default new (class {
     const backend = getBackend(env);
 
     if (method === ('get-attestation' satisfies AttestationRequest['method'])) {
-      if ('userdata' in params && !(params.userdata instanceof Uint8Array))
-        throw new ApiError(400, 'invalid userdata');
+      if (
+        'userdata' in params &&
+        (typeof params.userdata !== 'string' || !params.userdata.startsWith('0x'))
+      ) {
+        throw new ApiError(400, 'invalid userdata. expected hex');
+      }
       return {
-        document: backend.getAttestation(params.userdata as Uint8Array),
+        document: bytesToHex(backend.getAttestation(hexToBytes(params.userdata as Hex))),
       } as AttestationRequest['response'];
     }
 
-    if (method === ('get-random' satisfies GetRandomRequest['method'])) {
+    if (method === ('get-random' satisfies RandomBytesRequest['method'])) {
       if (!('bytes' in params) || typeof params.numBytes !== 'number')
         throw new ApiError(400, 'missing or invalid count');
       return {
-        random: backend.getRandom(params.numBytes),
-      } as GetRandomRequest['response'];
+        random: bytesToHex(backend.getRandom(params.numBytes)),
+      } as RandomBytesRequest['response'];
     }
 
     throw new ApiError(404, `unknown method: ${method}`);

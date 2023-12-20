@@ -27,7 +27,7 @@ export type GetAttestationParams = {
 };
 
 export type Attestation = {
-  document: Uint8Array;
+  document: Hex;
   context: Hex;
 };
 
@@ -102,15 +102,15 @@ class RunnerInterface implements Runner {
           BigInt(network.chainId),
           identity.registry,
           hexToBigInt(identity.id),
-          !params.purpose || params.purpose === 'acquire',
+          !params.purpose || params.purpose === 'acquire' ? 1 : 0,
         ],
       ],
-      ['uint256', 'address', 'uint256', 'boolean'],
+      ['uint256', 'address', 'uint256', 'bool'],
     );
     const proof = tree.getProof(0) as Hash[];
 
     const { document } = await rpc<tpmTypes.AttestationRequest>(this.#tpm, 'get-attestation', {
-      userdata: hexToBytes(tree.root as Hash),
+      userdata: tree.root as Hash,
     });
     return {
       document,

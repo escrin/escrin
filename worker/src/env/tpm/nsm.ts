@@ -1,4 +1,5 @@
 import * as cbor from 'cborg';
+import { Hex } from 'viem';
 
 import { ApiError } from '../../rpc.js';
 
@@ -11,12 +12,10 @@ export class Nsm {
 
   getAttestation(userdata?: Uint8Array): Uint8Array {
     const nonce = this.getRandom(32);
-    const { document } = this.communicate<any, { document: Uint8Array }>({
-      Attestation: {
-        user_data: userdata,
-        nonce,
-        public_key: new Uint8Array(),
-      },
+    const { document } = this.communicate<any, { document: Uint8Array }>('Attestation', {
+      user_data: userdata,
+      nonce,
+      public_key: new Uint8Array(),
     });
     if (!(document instanceof Uint8Array)) throw new ApiError(500, 'failed to get attestation');
     return document;
@@ -28,14 +27,21 @@ export class Nsm {
     const bytes = new Uint8Array(numBytes);
     let filled = 0;
     while (filled < numBytes) {
-      const { random } = this.communicate<any, { random: Uint8Array }>({ GetRandom: {} });
+      const { random } = this.communicate<void, { random: Uint8Array }>('GetRandom');
       bytes.set(random.subarray(0, numBytes - filled), filled);
+      filled += random.length;
     }
     return bytes;
   }
 
-  private communicate<Req, Res>(params: Req): Res {
-    return cbor.decode(this.nsm.request(cbor.encode(params)));
+  private communicate<Params, Res>(method: string, params?: Params): Res {
+    const req = params !== undefined ? { [method]: params } : method;
+    const resBuf = new Uint8Array(this.nsm.request(cbor.encode(req)));
+    const [res, _rest] = cbor.decodeFirst(resBuf);
+    if (res === undefined) throw new ApiError(500, 'nsm: unexpected empty response');
+    if (res.Error) throw new ApiError(500, `nsm: ${res.Error}`);
+    if (!(method in res)) throw new ApiError(500, `nsm: missing ${method} response key`);
+    return res[method];
   }
 }
 
@@ -77,12 +83,12 @@ export type DescrbeNsmRequest = {
 
 export type AttestationRequest = {
   method: 'get-attestation';
-  params: Partial<{ userdata: Uint8Array }>;
-  response: { document: Uint8Array };
+  params: Partial<{ userdata: Hex }>;
+  response: { document: Hex };
 };
 
 export type RandomBytesRequest = {
   method: 'get-random';
   params: { numBytes: number };
-  response: { random: Uint8Array };
+  response: { random: Hex };
 };

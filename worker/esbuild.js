@@ -4,15 +4,23 @@ import { basename, extname, join } from 'node:path';
 import esbuild from 'esbuild';
 
 const SRC_DIR = 'src';
+const TEST_DIR = 'test';
 const ENV_DIR = join(SRC_DIR, 'env');
 
 const srcs = [join(SRC_DIR, 'runner.ts'), ...fs.readdirSync(ENV_DIR).map((p) => join(ENV_DIR, p))];
+const tests = fs.existsSync(TEST_DIR) ? fs.readdirSync(TEST_DIR).map((p) => join(TEST_DIR, p)) : [];
 
 const ctx = await esbuild.context({
-  entryPoints: srcs.map((service) => ({
-    in: extname(service) === '.ts' ? service : join(service, 'index.ts'),
-    out: basename(service, extname(service)),
-  })),
+  entryPoints: [
+    ...srcs.map((service) => ({
+      in: extname(service) === '.ts' ? service : join(service, 'index.ts'),
+      out: basename(service, extname(service)),
+    })),
+    ...tests.map((test) => ({
+      in: extname(test) === '.ts' ? test : join(test, 'index.ts'),
+      out: join('test', basename(test, extname(test))),
+    })),
+  ],
   bundle: true,
   format: 'esm',
   minify: true,

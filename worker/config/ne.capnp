@@ -19,10 +19,7 @@ const config :Workerd.Config = (
 const iamWorker :Workerd.Worker = (
   compatibilityDate = Base.iamWorkerCompatDate,
   modules = Base.iamWorkerModules,
-  bindings = [
-    Base.gasKeyBinding,
-    (name = "tpm", service = Base.tpmServiceName),
-  ],
+  bindings = [ Base.gasKeyBinding ],
 );
 
 const tpmWorker :Workerd.Worker = (
