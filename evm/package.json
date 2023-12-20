@@ -1,8 +1,8 @@
 {
   "name": "@escrin/evm",
-  "version": "1.0.0-beta.7",
-  "license": "MIT",
-  "author": "Nick Hynes <nick@enshrine.ai>",
+  "version": "1.0.0-rc.1",
+  "license": "MIT OR Apache-2.0",
+  "author": "Nick Hynes <nick@escrin.org>",
   "type": "module",
   "include": [
     "foundry.toml",
