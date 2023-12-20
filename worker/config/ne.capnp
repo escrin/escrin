@@ -27,6 +27,6 @@ const iamWorker :Workerd.Worker = (
 
 const tpmWorker :Workerd.Worker = (
   compatibilityDate = "2023-12-13",
-  modules = [ (name = "", esModule = embed "../dist/worker/nsm.js") ],
+  modules = [ (name = "", esModule = embed "../dist/worker/tpm.js") ],
   bindings = [ (name = "nsm", nsm = void) ],
 );

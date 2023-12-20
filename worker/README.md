@@ -20,13 +20,10 @@ The important ones are:
 * `pnpm build` - builds the platform services and the TypeScript library
 * `pnpm watch:build` - watches files and rebuilds them when they change
 
-To run the platform services, compile [escrin/workerd](https://github.com/escrin/workerd) and run
-`
-workerd serve --verbose workerd_config.capnp
-`.
+To run the platform services locally, compile [escrin/workerd](https://github.com/escrin/workerd) and run
+`workerd serve --verbose config/local.capnp`.
 
-If you are developing locally, uncomment the line in [workerd_config.capnp](./workerd_config.capnp) that says `allow = ["public", "local"]` so that Workerd has access to the local network and any development servers that may exist.
-
+To create a self-contained `escrin-runner`, use `workerd compile config/local.capnp > escrin-runner`, which can then be run without additional arguments (though `--verbose` is often helpful).
 
 ### Publishing
 
@@ -38,5 +35,6 @@ To publish this library, bump the version in `package.json`, push that change to
 - [workerd_config.capnp](./workerd_config.capnp) - the configuration of the `escrin/workerd` that runs the platform services and sets up the Smart Worker sandbox
 - [src/runner.ts](./src/runner.ts) - the entrypoint service of the `escrin-runner` that spawns Smart Workers when requested
 - [src/env/iam](./src/env/iam/) - a service linked to Smart Workers that provides decentrized key and identity management.
+- [src/env/tpm](./src/env/tpm/) - a service that provides access to the local Trusted Platform Module, which can be used to remotely attest to relying parties
 
 As you work on the code, please feel encouraged to [file issues](https://github.com/escrin/escrin/issues) or participate in [the Discord community](https://enshrine.ai/discord)!
