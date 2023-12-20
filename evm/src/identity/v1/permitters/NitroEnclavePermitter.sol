@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import "forge-std/console2.sol";
+// import "forge-std/console2.sol";
 
 import {
     Sapphire, sha384 as _sha384
@@ -375,12 +375,16 @@ library NE {
         pure
         returns (bytes calldata data, uint256 adv)
     {
-        if (input[0] == 0xf6) return (input[0:0], 1);
-        if (STRICT) {
-            require(input[0] == 0x59, "expected userdata");
+        if (input[0] == 0xf6 /* null */ || input[0] == 0x40 /* empty */ ) return (input[0:0], 1);
+        if (input[0] == 0x58) {
+            uint256 len = uint256(uint8(bytes1(input[1:2])));
+            return (input[2:2 + len], len + 2);
         }
-        uint256 len = uint256(uint16(bytes2(input[1:3])));
-        return (input[3:3 + len], len + 3);
+        if (input[0] == 0x59) {
+            uint256 len = uint256(uint16(bytes2(input[1:3])));
+            return (input[3:3 + len], len + 3);
+        }
+        revert("expected userdata bytes");
     }
 }
 
