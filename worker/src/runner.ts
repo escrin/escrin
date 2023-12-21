@@ -55,6 +55,9 @@ type WorkerId = string;
 type RunnerEnv = {
   workerd: Fetcher;
   mode: string;
+  config: {
+    tpm: boolean;
+  };
 };
 
 export default new (class {
@@ -65,7 +68,7 @@ export default new (class {
     if (config.schedule && config.schedule !== '*/5 * * * *') {
       throw new ApiError(400, 'unsupported schedule');
     }
-    const workerId = await this.#createWorker(env.workerd, config);
+    const workerId = await this.#createWorker(env, config);
 
     if (config.schedule) {
       const cron = config.schedule;
@@ -89,9 +92,9 @@ export default new (class {
     });
   });
 
-  async #createWorker(workerd: Fetcher, config: WorkerConfig): Promise<WorkerId> {
+  async #createWorker(env: RunnerEnv, config: WorkerConfig): Promise<WorkerId> {
     const modular = config.type === 'module';
-    const res = await workerd.fetch('http://workerd.local/workers', {
+    const res = await env.workerd.fetch('http://workerd.local/workers', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -102,11 +105,11 @@ export default new (class {
         modules: modular ? [{ name: 'main', esModule: config.code }] : undefined,
         bindings: [
           { name: 'iam', service: { name: '@escrin/iam' } },
-          { name: 'tpm', service: { name: '@escrin/tpm' } },
           {
             name: 'config',
             json: typeof config.config === 'string' ? config.config : JSON.stringify(config.config),
           },
+          ...(env.config.tpm ? [{ name: 'tpm', service: { name: '@escrin/tpm' } }] : []),
         ],
         schedule: config.schedule,
       }),

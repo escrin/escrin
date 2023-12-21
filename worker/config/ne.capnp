@@ -4,7 +4,7 @@ using Base = import "./base.capnp";
 
 const config :Workerd.Config = (
   services = [
-    Base.runnerService,
+    (name = Base.runnerServiceName, worker = .runnerWorker),
     (name = Base.internetServiceName,
      network = (
        allow = ["vsock"],
@@ -13,7 +13,13 @@ const config :Workerd.Config = (
     (name = Base.iamServiceName, worker = .iamWorker),
     (name = Base.tpmServiceName, worker = .tpmWorker),
   ],
-  sockets = [ (name = "", address = "vsock:-1:1057", http = (), service = Base.topServiceName) ],
+  sockets = [ (name = "", address = "vsock:-1:1057", http = (), service = Base.runnerServiceName) ],
+);
+
+const runnerWorker :Workerd.Worker = (
+  compatibilityDate = Base.runnerWorkerCompatDate,
+  modules =  Base.runnerWorkerModules,
+  bindings = [ Base.workerdBinding, (name = "config", json = "{\"tpm\": true}") ],
 );
 
 const iamWorker :Workerd.Worker = (

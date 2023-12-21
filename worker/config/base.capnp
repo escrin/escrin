@@ -2,16 +2,13 @@ using Workerd = import "/workerd/workerd.capnp";
 
 const tlsOptions :Workerd.TlsOptions = (trustBrowserCas = true);
 
-const runnerWorker :Workerd.Worker = (
-  compatibilityDate = "2023-08-01",
-  modules = [ (name = "", esModule = embed "../dist/worker/runner.js") ] ,
-  bindings = [ (name = "workerd", service = "@workerd") ],
-);
-
 const internetServiceName :Text = "internet";
 
-const topServiceName :Text = "@escrin/runner";
-const runnerService :Workerd.Service = (name = .topServiceName, worker = .runnerWorker);
+const runnerServiceName :Text = "@escrin/runner";
+const runnerWorkerCompatDate :Text = "2023-11-08";
+const runnerWorkerModules :List(Workerd.Worker.Module) =
+  [ (name = "", esModule = embed "../dist/worker/runner.js") ];
+const workerdBinding :Workerd.Worker.Binding = (name = "workerd", service = "@workerd");
 
 const iamServiceName :Text = "@escrin/iam";
 const iamWorkerCompatDate :Text = "2023-11-08";
