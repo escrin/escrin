@@ -59,7 +59,7 @@ Start by opening `worker.js` and adding following lines of code.
 import escrinWorker from '@escrin/worker';
 import { ethers } from 'ethers';
 
-escrinWorker(new class {
+export escrinWorker(new class {
     async tasks(rnr) {
     }
 });
@@ -79,7 +79,7 @@ The complete set of bindings can be found in the [Smart Worker Reference](/docs/
 import escrinWorker from '@escrin/worker';
 import { ethers } from 'ethers';
 
-escrinWorker(new class {
+export escrinWorker(new class {
     /// An `ethers.Contract` backed by the `AddingAtHome` contract. // [!code ++:3]
     #contract;
 
@@ -119,7 +119,7 @@ Accordingly, the worker only needs to keep track of the total supply and the max
 To get this information, the worker will use the `Contract` object in the usual way.
 
 ```javascript
-escrinWorker(new class {
+export escrinWorker(new class {
     /// An `ethers.Contract` backed by the `AddingAtHome` contract.
     #contract;
     /// The latest known total supply of the token. // [!code ++:4]
@@ -160,7 +160,7 @@ The proof remains as the two addends, but EthABI encoded so that they can be pas
 Because someone might have discovered the same number at the same time, the `#discover` function is wrapped in a `try..catch` block.
 
 ```javascript
-escrinWorker(new class {
+export escrinWorker(new class {
     /// An `ethers.Contract` backed by the `AddingAtHome` contract.
     #contract;
     /// The latest known total supply of the token.
@@ -200,7 +200,7 @@ If that is true, then it is time for deployment!
 Overally, you should have found that writing an Escrin Smart Worker is not much different from any other dapp.
 
 ```javascript
-escrinWorker(new class {
+export escrinWorker(new class {
     /// An `ethers.Contract` backed by the `AddingAtHome` contract.
     #contract;
     /// The latest known total supply of the token.
@@ -318,7 +318,7 @@ curl -isS https://demo.escrin.org \
 ```
 
 ```sh [Local]
-curl -isS http://localhost:1057 \
+curl -isS http://127.0.0.1:1057 \
     -F 'script=@bundled-worker.js' \
     -F 'type=module' \
     -F 'schedule="*/5 * * * *"' \
