@@ -67,7 +67,7 @@ The following code pulls in [TaskAcceptorV1], which adds some scaffolding around
 All this next changeset does is add the Escrin Solidity library dependency, make the token contract a task acceptor, and implement the one required lifecycle hook.
 
 ```solidity
-import "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol"; // [!code ++]
+import "@escrin/evm/contracts/tasks/v1/acceptors/TaskAcceptor.sol"; // [!code ++]
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 contract AddingAtHome is ERC721Enumerable { // [!code --]
@@ -94,14 +94,14 @@ contract AddingAtHome is ERC721Enumerable, TaskAcceptorV1 { // [!code ++]
 This is a batch interface because it makes it work better with techniques like zero-knowledge proofs that can authenticate several items with one compact proof.
 For other proof methods, `abi.decode` is fairly widely applicable, as we will see below.
 
-[ITaskAcceptor]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/acceptor/ITaskAcceptor.sol
-[TaskAcceptorV1]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/acceptor/TaskAcceptor.sol
+[ITaskAcceptor]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/v1/ITaskAcceptor.sol
+[TaskAcceptorV1]: https://github.com/escrin/escrin/blob/main/evm/contracts/tasks/v1/acceptors/TaskAcceptor.sol
 
 ## Accept tasks
 
 Whether to accept a task is an important and often highly customized decision.
 That is why Escrin gives you all of the power of a function to express yourself.
-The [pre-made acceptors](https://github.com/escrin/escrin/tree/main/evm/contracts/tasks/acceptor) are both drop-in solutions and starting points for your own task acceptance policies.
+The [pre-made acceptors](https://github.com/escrin/escrin/tree/main/evm/contracts/tasks/v1/acceptors) are both drop-in solutions and starting points for your own task acceptance policies.
 
 For `AddingAtHome`, it is fortunately very easy to tell if a submission is acceptable using the `+` and `==` operators.
 
@@ -151,7 +151,7 @@ Your editor should contain this `AddingAtHome` implementation:
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "@escrin/evm/contracts/tasks/acceptor/TaskAcceptor.sol";
+import "@escrin/evm/contracts/tasks/v1/acceptors/TaskAcceptor.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 contract AddingAtHome is ERC721Enumerable, TaskAcceptorV1 {

@@ -1,5 +1,5 @@
 ---
-description: "Using Escrin Smart workers to securely complete tasks using off-chain computation"
+description: "Using Escrin Smart workers to complete tasks using off-chain computation"
 outline: deep
 ---
 
