@@ -18,7 +18,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Docs', link: '/docs/' },
-      { text: 'Community', link: 'https://enshrine.ai/discord' },
+      { text: 'Community', link: 'https://escrin.org/discord' },
     ],
 
     sidebar: [
@@ -32,7 +32,9 @@ export default defineConfig({
         text: 'Tutorial',
         items: [
           { text: '1. Create On-Chain Tasks', link: '/docs/tutorial/first-task' },
-          { text: '2. Fulfill Tasks using a Worker', link: '/docs/tutorial/first-worker' },
+          { text: '2. Fulfill Tasks Using a Worker', link: '/docs/tutorial/first-worker' },
+          { text: '3. Create and Acquire an Identity', link: '/docs/tutorial/first-identity' },
+          { text: '4. Process Secrets Using a Worker', link: '/docs/tutorial/secret-worker' },
         ],
       },
       {
@@ -46,7 +48,7 @@ export default defineConfig({
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/escrin/escrin' },
-      { icon: 'discord', link: 'https://enshrine.ai' },
+      { icon: 'discord', link: 'https://escrin.org/discord' },
       { icon: 'twitter', link: 'https://twitter.com/EnshrineCC' }
     ],
 
