@@ -309,16 +309,16 @@ Next, and finally, send the bundled worker to the `escrin-runner` instance using
 
 ::: code-group
 
-```sh [Hosted]
-curl -isS https://demo.escrin.org \
+```sh [Local]
+curl -isS http://127.0.0.1:1057 \
     -F 'script=@bundled-worker.js' \
     -F 'type=module' \
     -F 'schedule="*/5 * * * *"' \
     -F 'config=@worker-config.json'
 ```
 
-```sh [Local]
-curl -isS http://127.0.0.1:1057 \
+```sh [Hosted]
+curl -isS https://demo.escrin.org \
     -F 'script=@bundled-worker.js' \
     -F 'type=module' \
     -F 'schedule="*/5 * * * *"' \
