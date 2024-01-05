@@ -15,7 +15,7 @@ hero:
       link: /docs/
     - theme: alt
       text: Try the Demo
-      link: https://nftrout.escrin.org
+      link: https://nftrout.com
 
 features:
   - title: Secure
