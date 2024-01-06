@@ -1,6 +1,5 @@
 ---
 description: "Using Escrin Smart workers to securely complete tasks with trust and integrity"
-outline: deep
 ---
 
 # Trusting Tasks to Workers

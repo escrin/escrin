@@ -135,7 +135,7 @@ class RunnerInterface implements Runner {
       identity,
       permitTtl,
       permitter,
-      authz: authorization instanceof Uint8Array ? toHex(authorization) : authorization,
+      authorization: authorization instanceof Uint8Array ? toHex(authorization) : authorization,
       recipient,
       duration,
     });

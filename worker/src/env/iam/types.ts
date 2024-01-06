@@ -42,17 +42,35 @@ export type AcquireIdentityRequest = {
 };
 
 export type AcquireIdentityParams = {
+  /** The network where the identity is registered. */
   network: Network;
+  /** A pointer to the identity to acquire. */
   identity: Identity;
+
+  /** For chained Permitters, the first Permitter in the chain. */
   permitter?: Address;
-  permitTtl?: number;
+
+  /** The address of the recipient of the permit. Default: the worker's ephemeral wallet. */
   recipient?: Address;
-  authz: Hex | undefined;
-  duration: number | undefined;
+
+  /** Bytes passed directly to the Permitter as the `context` parameter. */
+  context?: Hex;
+  /** Bytes passed directly to the Permitter as the `authorization` parameter. */
+  authorization?: Hex;
+
+  /**
+   * The length of time that the permit should last. Default: 24 hours.
+   * A longer TTL means fewer renewals and lower gas fees, but slower response to policy changes.
+   */
+  permitTtl?: number;
+
+  /** Set this to the duration of the permit-requiring critical section to hint to the runner that it can avoid renewing a permit. */
+  duration?: number;
 };
 
 export function parseAcquireIdentityParams(params: Record<string, unknown>): AcquireIdentityParams {
-  const { network, identity, permitter, permitTtl, recipient, authz, duration } = params;
+  const { network, identity, permitter, permitTtl, recipient, context, authorization, duration } =
+    params;
 
   if (recipient !== undefined && !isAddress(recipient))
     throw new ApiError(400, 'invalid recipient');
@@ -61,7 +79,9 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
   if (permitTtl !== undefined && typeof permitTtl !== 'number')
     throw new ApiError(400, 'invalid permit ttl');
 
-  if (authz !== undefined && !isHex(authz)) throw new ApiError(400, 'invalid authz');
+  if (authorization !== undefined && !isHex(authorization))
+    throw new ApiError(400, 'invalid authorization');
+  if (context !== undefined && !isHex(context)) throw new ApiError(400, 'invalid context');
   if (duration !== undefined && typeof duration !== 'number')
     throw new ApiError(400, 'invalid permit duration');
 
@@ -69,9 +89,10 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
     network: parseNetwork(network),
     identity: parseIdentity(identity),
     permitter,
-    permitTtl,
     recipient,
-    authz,
+    context,
+    authorization,
+    permitTtl,
     duration,
   };
 }

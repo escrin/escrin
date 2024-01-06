@@ -21,7 +21,8 @@ export async function handleAcquireIdentity(
     permitter,
     permitTtl,
     recipient,
-    authz,
+    context,
+    authorization,
     duration,
   } = opts;
   const requester = recipient ?? allocateAccount(requesterService).address;
@@ -54,12 +55,11 @@ export async function handleAcquireIdentity(
     });
   }
   const permitDuration = permitTtl ? BigInt(permitTtl) : 60n * 60n;
-  const context = '0x'; // TODO: include context
   const hash = await gasWallet.writeContract({
     address: permitterAddress,
     abi: PermitterAbi,
     functionName: 'acquireIdentity',
-    args: [identityId, requester, permitDuration, context, authz ?? '0x'],
+    args: [identityId, requester, permitDuration, context ?? '0x', authorization ?? '0x'],
   });
 
   let retriesRemaining = 3;
