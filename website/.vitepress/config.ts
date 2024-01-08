@@ -30,9 +30,9 @@ export default defineConfig({
         text: 'Tutorial',
         items: [
           { text: '1. Create On-Chain Tasks', link: '/docs/tutorial/first-task' },
-          { text: '2. Fulfill Tasks Using a Worker', link: '/docs/tutorial/first-worker' },
-          { text: '3. Create and Acquire an Identity', link: '/docs/tutorial/first-identity' },
-          { text: '4. Process Secrets Using a Worker', link: '/docs/tutorial/secret-worker' },
+          { text: '2. Fulfill Tasks Using Workers', link: '/docs/tutorial/first-worker' },
+          { text: '3. Create & Acquire an Identity', link: '/docs/tutorial/first-identity' },
+          { text: '4. Secrets & Trusted Workers', link: '/docs/tutorial/secret-worker' },
         ],
       },
       {
@@ -40,6 +40,7 @@ export default defineConfig({
         items: [
           { text: 'Smart Workers', link: '/docs/reference/worker' },
           // { text: 'Solidity Library', link: '/docs/reference/solidity' },
+          { text: 'Escrin Runner', link: '/docs/reference/runner' },
         ],
       },
     ],

@@ -1,6 +1,7 @@
 ---
 outline: deep
 ---
+
 # Smart Worker Reference
 
 A Smart Worker runs within a JavaScript [`WorkerGlobalScope`](https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope) and therefore has most of the same global properties found in a browser execution context (e.g., `fetch`, `setTimeout`, `crypto.subtle`).

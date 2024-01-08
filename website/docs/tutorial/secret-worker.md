@@ -1,8 +1,8 @@
 ---
-description: "Using Escrin Smart workers to securely complete tasks with trust and integrity"
+description: "Using Escrin Smart Workers to handle secrets with trust and integrity"
 ---
 
-# Trusting Tasks to Workers
+# Trusting Secrets to Workers
 
 Trust is the most convenient force in the universe.
 Trust allows us to ignore all of the details of *how* an agent does something and focus just on *what* it does.
