@@ -77,7 +77,6 @@ export function getChain(chainId: number, rpcUrl?: string): Chain {
     return {
       id: chainId,
       name: 'Custom Network',
-      network: 'custom',
       nativeCurrency: { decimals: 18, name: '', symbol: '' },
       rpcUrls: {
         default: { http: [rpcUrl] },
