@@ -36,7 +36,7 @@ jobs:
             ghcr.io/escrin/runner:${{ github.sha }}-${{ matrix.env }}
             ghcr.io/escrin/runner:latest-${{ matrix.env }}
           push: true
-          cache-from: type=registry,ref=ghcr.io/escrin/runner:${{ matrix.env }}-latest
+          cache-from: type=registry,ref=ghcr.io/escrin/runner:latest-${{ matrix.env }}
           cache-to: type=inline
 
   eif-build-and-push:
@@ -49,7 +49,10 @@ jobs:
         run: yum install aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel -y
 
       - name: Build EIF
-        run: nitro-cli build-enclave --docker-uri ghcr.io/escrin/runner:ne-latest --output-file escrin-runner.eif | tee escrin-runner.eif.json
+        run: |
+          set -o pipefail
+          nitro-cli build-enclave --docker-uri ghcr.io/escrin/runner:latest-ne --output-file escrin-runner.eif \
+          | tee escrin-runner.eif.json
 
       - name: Upload EIF
         uses: actions/upload-artifact@v3
