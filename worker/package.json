@@ -39,7 +39,6 @@
     "@oasisprotocol/sapphire-paratime": "file:oasisprotocol-sapphire-paratime-1.2.2.tgz",
     "@openzeppelin/merkle-tree": "^1.0.5",
     "cborg": "^4.0.6",
-    "ethereum-cryptography": "^2.1.2",
     "viem": "^2.0.3"
   },
   "bundleDependencies": [
