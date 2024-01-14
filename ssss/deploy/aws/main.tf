@@ -1,0 +1,105 @@
+provider "aws" {}
+
+terraform {
+  backend "s3" {
+    key            = "terraform.tfstate"
+    dynamodb_table = "tflocks"
+  }
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "aws_kms_key" "sek" {
+  description             = "Escrin secret share encryption key (${terraform.workspace})"
+  deletion_window_in_days = 7
+}
+
+resource "aws_kms_alias" "sek" {
+  name          = "alias/escrin-sek-${terraform.workspace}"
+  target_key_id = aws_kms_key.sek.key_id
+}
+
+resource "aws_dynamodb_table" "shares" {
+  name           = "shares-${terraform.workspace}"
+  read_capacity  = 2
+  write_capacity = 2
+  hash_key       = "id"
+  range_key      = "version"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "version"
+    type = "N"
+  }
+
+  point_in_time_recovery {
+    enabled = terraform.workspace != "dev"
+  }
+
+  deletion_protection_enabled = terraform.workspace != "dev"
+}
+
+resource "aws_iam_policy" "km_policy" {
+  name        = "km_policy"
+  description = "Escrin KM access policy"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "kms:Encrypt",
+        "kms:ReEncrypt",
+        "kms:Decrypt",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem"
+      ],
+      "Resource": [
+        "${aws_kms_key.sek.arn}",
+        "${aws_dynamodb_table.shares.arn}"
+      ]
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role" "ec2_role" {
+  name               = "EC2Role"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "attach_ec2_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.km_policy.arn
+}
+
+resource "aws_iam_group" "dev" {
+  count = terraform.workspace == "dev" ? 1 : 0
+  name  = "dev"
+}
+
+resource "aws_iam_group_policy_attachment" "attach_dev_policy" {
+  count      = terraform.workspace == "dev" ? 1 : 0
+  group      = aws_iam_group.dev[count.index].name
+  policy_arn = aws_iam_policy.km_policy.arn
+}
