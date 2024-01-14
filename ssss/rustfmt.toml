@@ -1,0 +1,8 @@
+format_strings = true
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+edition = "2021"
+version = "One"
+unstable_features = true
+error_on_line_overflow = true
+error_on_unformatted = true
