@@ -7,8 +7,6 @@ terraform {
   }
 }
 
-data "aws_caller_identity" "current" {}
-
 resource "aws_kms_key" "sek" {
   description             = "Escrin secret share encryption key (${terraform.workspace})"
   deletion_window_in_days = 7
@@ -43,6 +41,35 @@ resource "aws_dynamodb_table" "shares" {
   deletion_protection_enabled = terraform.workspace != "dev"
 }
 
+resource "aws_dynamodb_table" "permits" {
+  name           = "permits-${terraform.workspace}"
+  read_capacity  = 2
+  write_capacity = 2
+  hash_key       = "share" // compound key of 'shares.id#shares.version'
+  range_key      = "requester"
+
+  attribute {
+    name = "share"
+    type = "S"
+  }
+
+  attribute {
+    name = "requester"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiry"
+    enabled        = true
+  }
+
+  point_in_time_recovery {
+    enabled = terraform.workspace != "dev"
+  }
+
+  deletion_protection_enabled = terraform.workspace != "dev"
+}
+
 resource "aws_iam_policy" "km_policy" {
   name        = "km_policy"
   description = "Escrin KM access policy"
@@ -62,7 +89,8 @@ resource "aws_iam_policy" "km_policy" {
       ],
       "Resource": [
         "${aws_kms_key.sek.arn}",
-        "${aws_dynamodb_table.shares.arn}"
+        "${aws_dynamodb_table.shares.arn}",
+        "${aws_dynamodb_table.permits.arn}"
       ]
     }
   ]
