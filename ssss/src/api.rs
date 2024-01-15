@@ -1,14 +1,13 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
 use axum::{
-    body::Body,
-    extract::{Path, Query, State},
-    http::{Method, StatusCode},
+    extract::State,
+    http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
-use serde::{Deserialize, Seralize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 struct AppState {}
@@ -40,7 +39,7 @@ pub async fn serve(port: u16) {
 fn make_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(root))
-        .route("/omni-key", get(get_omni_key))
+        .route("/omni-key", post(get_omni_key))
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .with_state(state)
 }
@@ -50,8 +49,10 @@ async fn root() -> StatusCode {
 }
 
 async fn get_omni_key(
+    State(AppState { .. }): State<AppState>,
     Json(OmniKeyRequest { .. }): Json<OmniKeyRequest>,
-) -> Result<OmniKeyResponse, Error> {
+) -> Result<Json<OmniKeyResponse>, Error> {
+    Ok(Json(OmniKeyResponse {}))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
