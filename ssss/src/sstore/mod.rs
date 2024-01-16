@@ -9,16 +9,19 @@ pub type ShareVersion = u64;
 
 const SHARE_SIZE: usize = 32;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ShareId {
     identity: IdentityId,
     version: ShareVersion,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Permit {
     expiry: u64,
 }
 
 #[derive(zeroize::Zeroize)]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct WrappedShare(Vec<u8>);
 
 pub trait ShareStore {
@@ -28,12 +31,15 @@ pub trait ShareStore {
 
     async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Self::Error>;
 
+    #[cfg(test)]
+    async fn destroy_share(&self, share: ShareId) -> Result<(), Self::Error>;
+
     async fn create_permit(
         &self,
         share: ShareId,
         recipient: Address,
         expiry: u64,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<Option<Permit>, Self::Error>;
 
     async fn read_permit(
         &self,

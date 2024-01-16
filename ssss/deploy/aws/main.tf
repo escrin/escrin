@@ -84,8 +84,10 @@ resource "aws_iam_policy" "km_policy" {
         "kms:Encrypt",
         "kms:ReEncrypt",
         "kms:Decrypt",
+        "dynamodb:Query",
         "dynamodb:GetItem",
-        "dynamodb:PutItem"
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem"
       ],
       "Resource": [
         "${aws_kms_key.sek.arn}",

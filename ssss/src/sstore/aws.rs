@@ -103,6 +103,20 @@ impl ShareStore for Client {
         Ok(ShareId { identity, version })
     }
 
+    #[cfg(test)]
+    async fn destroy_share(&self, share: ShareId) -> Result<(), Self::Error> {
+        self.db_client
+            .delete_item()
+            .table_name(self.shares_table())
+            .key("id", S(identity_id_to_key(&share.identity)))
+            .key("version", N(share.version.to_string()))
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)
+            .unwrap();
+        Ok(())
+    }
+
     async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error> {
         let id_s = identity_id_to_key(&share.identity);
         let s_id = S(id_s.clone());
@@ -114,7 +128,8 @@ impl ShareStore for Client {
             .key_condition_expression("id = :id AND version = :version")
             .expression_attribute_values(":id", s_id.clone())
             .expression_attribute_values(":version", N(share.version.to_string()))
-            .projection_expression("share")
+            .projection_expression("#s")
+            .expression_attribute_names("#s", "share")
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?
@@ -150,9 +165,10 @@ impl ShareStore for Client {
         share: ShareId,
         recipient: Address,
         expiry: u64,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<Permit>, Error> {
         let n_exp = N(expiry.to_string());
-        self.db_client
+        let res = self
+            .db_client
             .put_item()
             .table_name(self.permits_table())
             .item("share", share_id_to_key(&share))
@@ -162,8 +178,12 @@ impl ShareStore for Client {
             .expression_attribute_values(":expiry", n_exp)
             .send()
             .await
-            .map_err(aws_sdk_dynamodb::Error::from)?;
-        Ok(())
+            .map_err(aws_sdk_dynamodb::Error::from);
+        match res {
+            Ok(_) => Ok(Some(Permit { expiry })),
+            Err(aws_sdk_dynamodb::Error::ConditionalCheckFailedException(_)) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 
     async fn read_permit(
@@ -175,7 +195,8 @@ impl ShareStore for Client {
             .db_client
             .query()
             .table_name(self.permits_table())
-            .key_condition_expression("share = :share AND recipient = :recipient")
+            .key_condition_expression("#s = :share AND recipient = :recipient")
+            .expression_attribute_names("#s", "share")
             .expression_attribute_values(":share", share_id_to_key(&share))
             .expression_attribute_values(":recipient", address_to_value(&recipient))
             .projection_expression("expiry")
@@ -184,8 +205,13 @@ impl ShareStore for Client {
             .map_err(aws_sdk_dynamodb::Error::from)?
             .items()
             .first()
-            .map(|v| Permit {
-                expiry: unpack_expiry(v),
+            .and_then(|v| {
+                let expiry = unpack_expiry(v);
+                if expiry <= now() {
+                    None
+                } else {
+                    Some(Permit { expiry })
+                }
             }))
     }
 
@@ -194,7 +220,7 @@ impl ShareStore for Client {
             .delete_item()
             .table_name(self.permits_table())
             .key("share", share_id_to_key(&share))
-            .key("requster", address_to_value(&recipient))
+            .key("recipient", address_to_value(&recipient))
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?;
@@ -227,7 +253,7 @@ fn unpack_share(res: &mut HashMap<String, AttributeValue>) -> Blob {
     }
 }
 
-fn identity_id_to_key(id: &H256) -> String {
+fn identity_id_to_key(id: &IdentityId) -> String {
     format!("{id:#x}")
 }
 
@@ -250,4 +276,257 @@ pub enum Error {
 
     #[error("kms error: {0}")]
     Kms(#[from] aws_sdk_kms::Error),
+}
+
+fn now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::{ensure, Result};
+    use aws_config::identity;
+
+    use super::*;
+
+    async fn with_share<'a, Fut, T>(
+        client: &'a Client,
+        identity: &IdentityId,
+        f: impl FnOnce(&'a Client, ShareId) -> Fut,
+    ) -> T
+    where
+        Fut: futures::Future<Output = T> + 'a,
+    {
+        let share_id = client.create_share(*identity).await.unwrap();
+        let res = f(client, share_id).await;
+        client.destroy_share(share_id).await.unwrap();
+        res
+    }
+
+    #[tokio::test]
+    async fn roundtrip_share() {
+        let client = Client::connect(Environment::Dev).await;
+        let identity = IdentityId::random();
+        with_share(&client, &identity, |client, share_id| async move {
+            ensure!(share_id.identity == identity, "unexpected share identity");
+            ensure!(share_id.version == 1, "unexpected share version");
+            let share = client.get_share(share_id).await?;
+            let share2 = client.get_share(share_id).await?;
+            ensure!(share == share2, "retrieved shares mismatched");
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn create_second_version() {
+        let client = Client::connect(Environment::Dev).await;
+        let identity = IdentityId::random();
+        with_share(&client, &identity, |client, share_id1| async move {
+            let share1_1 = client.get_share(share_id1).await?;
+            with_share(client, &identity, |client, share_id2| async move {
+                ensure!(
+                    share_id1.identity == share_id2.identity,
+                    "share identity changed"
+                );
+                ensure!(share_id2.version == 2, "share version did not increment");
+                let share1_2 = client.get_share(share_id1).await?;
+                let share2 = client.get_share(share_id2).await?;
+                ensure!(share1_1 == share1_2, "share changed");
+                ensure!(share1_1 != share2, "wrong share returned");
+                Ok(())
+            })
+            .await
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn create_second_share() {
+        let client = Client::connect(Environment::Dev).await;
+        let identity1 = IdentityId::random();
+        let identity2 = IdentityId::random();
+        with_share(&client, &identity1, |client, share_id1| async move {
+            let share1 = client.get_share(share_id1).await?;
+            with_share(client, &identity2, |client, share_id2| async move {
+                let share2 = client.get_share(share_id2).await?;
+                ensure!(share1 != share2, "wrong share returned");
+                Ok(())
+            })
+            .await
+        })
+        .await
+        .unwrap();
+    }
+
+    async fn with_permit<'a, Fut, T>(
+        client: &'a Client,
+        share: ShareId,
+        recipient: Address,
+        expiry: u64,
+        f: impl FnOnce(&'a Client, Permit) -> Fut,
+    ) -> Option<T>
+    where
+        Fut: futures::Future<Output = T> + 'a,
+    {
+        let permit = client
+            .create_permit(share, recipient, expiry)
+            .await
+            .unwrap();
+        match permit {
+            Some(p) => {
+                let res = f(client, p).await;
+                client.delete_permit(share, recipient).await.unwrap();
+                Some(res)
+            }
+            None => None,
+        }
+    }
+
+    fn mock_share() -> ShareId {
+        ShareId {
+            identity: IdentityId::random(),
+            version: 1,
+        }
+    }
+
+    #[tokio::test]
+    async fn roundtrip_permit() {
+        let client = Client::connect(Environment::Dev).await;
+        let share = mock_share();
+        let recipient = Address::random();
+        let expiry = now() + 240;
+        with_permit(
+            &client,
+            share,
+            recipient,
+            expiry,
+            |client, permit| async move {
+                let read_permit = client.read_permit(share, recipient).await?;
+                ensure!(read_permit.is_some(), "permit not created");
+                ensure!(read_permit.unwrap() == permit, "permit mismatch");
+                Ok(())
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn expired_permit() {
+        let client = Client::connect(Environment::Dev).await;
+        let share = mock_share();
+        let recipient = Address::random();
+        let expiry = now() - 60;
+        with_permit(&client, share, recipient, expiry, |client, _| async move {
+            let read_permit = client.read_permit(share, recipient).await?;
+            ensure!(read_permit.is_none(), "permit not expired");
+            Ok(())
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn refresh_permit() {
+        let client = Client::connect(Environment::Dev).await;
+        let share = mock_share();
+        let recipient = Address::random();
+        let expiry_soon = now() + 60;
+        let expiry_far = now() + 120;
+        with_permit(
+            &client,
+            share,
+            recipient,
+            expiry_soon,
+            |client, _| async move {
+                with_permit(
+                    client,
+                    share,
+                    recipient,
+                    expiry_far,
+                    |client, _| async move {
+                        let read_permit = client.read_permit(share, recipient).await?;
+                        ensure!(read_permit.is_some(), "permit not created");
+                        ensure!(
+                            read_permit.unwrap().expiry == expiry_far,
+                            "permit exiry not refrshed"
+                        );
+                        Ok(())
+                    },
+                )
+                .await
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn defresh_permit_fail() {
+        let client = Client::connect(Environment::Dev).await;
+        let share = mock_share();
+        let recipient = Address::random();
+        let expiry_soon = now() + 60;
+        let expiry_far = now() + 120;
+        with_permit(
+            &client,
+            share,
+            recipient,
+            expiry_far,
+            |client, _| async move {
+                let outcome =
+                    with_permit(client, share, recipient, expiry_soon, |_, _| async move {}).await;
+                ensure!(outcome.is_none(), "permit wrongly defreshed");
+                Ok(())
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn delete_defresh_permit() {
+        let client = Client::connect(Environment::Dev).await;
+        let share = mock_share();
+        let recipient = Address::random();
+        let expiry_soon = now() + 60;
+        let expiry_far = now() + 120;
+        with_permit(
+            &client,
+            share,
+            recipient,
+            expiry_far,
+            |client, _| async move {
+                client.delete_permit(share, recipient).await?;
+                let outcome = with_permit(
+                    client,
+                    share,
+                    recipient,
+                    expiry_soon,
+                    |client, permit| async move {
+                        let read_permit = client.read_permit(share, recipient).await?;
+                        ensure!(read_permit.is_some(), "permit not re-created");
+                        ensure!(read_permit.unwrap() == permit, "permit mismatch");
+                        Ok(())
+                    },
+                )
+                .await;
+                ensure!(outcome.is_some(), "permit wrongly defreshed");
+                Ok(())
+            },
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    }
 }
