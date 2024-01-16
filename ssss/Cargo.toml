@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 aes-gcm-siv = "0.11.1"
 anyhow = "1.0.79"
+async-stream = "0.3.5"
 aws-config = { version = "1.1.2", optional = true }
 aws-sdk-dynamodb = { version = "1.10.0", optional = true }
 aws-sdk-kms = { version = "1.10.0", optional = true }
@@ -15,6 +16,7 @@ ethers = { version = "2.0.11", features = ["ws"] }
 futures = { version = "0.3.30", default-features = false, features = ["std"] }
 rand = "0.8.5"
 serde = { version = "1.0.195", features = ["derive"] }
+smallvec = { version = "1.12.0", features = ["const_generics"] }
 thiserror = "1.0.56"
 tokio = { version = "1.35.1", features = ["rt-multi-thread", "macros"] }
 tower-http = { version = "0.5.0", features = ["trace"] }

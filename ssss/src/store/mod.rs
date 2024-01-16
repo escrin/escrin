@@ -27,7 +27,7 @@ pub struct Permit {
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct WrappedShare(Vec<u8>);
 
-pub trait ShareStore {
+pub trait Store: Clone + Send + Sync {
     type Error: std::error::Error + Send + Sync + 'static;
 
     async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Self::Error>;
@@ -53,18 +53,20 @@ pub trait ShareStore {
     async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Self::Error>;
 }
 
+#[derive(Clone)]
 pub struct DynStore {
     inner: DynStoreKind,
 }
 
+#[derive(Clone)]
 pub enum DynStoreKind {
     #[cfg(feature = "aws")]
     Aws(aws::Client),
-    Memory(memory::Client),
+    Memory(memory::MemoryStore),
     Local,
 }
 
-impl ShareStore for DynStore {
+impl Store for DynStore {
     type Error = DynStoreError;
 
     async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Self::Error> {
@@ -150,13 +152,13 @@ impl ShareStore for DynStore {
 #[error(transparent)]
 pub struct DynStoreError(#[from] anyhow::Error);
 
-pub async fn create(backend: cli::Backend, env: cli::Environment) -> impl ShareStore {
+pub async fn create(backend: cli::Store, env: cli::Environment) -> impl Store {
     DynStore {
         inner: match backend {
             #[cfg(feature = "aws")]
-            crate::cli::Backend::Aws => DynStoreKind::Aws(aws::Client::connect(env).await),
-            crate::cli::Backend::Memory => DynStoreKind::Memory(memory::Client::default()),
-            crate::cli::Backend::Local => todo!(),
+            crate::cli::Store::Aws => DynStoreKind::Aws(aws::Client::connect(env).await),
+            crate::cli::Store::Memory => DynStoreKind::Memory(Default::default()),
+            crate::cli::Store::Local => todo!(),
         },
     }
 }
@@ -193,13 +195,13 @@ mod tests {
             $(
                 #[tokio::test]
                 async fn $test() {
-                    $crate::sstore::tests::$test($sstore).await;
+                    $crate::store::tests::$test($sstore).await;
                 }
             )+
         }
     }
 
-    async fn with_share<'a, S: ShareStore, Fut, T>(
+    async fn with_share<'a, S: Store, Fut, T>(
         sstore: &'a S,
         identity: &IdentityId,
         f: impl FnOnce(&'a S, ShareId) -> Fut,
@@ -213,7 +215,7 @@ mod tests {
         res
     }
 
-    pub async fn roundtrip_share(sstore: impl ShareStore) {
+    pub async fn roundtrip_share(sstore: impl Store) {
         let identity = IdentityId::random();
         with_share(&sstore, &identity, |sstore, share_id| async move {
             ensure!(share_id.identity == identity, "unexpected share identity");
@@ -227,7 +229,7 @@ mod tests {
         .unwrap();
     }
 
-    pub async fn create_second_version(sstore: impl ShareStore) {
+    pub async fn create_second_version(sstore: impl Store) {
         let identity = IdentityId::random();
         with_share(&sstore, &identity, |sstore, share_id1| async move {
             let share1_1 = sstore.get_share(share_id1).await?;
@@ -249,7 +251,7 @@ mod tests {
         .unwrap();
     }
 
-    pub async fn create_second_share(sstore: impl ShareStore) {
+    pub async fn create_second_share(sstore: impl Store) {
         let identity1 = IdentityId::random();
         let identity2 = IdentityId::random();
         with_share(&sstore, &identity1, |sstore, share_id1| async move {
@@ -265,7 +267,7 @@ mod tests {
         .unwrap();
     }
 
-    async fn with_permit<'a, S: ShareStore, Fut, T>(
+    async fn with_permit<'a, S: Store, Fut, T>(
         sstore: &'a S,
         share: ShareId,
         recipient: Address,
@@ -296,7 +298,7 @@ mod tests {
         }
     }
 
-    pub async fn roundtrip_permit(sstore: impl ShareStore) {
+    pub async fn roundtrip_permit(sstore: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
         let expiry = now() + 240;
@@ -317,7 +319,7 @@ mod tests {
         .unwrap();
     }
 
-    pub async fn expired_permit(sstore: impl ShareStore) {
+    pub async fn expired_permit(sstore: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
         let expiry = now() - 60;
@@ -331,7 +333,7 @@ mod tests {
         .unwrap();
     }
 
-    pub async fn refresh_permit(sstore: impl ShareStore) {
+    pub async fn refresh_permit(sstore: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
         let expiry_soon = now() + 60;
@@ -365,7 +367,7 @@ mod tests {
         .unwrap();
     }
 
-    pub async fn defresh_permit_fail(sstore: impl ShareStore) {
+    pub async fn defresh_permit_fail(sstore: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
         let expiry_soon = now() + 60;
@@ -387,7 +389,7 @@ mod tests {
         .unwrap();
     }
 
-    pub async fn delete_defresh_permit(sstore: impl ShareStore) {
+    pub async fn delete_defresh_permit(sstore: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
         let expiry_soon = now() + 60;

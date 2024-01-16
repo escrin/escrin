@@ -1,14 +1,14 @@
 #![forbid(unsafe_code)]
 #![feature(anonymous_lifetime_in_impl_trait, stmt_expr_attributes)]
-#![allow(unused)]
 
 mod api;
 mod cli;
-mod eth;
-mod sstore;
+mod store;
+mod sync;
+mod utils;
 
 use anyhow::Error;
-use tracing::{debug, Level};
+use tracing::{debug, trace};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -31,9 +31,13 @@ async fn main() -> Result<(), Error> {
 
     debug!(args = ?args, "loaded config");
 
-    let sstore_client = sstore::create(args.backend, args.env).await;
-    let providers = eth::providers(args.gateway.iter()).await?;
+    trace!("creating store");
+    let store = store::create(args.store, args.env).await;
 
+    trace!("running sync tasks");
+    sync::run(store, args.gateway.iter(), args.permitter).await?;
+
+    trace!("starting API task");
     let api_task = api::serve(args.port);
 
     tokio::join!(api_task);

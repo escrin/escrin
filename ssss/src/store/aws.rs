@@ -4,7 +4,6 @@ use aws_sdk_dynamodb::{
     primitives::Blob,
     types::AttributeValue::{self, B, N, S},
 };
-use futures::future::TryFutureExt as _;
 use rand::RngCore as _;
 
 use super::*;
@@ -63,7 +62,7 @@ impl Client {
     }
 }
 
-impl ShareStore for Client {
+impl Store for Client {
     type Error = Error;
 
     async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Error> {
