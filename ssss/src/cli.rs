@@ -33,6 +33,7 @@ impl Args {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 #[value(rename_all = "lowercase")]
 pub enum Backend {
+    Memory,
     Local,
     #[cfg(feature = "aws")]
     Aws,

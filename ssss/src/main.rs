@@ -31,11 +31,7 @@ async fn main() -> Result<(), Error> {
 
     debug!(args = ?args, "loaded config");
 
-    let sstore_client = match args.backend {
-        #[cfg(feature = "aws")]
-        cli::Backend::Aws => sstore::aws::Client::connect(args.env).await,
-        cli::Backend::Local => todo!(),
-    };
+    let sstore_client = sstore::create(args.backend, args.env).await;
     let providers = eth::providers(args.gateway.iter()).await?;
 
     let api_task = api::serve(args.port);
