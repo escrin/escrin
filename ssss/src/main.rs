@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![feature(anonymous_lifetime_in_impl_trait, stmt_expr_attributes)]
+#![allow(unused)]
 
 mod api;
 mod cli;
@@ -32,15 +33,8 @@ async fn main() -> Result<(), Error> {
 
     let sstore_client = match args.backend {
         #[cfg(feature = "aws")]
-        cli::Backend::Aws => {
-            let config =
-                aws_config::load_defaults(aws_config::BehaviorVersion::v2023_11_09()).await;
-            // let kms_client = aws_sdk_kms::Client::new(&config);
-            sstore::dynamodb::Client::new(&config, "shares".into())
-        }
-        cli::Backend::Local => {
-            todo!()
-        }
+        cli::Backend::Aws => sstore::aws::Client::connect(args.env).await,
+        cli::Backend::Local => todo!(),
     };
     let providers = eth::providers(args.gateway.iter()).await?;
 

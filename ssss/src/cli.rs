@@ -19,6 +19,9 @@ pub struct Args {
 
     #[arg(short, long, value_enum, default_value = "local")]
     pub backend: Backend,
+
+    #[arg(long, value_enum, default_value = "dev")]
+    pub env: Environment,
 }
 
 impl Args {
@@ -28,9 +31,16 @@ impl Args {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-#[value(rename_all = "kebab-case")]
+#[value(rename_all = "lowercase")]
 pub enum Backend {
     Local,
     #[cfg(feature = "aws")]
     Aws,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "lowercase")]
+pub enum Environment {
+    Dev,
+    Prod,
 }

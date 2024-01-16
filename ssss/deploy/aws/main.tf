@@ -46,7 +46,7 @@ resource "aws_dynamodb_table" "permits" {
   read_capacity  = 2
   write_capacity = 2
   hash_key       = "share" // compound key of 'shares.id#shares.version'
-  range_key      = "requester"
+  range_key      = "recipient"
 
   attribute {
     name = "share"
@@ -54,7 +54,7 @@ resource "aws_dynamodb_table" "permits" {
   }
 
   attribute {
-    name = "requester"
+    name = "recipient"
     type = "S"
   }
 

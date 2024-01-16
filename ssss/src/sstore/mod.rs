@@ -1,24 +1,45 @@
 #[cfg(feature = "aws")]
-pub mod dynamodb;
+pub mod aws;
 pub mod local;
 
-use ethers::types::H256;
+use ethers::types::{Address, H256};
 
-pub type ShareId = H256;
+pub type IdentityId = H256;
+pub type ShareVersion = u64;
 
-pub enum ShareVersion {
-    Latest,
-    Numbered(u64),
+const SHARE_SIZE: usize = 32;
+
+pub struct ShareId {
+    identity: IdentityId,
+    version: ShareVersion,
+}
+
+pub struct Permit {
+    expiry: u64,
 }
 
 #[derive(zeroize::Zeroize)]
 pub struct WrappedShare(Vec<u8>);
 
 pub trait ShareStore {
-    async fn create(&self, id: ShareId) -> Result<(), Error>;
+    type Error: std::error::Error;
 
-    async fn get(&self, id: ShareId, version: ShareVersion) -> Result<Option<WrappedShare>, Error>;
+    async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Self::Error>;
+
+    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Self::Error>;
+
+    async fn create_permit(
+        &self,
+        share: ShareId,
+        recipient: Address,
+        expiry: u64,
+    ) -> Result<(), Self::Error>;
+
+    async fn read_permit(
+        &self,
+        share: ShareId,
+        recipient: Address,
+    ) -> Result<Option<Permit>, Self::Error>;
+
+    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Self::Error>;
 }
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {}
