@@ -114,7 +114,13 @@ class RunnerInterface implements Runner {
     });
     return {
       document,
-      context: encodeAbiParameters([{ name: 'proof', type: 'bytes32[]' }], [proof]),
+      context: encodeAbiParameters(
+        [
+          { name: 'context', type: 'string' },
+          { name: 'proof', type: 'bytes32[]' },
+        ],
+        ['nitro', proof],
+      ),
     };
   }
 

@@ -57,7 +57,7 @@ abstract contract BaseNitroEnclavePermitter is Permitter {
         bytes32 leaf = keccak256(
             bytes.concat(keccak256(abi.encode(block.chainid, identityRegistry, identity, !release)))
         );
-        (bytes32[] memory proof) = abi.decode(context, (bytes32[]));
+        (,bytes32[] memory proof) = abi.decode(context, (bytes,bytes32[]));
         MerkleProof.verify(proof, userdata.merkleRoot, leaf);
         burnt[userdata.nonce] = identity;
     }
