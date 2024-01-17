@@ -43,13 +43,13 @@ impl Client {
     naming_fn!(permits_table, "permits");
     naming_fn!(kms_key, "alias/escrin-sek");
 
-    async fn current_share_version(&self, id: &IdentityId) -> Result<Option<u64>, Error> {
+    async fn current_share_version(&self, identity: IdentityLocator) -> Result<Option<u64>, Error> {
         Ok(self
             .db_client
             .query()
             .table_name(self.shares_table())
             .key_condition_expression("id = :id")
-            .expression_attribute_values(":id", S(identity_id_to_key(id)))
+            .expression_attribute_values(":id", identity.into())
             .projection_expression("version")
             .scan_index_forward(false)
             .limit(1)
@@ -65,23 +65,21 @@ impl Client {
 impl Store for Client {
     type Error = Error;
 
-    async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Error> {
-        let id_s = identity_id_to_key(&identity);
-        let s_id = S(id_s.clone());
-
-        let version = self.current_share_version(&identity).await?.unwrap_or(0) + 1;
+    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
+        let version = self.current_share_version(identity).await?.unwrap_or(0) + 1;
         let n_version = N(version.to_string());
 
         let mut share = vec![0u8; SHARE_SIZE];
         rand::thread_rng().fill_bytes(&mut share);
+
+        let share_id = ShareId { identity, version };
 
         let enc_share = self
             .kms_client
             .encrypt()
             .key_id(self.kms_key())
             .plaintext(Blob::new(share))
-            .encryption_context("id", id_s)
-            .encryption_context("version", version.to_string())
+            .encryption_context("share", share_id.to_key())
             .send()
             .await
             .map_err(aws_sdk_kms::Error::from)?
@@ -91,7 +89,7 @@ impl Store for Client {
         self.db_client
             .put_item()
             .table_name(self.shares_table())
-            .item("id", s_id)
+            .item("id", identity.into())
             .item("version", n_version)
             .item("share", B(enc_share))
             .condition_expression("attribute_not_exists(id) AND attribute_not_exists(version)")
@@ -99,7 +97,7 @@ impl Store for Client {
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?;
 
-        Ok(ShareId { identity, version })
+        Ok(share_id)
     }
 
     #[cfg(test)]
@@ -107,7 +105,7 @@ impl Store for Client {
         self.db_client
             .delete_item()
             .table_name(self.shares_table())
-            .key("id", S(identity_id_to_key(&share.identity)))
+            .key("id", share.identity.into())
             .key("version", N(share.version.to_string()))
             .send()
             .await
@@ -117,15 +115,12 @@ impl Store for Client {
     }
 
     async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error> {
-        let id_s = identity_id_to_key(&share.identity);
-        let s_id = S(id_s.clone());
-
         let maybe_enc_share = self
             .db_client
             .query()
             .table_name(self.shares_table())
             .key_condition_expression("id = :id AND version = :version")
-            .expression_attribute_values(":id", s_id.clone())
+            .expression_attribute_values(":id", share.identity.into())
             .expression_attribute_values(":version", N(share.version.to_string()))
             .projection_expression("#s")
             .expression_attribute_names("#s", "share")
@@ -148,8 +143,7 @@ impl Store for Client {
                 .decrypt()
                 .key_id(self.kms_key())
                 .ciphertext_blob(enc_share)
-                .encryption_context("id", id_s)
-                .encryption_context("version", share.version.to_string())
+                .encryption_context("share", share.to_key())
                 .send()
                 .await
                 .map_err(aws_sdk_kms::Error::from)?
@@ -170,7 +164,7 @@ impl Store for Client {
             .db_client
             .put_item()
             .table_name(self.permits_table())
-            .item("share", share_id_to_key(&share))
+            .item("share", share.into())
             .item("expiry", n_exp.clone())
             .item("recipient", address_to_value(&recipient))
             .condition_expression("attribute_not_exists(expiry) OR expiry < :expiry")
@@ -196,7 +190,7 @@ impl Store for Client {
             .table_name(self.permits_table())
             .key_condition_expression("#s = :share AND recipient = :recipient")
             .expression_attribute_names("#s", "share")
-            .expression_attribute_values(":share", share_id_to_key(&share))
+            .expression_attribute_values(":share", share.into())
             .expression_attribute_values(":recipient", address_to_value(&recipient))
             .projection_expression("expiry")
             .send()
@@ -218,12 +212,24 @@ impl Store for Client {
         self.db_client
             .delete_item()
             .table_name(self.permits_table())
-            .key("share", share_id_to_key(&share))
+            .key("share", share.into())
             .key("recipient", address_to_value(&recipient))
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?;
         Ok(())
+    }
+}
+
+impl From<IdentityLocator> for AttributeValue {
+    fn from(identity: IdentityLocator) -> Self {
+        S(identity.to_key())
+    }
+}
+
+impl From<ShareId> for AttributeValue {
+    fn from(share: ShareId) -> Self {
+        S(share.to_key())
     }
 }
 
@@ -252,20 +258,8 @@ fn unpack_share(res: &mut HashMap<String, AttributeValue>) -> Blob {
     }
 }
 
-fn identity_id_to_key(id: &IdentityId) -> String {
-    format!("{id:#x}")
-}
-
 fn address_to_value(addr: &Address) -> AttributeValue {
     S(format!("{addr:#x}"))
-}
-
-fn share_id_to_key(id: &ShareId) -> AttributeValue {
-    S(format!(
-        "{}-{}",
-        identity_id_to_key(&id.identity),
-        id.version
-    ))
 }
 
 #[derive(Debug, thiserror::Error)]

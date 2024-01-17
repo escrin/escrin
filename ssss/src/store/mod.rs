@@ -13,9 +13,34 @@ pub type ShareVersion = u64;
 const SHARE_SIZE: usize = 32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct IdentityLocator {
+    chain: u64,
+    registry: Address,
+    id: IdentityId,
+}
+
+impl IdentityLocator {
+    pub fn to_key(self) -> String {
+        let Self {
+            chain,
+            registry,
+            id: identity,
+        } = &self;
+        format!("{chain}-{registry:#x}-{identity:#x}")
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ShareId {
-    identity: IdentityId,
+    identity: IdentityLocator,
     version: ShareVersion,
+}
+
+impl ShareId {
+    pub fn to_key(self) -> String {
+        let Self { identity, version } = &self;
+        format!("{}-{version}", identity.to_key())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -30,7 +55,7 @@ pub struct WrappedShare(Vec<u8>);
 pub trait Store: Clone + Send + Sync {
     type Error: std::error::Error + Send + Sync + 'static;
 
-    async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Self::Error>;
+    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Self::Error>;
 
     async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Self::Error>;
 
@@ -69,7 +94,7 @@ pub enum DynStoreKind {
 impl Store for DynStore {
     type Error = DynStoreError;
 
-    async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Self::Error> {
+    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Self::Error> {
         Ok(match &self.inner {
             DynStoreKind::Aws(ss) => ss.create_share(identity).await.map_err(anyhow::Error::from),
             DynStoreKind::Memory(ss) => {
@@ -172,7 +197,7 @@ fn now() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::{ensure, Result};
+    use anyhow::ensure;
 
     use super::*;
 
@@ -203,13 +228,20 @@ mod tests {
 
     async fn with_share<'a, S: Store, Fut, T>(
         sstore: &'a S,
-        identity: &IdentityId,
+        identity: IdentityId,
         f: impl FnOnce(&'a S, ShareId) -> Fut,
     ) -> T
     where
         Fut: futures::Future<Output = T> + 'a,
     {
-        let share_id = sstore.create_share(*identity).await.unwrap();
+        let share_id = sstore
+            .create_share(IdentityLocator {
+                chain: 31337,
+                registry: Address::repeat_byte(1),
+                id: identity,
+            })
+            .await
+            .unwrap();
         let res = f(sstore, share_id).await;
         sstore.destroy_share(share_id).await.unwrap();
         res
@@ -217,8 +249,13 @@ mod tests {
 
     pub async fn roundtrip_share(sstore: impl Store) {
         let identity = IdentityId::random();
-        with_share(&sstore, &identity, |sstore, share_id| async move {
-            ensure!(share_id.identity == identity, "unexpected share identity");
+        with_share(&sstore, identity, |sstore, share_id| async move {
+            ensure!(share_id.identity.chain == 31337, "unexpected share chain");
+            ensure!(
+                share_id.identity.registry == Address::repeat_byte(1),
+                "unexpected share registry"
+            );
+            ensure!(share_id.identity.id == identity, "unexpected share identity");
             ensure!(share_id.version == 1, "unexpected share version");
             let share = sstore.get_share(share_id).await?;
             let share2 = sstore.get_share(share_id).await?;
@@ -231,9 +268,9 @@ mod tests {
 
     pub async fn create_second_version(sstore: impl Store) {
         let identity = IdentityId::random();
-        with_share(&sstore, &identity, |sstore, share_id1| async move {
+        with_share(&sstore, identity, |sstore, share_id1| async move {
             let share1_1 = sstore.get_share(share_id1).await?;
-            with_share(sstore, &identity, |sstore, share_id2| async move {
+            with_share(sstore, identity, |sstore, share_id2| async move {
                 ensure!(
                     share_id1.identity == share_id2.identity,
                     "share identity changed"
@@ -254,9 +291,9 @@ mod tests {
     pub async fn create_second_share(sstore: impl Store) {
         let identity1 = IdentityId::random();
         let identity2 = IdentityId::random();
-        with_share(&sstore, &identity1, |sstore, share_id1| async move {
+        with_share(&sstore, identity1, |sstore, share_id1| async move {
             let share1 = sstore.get_share(share_id1).await?;
-            with_share(sstore, &identity2, |sstore, share_id2| async move {
+            with_share(sstore, identity2, |sstore, share_id2| async move {
                 let share2 = sstore.get_share(share_id2).await?;
                 ensure!(share1 != share2, "wrong share returned");
                 Ok(())
@@ -293,7 +330,11 @@ mod tests {
 
     fn mock_share() -> ShareId {
         ShareId {
-            identity: IdentityId::random(),
+            identity: IdentityLocator {
+                chain: 31337,
+                registry: Address::repeat_byte(42),
+                id: IdentityId::random(),
+            },
             version: 1,
         }
     }
@@ -363,6 +404,7 @@ mod tests {
             },
         )
         .await
+        .unwrap()
         .unwrap()
         .unwrap();
     }

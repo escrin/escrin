@@ -11,14 +11,14 @@ pub struct MemoryStore {
 
 #[derive(Default)]
 struct State {
-    shares: RwLock<HashMap<IdentityId, Vec<Option<Vec<u8>>>>>,
+    shares: RwLock<HashMap<IdentityLocator, Vec<Option<Vec<u8>>>>>,
     permits: RwLock<HashMap<(ShareId, Address), Permit>>,
 }
 
 impl Store for MemoryStore {
     type Error = std::convert::Infallible;
 
-    async fn create_share(&self, identity: IdentityId) -> Result<ShareId, Self::Error> {
+    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Self::Error> {
         let mut shares = self.state.shares.write().unwrap();
         let mut share = vec![0u8; SHARE_SIZE];
         rand::thread_rng().fill_bytes(&mut share);
