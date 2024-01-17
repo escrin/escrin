@@ -3,6 +3,8 @@ pub mod aws;
 pub mod local;
 pub mod memory;
 
+use std::future::Future;
+
 use ethers::types::{Address, H256};
 
 use crate::cli;
@@ -45,7 +47,17 @@ impl ShareId {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Permit {
-    expiry: u64,
+    pub expiry: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ChainState {
+    pub block: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ChainStateUpdate {
+    pub block: Option<u64>,
 }
 
 #[derive(zeroize::Zeroize)]
@@ -53,29 +65,41 @@ pub struct Permit {
 pub struct WrappedShare(Vec<u8>);
 
 pub trait Store: Clone + Send + Sync {
-    type Error: std::error::Error + Send + Sync + 'static;
+    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error>;
 
-    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Self::Error>;
-
-    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Self::Error>;
+    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error>;
 
     #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Self::Error>;
+    async fn destroy_share(&self, share: ShareId) -> Result<(), Error>;
 
     async fn create_permit(
         &self,
         share: ShareId,
         recipient: Address,
         expiry: u64,
-    ) -> Result<Option<Permit>, Self::Error>;
+    ) -> Result<Option<Permit>, Error>;
 
     async fn read_permit(
         &self,
         share: ShareId,
         recipient: Address,
-    ) -> Result<Option<Permit>, Self::Error>;
+    ) -> Result<Option<Permit>, Error>;
 
-    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Self::Error>;
+    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error>;
+
+    fn get_chain_state(
+        &self,
+        chain: u64,
+    ) -> impl Future<Output = Result<Option<ChainState>, Error>> + Send;
+
+    fn update_chain_state(
+        &self,
+        chain: u64,
+        update: ChainStateUpdate,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
+
+    #[cfg(test)]
+    async fn clear_chain_state(&self, chain: u64) -> Result<(), Error>;
 }
 
 #[derive(Clone)]
@@ -88,37 +112,34 @@ pub enum DynStoreKind {
     #[cfg(feature = "aws")]
     Aws(aws::Client),
     Memory(memory::MemoryStore),
+    #[allow(unused)]
     Local,
 }
 
 impl Store for DynStore {
-    type Error = DynStoreError;
-
-    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Self::Error> {
-        Ok(match &self.inner {
-            DynStoreKind::Aws(ss) => ss.create_share(identity).await.map_err(anyhow::Error::from),
-            DynStoreKind::Memory(ss) => {
-                ss.create_share(identity).await.map_err(anyhow::Error::from)
-            }
+    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.create_share(identity).await,
+            DynStoreKind::Memory(s) => s.create_share(identity).await,
             DynStoreKind::Local => todo!(),
-        }?)
+        }
     }
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Self::Error> {
-        Ok(match &self.inner {
-            DynStoreKind::Aws(ss) => ss.get_share(share).await.map_err(anyhow::Error::from),
-            DynStoreKind::Memory(ss) => ss.get_share(share).await.map_err(anyhow::Error::from),
+    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.get_share(share).await,
+            DynStoreKind::Memory(s) => s.get_share(share).await,
             DynStoreKind::Local => todo!(),
-        }?)
+        }
     }
 
     #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Self::Error> {
-        Ok(match &self.inner {
-            DynStoreKind::Aws(ss) => ss.destroy_share(share).await.map_err(anyhow::Error::from),
-            DynStoreKind::Memory(ss) => ss.destroy_share(share).await.map_err(anyhow::Error::from),
+    async fn destroy_share(&self, share: ShareId) -> Result<(), Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.destroy_share(share).await,
+            DynStoreKind::Memory(s) => s.destroy_share(share).await,
             DynStoreKind::Local => todo!(),
-        }?)
+        }
     }
 
     async fn create_permit(
@@ -126,56 +147,64 @@ impl Store for DynStore {
         share: ShareId,
         recipient: Address,
         expiry: u64,
-    ) -> Result<Option<Permit>, Self::Error> {
-        Ok(match &self.inner {
-            DynStoreKind::Aws(ss) => ss
-                .create_permit(share, recipient, expiry)
-                .await
-                .map_err(anyhow::Error::from),
-            DynStoreKind::Memory(ss) => ss
-                .create_permit(share, recipient, expiry)
-                .await
-                .map_err(anyhow::Error::from),
+    ) -> Result<Option<Permit>, Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.create_permit(share, recipient, expiry).await,
+            DynStoreKind::Memory(s) => s.create_permit(share, recipient, expiry).await,
             DynStoreKind::Local => todo!(),
-        }?)
+        }
     }
 
     async fn read_permit(
         &self,
         share: ShareId,
         recipient: Address,
-    ) -> Result<Option<Permit>, Self::Error> {
-        Ok(match &self.inner {
-            DynStoreKind::Aws(ss) => ss
-                .read_permit(share, recipient)
-                .await
-                .map_err(anyhow::Error::from),
-            DynStoreKind::Memory(ss) => ss
-                .read_permit(share, recipient)
-                .await
-                .map_err(anyhow::Error::from),
+    ) -> Result<Option<Permit>, Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.read_permit(share, recipient).await,
+            DynStoreKind::Memory(s) => s.read_permit(share, recipient).await,
             DynStoreKind::Local => todo!(),
-        }?)
+        }
     }
 
-    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Self::Error> {
-        Ok(match &self.inner {
-            DynStoreKind::Aws(ss) => ss
-                .delete_permit(share, recipient)
-                .await
-                .map_err(anyhow::Error::from),
-            DynStoreKind::Memory(ss) => ss
-                .delete_permit(share, recipient)
-                .await
-                .map_err(anyhow::Error::from),
+    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.delete_permit(share, recipient).await,
+            DynStoreKind::Memory(ss) => ss.delete_permit(share, recipient).await,
             DynStoreKind::Local => todo!(),
-        }?)
+        }
+    }
+
+    async fn get_chain_state(&self, chain: u64) -> Result<Option<ChainState>, Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.get_chain_state(chain).await,
+            DynStoreKind::Memory(s) => s.get_chain_state(chain).await,
+            DynStoreKind::Local => todo!(),
+        }
+    }
+
+    async fn update_chain_state(&self, chain: u64, update: ChainStateUpdate) -> Result<(), Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.update_chain_state(chain, update).await,
+            DynStoreKind::Memory(s) => s.update_chain_state(chain, update).await,
+            DynStoreKind::Local => todo!(),
+        }
+    }
+
+    #[cfg(test)]
+    async fn clear_chain_state(&self, chain: u64) -> Result<(), Error> {
+        match &self.inner {
+            DynStoreKind::Aws(s) => s.clear_chain_state(chain).await,
+            DynStoreKind::Memory(s) => s.clear_chain_state(chain).await,
+            DynStoreKind::Local => todo!(),
+        }
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-#[error(transparent)]
-pub struct DynStoreError(#[from] anyhow::Error);
+// #[derive(Debug, thiserror::Error)]
+// #[error(transparent)]
+// pub struct Error(#[from] anyhow::Error);
+pub type Error = anyhow::Error;
 
 pub async fn create(backend: cli::Store, env: cli::Environment) -> impl Store {
     DynStore {
@@ -214,6 +243,7 @@ mod tests {
                 expired_permit,
                 defresh_permit_fail,
                 delete_defresh_permit,
+                roundtrip_chain_state,
             );
         };
         ($sstore:expr, $($test:ident),+ $(,)?) => {
@@ -255,7 +285,10 @@ mod tests {
                 share_id.identity.registry == Address::repeat_byte(1),
                 "unexpected share registry"
             );
-            ensure!(share_id.identity.id == identity, "unexpected share identity");
+            ensure!(
+                share_id.identity.id == identity,
+                "unexpected share identity"
+            );
             ensure!(share_id.version == 1, "unexpected share version");
             let share = sstore.get_share(share_id).await?;
             let share2 = sstore.get_share(share_id).await?;
@@ -463,5 +496,43 @@ mod tests {
         .await
         .unwrap()
         .unwrap();
+    }
+
+    pub async fn roundtrip_chain_state(sstore: impl Store) {
+        let chain_id = (u32::max_value() as u64)
+            .checked_add(rand::random())
+            .unwrap();
+        let start_state = sstore.get_chain_state(chain_id).await.unwrap();
+        assert!(start_state.is_none());
+
+        sstore
+            .update_chain_state(chain_id, ChainStateUpdate { block: Some(42) })
+            .await
+            .unwrap();
+        let updated_state = sstore.get_chain_state(chain_id).await.unwrap();
+        assert_eq!(updated_state, Some(ChainState { block: 42 }));
+
+        sstore
+            .update_chain_state(chain_id, ChainStateUpdate { block: Some(41) })
+            .await
+            .unwrap();
+        let not_updated_state = sstore.get_chain_state(chain_id).await.unwrap();
+        assert_eq!(not_updated_state, Some(ChainState { block: 42 }));
+
+        sstore
+            .update_chain_state(chain_id, ChainStateUpdate { block: None })
+            .await
+            .unwrap();
+        let not_updated_state = sstore.get_chain_state(chain_id).await.unwrap();
+        assert_eq!(not_updated_state, Some(ChainState { block: 42 }));
+
+        sstore
+            .update_chain_state(chain_id, ChainStateUpdate { block: Some(43) })
+            .await
+            .unwrap();
+        let re_updated_state = sstore.get_chain_state(chain_id).await.unwrap();
+        assert_eq!(re_updated_state, Some(ChainState { block: 43 }));
+
+        sstore.clear_chain_state(chain_id).await.unwrap();
     }
 }

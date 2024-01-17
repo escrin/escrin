@@ -39,8 +39,9 @@ impl Client {
         }
     }
 
-    naming_fn!(shares_table, "shares");
-    naming_fn!(permits_table, "permits");
+    naming_fn!(shares_table, "escrin-shares");
+    naming_fn!(permits_table, "escrin-permits");
+    naming_fn!(chain_state_table, "escrin-chain-state");
     naming_fn!(kms_key, "alias/escrin-sek");
 
     async fn current_share_version(&self, identity: IdentityLocator) -> Result<Option<u64>, Error> {
@@ -63,8 +64,6 @@ impl Client {
 }
 
 impl Store for Client {
-    type Error = Error;
-
     async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
         let version = self.current_share_version(identity).await?.unwrap_or(0) + 1;
         let n_version = N(version.to_string());
@@ -101,7 +100,7 @@ impl Store for Client {
     }
 
     #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Self::Error> {
+    async fn destroy_share(&self, share: ShareId) -> Result<(), Error> {
         self.db_client
             .delete_item()
             .table_name(self.shares_table())
@@ -183,7 +182,7 @@ impl Store for Client {
         &self,
         share: ShareId,
         recipient: Address,
-    ) -> Result<Option<Permit>, Self::Error> {
+    ) -> Result<Option<Permit>, Error> {
         Ok(self
             .db_client
             .query()
@@ -199,7 +198,7 @@ impl Store for Client {
             .items()
             .first()
             .and_then(|v| {
-                let expiry = unpack_expiry(v);
+                let expiry = unpack_u64("expiry", v);
                 if expiry <= now() {
                     None
                 } else {
@@ -214,6 +213,62 @@ impl Store for Client {
             .table_name(self.permits_table())
             .key("share", share.into())
             .key("recipient", address_to_value(&recipient))
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)?;
+        Ok(())
+    }
+
+    async fn get_chain_state(&self, chain: u64) -> Result<Option<ChainState>, Error> {
+        Ok(self
+            .db_client
+            .query()
+            .table_name(self.chain_state_table())
+            .key_condition_expression("chain = :chain")
+            .expression_attribute_values(":chain", N(chain.to_string()))
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)?
+            .items()
+            .first()
+            .map(|v| ChainState {
+                block: unpack_u64("block", v),
+            }))
+    }
+
+    async fn update_chain_state(&self, chain: u64, update: ChainStateUpdate) -> Result<(), Error> {
+        let ChainStateUpdate { block } = update;
+        let new_block = match block {
+            Some(block) => block,
+            None => return Ok(()),
+        };
+
+        let n_block = N(new_block.to_string());
+        let res = self
+            .db_client
+            .put_item()
+            .table_name(self.chain_state_table())
+            .item("chain", N(chain.to_string()))
+            .item("block", n_block.clone())
+            .condition_expression("attribute_not_exists(#b) OR #b < :block")
+            .expression_attribute_names("#b", "block")
+            .expression_attribute_values(":block", n_block)
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from);
+        match res {
+            Ok(_) => Ok(()),
+            Err(aws_sdk_dynamodb::Error::ConditionalCheckFailedException(_)) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    #[cfg(test)]
+    async fn clear_chain_state(&self, chain: u64) -> Result<(), Error> {
+        self.db_client
+            .delete_item()
+            .table_name(self.chain_state_table())
+            .key("chain", N(chain.to_string()))
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?;
@@ -242,13 +297,13 @@ fn unpack_version(res: &HashMap<String, AttributeValue>) -> u64 {
         .expect("parseable numeric version")
 }
 
-fn unpack_expiry(res: &HashMap<String, AttributeValue>) -> u64 {
-    res.get("expiry")
-        .expect("expiry value")
+fn unpack_u64(key: &str, res: &HashMap<String, AttributeValue>) -> u64 {
+    res.get(key)
+        .expect(key)
         .as_n()
-        .expect("numeric expiry")
+        .unwrap()
         .parse::<u64>()
-        .expect("parseable numeric expiry")
+        .unwrap()
 }
 
 fn unpack_share(res: &mut HashMap<String, AttributeValue>) -> Blob {
@@ -260,15 +315,6 @@ fn unpack_share(res: &mut HashMap<String, AttributeValue>) -> Blob {
 
 fn address_to_value(addr: &Address) -> AttributeValue {
     S(format!("{addr:#x}"))
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("database error: {0}")]
-    Database(#[from] aws_sdk_dynamodb::Error),
-
-    #[error("kms error: {0}")]
-    Kms(#[from] aws_sdk_kms::Error),
 }
 
 #[cfg(test)]
