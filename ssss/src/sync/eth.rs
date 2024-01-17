@@ -4,10 +4,10 @@ use ethers::{
     abi::AbiDecode,
     contract::EthLogDecode as _,
     providers::{
-        Http, JsonRpcClient as _, Middleware as _, Provider as EthersProvider, Quorum,
-        QuorumProvider, WeightedProvider,
+        Http, HttpRateLimitRetryPolicy, JsonRpcClient as _, Middleware as _,
+        Provider as EthersProvider, Quorum, QuorumProvider, RetryClient, WeightedProvider,
     },
-    types::{Address, Filter, Transaction, TxHash, ValueOrArray, U256, U64},
+    types::{Address, Filter, Log, Transaction, TxHash, ValueOrArray, U256, U64},
 };
 use futures::{future::BoxFuture, FutureExt, Stream, StreamExt as _, TryStreamExt as _};
 use smallvec::{smallvec, SmallVec};
@@ -18,13 +18,14 @@ use crate::utils::{retry, retry_if};
 pub type ChainId = u64;
 
 pub type Providers = HashMap<ChainId, Provider>;
-pub type Provider = EthersProvider<QuorumProvider<Http>>;
+pub type Provider = EthersProvider<QuorumProvider<RetryClient<Http>>>;
 
 ethers::contract::abigen!(
     SsssPermitterContract,
     r"[
         event GrantPermitRequested()
         event RevokePermitRequested()
+        function creationBlock() view returns (uint256)
     ]"
 );
 
@@ -43,6 +44,10 @@ impl SsssPermitter {
             contract: SsssPermitterContract::new(addr, provider.clone()),
             provider,
         }
+    }
+
+    pub async fn creation_block(&self) -> Result<u64, Error> {
+        Ok(self.contract.creation_block().call().await?.as_u64())
     }
 
     pub fn events(
@@ -99,73 +104,72 @@ impl SsssPermitter {
         })
         .map(futures::stream::iter)
         .flatten_stream()
-        .map(|log| async move {
-            let (log_index, tx_hash) = match (log.log_index, log.transaction_hash, log.removed) {
-                (Some(ix), Some(tx), None) => (ix.as_u64(), tx),
-                _ => return None,
-            };
-            let raw_log = (log.topics, log.data.to_vec()).into();
-            let event = match SsssPermitterContractEvents::decode_log(&raw_log) {
-                Ok(event) => event,
-                Err(e) => {
-                    warn!("failed to decode log: {e}");
-                    return None;
-                }
-            };
-            let Transaction { from, input, .. } =
-                retry_if(|| self.provider.get_transaction(tx_hash), |tx| tx).await;
-            let (action, identity, recipient, context, authorization, duration) = match event {
-                SsssPermitterContractEvents::GrantPermitRequestedFilter(_) => {
-                    let (identity, recipient, duration, context, authorization): (
-                        U256,
-                        Address,
-                        u64,
-                        ethers::abi::Bytes,
-                        ethers::abi::Bytes,
-                    ) = AbiDecode::decode(input).unwrap();
-                    (
-                        PermitAction::Grant,
-                        identity,
-                        recipient,
-                        context,
-                        authorization,
-                        Some(duration),
-                    )
-                }
-                SsssPermitterContractEvents::RevokePermitRequestedFilter(_) => {
-                    let (identity, recipient, context, authorization): (
-                        U256,
-                        Address,
-                        ethers::abi::Bytes,
-                        ethers::abi::Bytes,
-                    ) = AbiDecode::decode(input).unwrap();
-                    (
-                        PermitAction::Revoke,
-                        identity,
-                        recipient,
-                        context,
-                        authorization,
-                        None,
-                    )
-                }
-            };
-
-            Some(Event::PermitAction(PermitActionEvent {
-                kind: action,
-                identity,
-                requester: from,
-                recipient,
-                context,
-                authorization,
-                duration,
-                tx: tx_hash,
-                log_index,
-            }))
-        })
+        .map(|log| async move { self.decode_permitter_event(log).await })
         .buffer_unordered(100)
         .filter_map(futures::future::ready)
         .collect::<SmallVec<[Event; 4]>>()
         .await
+    }
+
+    async fn decode_permitter_event(&self, log: Log) -> Option<Event> {
+        let (log_index, tx_hash) = match (log.log_index, log.transaction_hash, log.removed) {
+            (Some(ix), Some(tx), None) => (ix.as_u64(), tx),
+            _ => return None,
+        };
+        let raw_log = (log.topics, log.data.to_vec()).into();
+        let event = match SsssPermitterContractEvents::decode_log(&raw_log) {
+            Ok(event) => event,
+            Err(e) => {
+                warn!("failed to decode log: {e}");
+                return None;
+            }
+        };
+        let Transaction { from, input, .. } =
+            retry_if(|| self.provider.get_transaction(tx_hash), |tx| tx).await;
+        let (action, identity, recipient, context, authorization) = match event {
+            SsssPermitterContractEvents::GrantPermitRequestedFilter(_) => {
+                let (identity, recipient, duration, context, authorization): (
+                    U256,
+                    Address,
+                    u64,
+                    ethers::abi::Bytes,
+                    ethers::abi::Bytes,
+                ) = AbiDecode::decode(input).unwrap();
+                (
+                    PermitAction::Grant { duration },
+                    identity,
+                    recipient,
+                    context,
+                    authorization,
+                )
+            }
+            SsssPermitterContractEvents::RevokePermitRequestedFilter(_) => {
+                let (identity, recipient, context, authorization): (
+                    U256,
+                    Address,
+                    ethers::abi::Bytes,
+                    ethers::abi::Bytes,
+                ) = AbiDecode::decode(input).unwrap();
+                (
+                    PermitAction::Revoke,
+                    identity,
+                    recipient,
+                    context,
+                    authorization,
+                )
+            }
+        };
+
+        Some(Event::PermitAction(PermitActionEvent {
+            kind: action,
+            identity,
+            requester: from,
+            recipient,
+            context,
+            authorization,
+            tx: tx_hash,
+            log_index,
+        }))
     }
 }
 
@@ -176,7 +180,12 @@ pub async fn providers(rpcs: impl Iterator<Item = impl AsRef<str>>) -> Result<Pr
         if url.scheme() != "http" {
             return Err(Error::UnsupportedRpc(rpc.into()));
         }
-        Ok(Http::new(url))
+        Ok(RetryClient::new(
+            Http::new(url),
+            Box::<HttpRateLimitRetryPolicy>::default(),
+            10,
+            2_000,
+        ))
     }))
     .map_ok(|provider| async move {
         let chain_id = provider
@@ -188,7 +197,7 @@ pub async fn providers(rpcs: impl Iterator<Item = impl AsRef<str>>) -> Result<Pr
     })
     .try_buffer_unordered(10)
     .try_fold(
-        HashMap::<ChainId, Vec<Http>>::new(),
+        HashMap::<ChainId, Vec<_>>::new(),
         |mut providers, (chain_id, provider)| async move {
             providers.entry(chain_id).or_default().push(provider);
             Ok(providers)
@@ -216,27 +225,33 @@ pub enum Event {
 
 #[derive(Clone, Debug)]
 pub struct PermitActionEvent {
-    kind: PermitAction,
-    identity: U256,
-    requester: Address,
-    recipient: Address,
-    context: Vec<u8>,
-    authorization: Vec<u8>,
-    duration: Option<u64>,
-    tx: TxHash,
-    log_index: u64,
+    pub kind: PermitAction,
+    pub identity: U256,
+    pub requester: Address,
+    pub recipient: Address,
+    pub context: Vec<u8>,
+    pub authorization: Vec<u8>,
+    pub tx: TxHash,
+    pub log_index: u64,
+}
+
+impl PermitActionEvent {
+    pub fn selector(&self) -> Option<String> {
+        let sel: String = AbiDecode::decode(&self.context).ok()?;
+        Some(sel)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum PermitAction {
-    Grant,
+    Grant { duration: u64 },
     Revoke,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("contract call error: {0}")]
-    Contract(#[from] ethers::contract::ContractError<EthersProvider<Http>>),
+    Contract(#[from] ethers::contract::ContractError<Provider>),
     #[error("provider error: {0}")]
     Provider(#[from] ethers::providers::ProviderError),
     #[error("unsupported rpc url: {0}")]
