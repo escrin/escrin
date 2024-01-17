@@ -1,11 +1,12 @@
 #![forbid(unsafe_code)]
-#![feature(anonymous_lifetime_in_impl_trait, stmt_expr_attributes)]
+#![feature(anonymous_lifetime_in_impl_trait, lazy_cell, stmt_expr_attributes)]
 
 mod api;
 mod cli;
 mod store;
 mod sync;
 mod utils;
+mod verify;
 
 use anyhow::Error;
 use tracing::{debug, trace};
