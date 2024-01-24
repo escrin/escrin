@@ -7,7 +7,7 @@ use aws_sdk_dynamodb::{
 use rand::RngCore as _;
 
 use super::*;
-use crate::cli::Environment;
+use crate::{cli::Environment, types::ToKey as _};
 
 #[derive(Clone)]
 pub struct Client {
@@ -41,6 +41,7 @@ impl Client {
 
     naming_fn!(shares_table, "escrin-shares");
     naming_fn!(permits_table, "escrin-permits");
+    naming_fn!(verifiers_table, "escrin-verifiers");
     naming_fn!(chain_state_table, "escrin-chain-state");
     naming_fn!(kms_key, "alias/escrin-sek");
 
@@ -137,7 +138,7 @@ impl Store for Client {
             None => return Ok(None),
         };
 
-        Ok(Some(WrappedShare(
+        Ok(Some(
             self.kms_client
                 .decrypt()
                 .key_id(self.kms_key())
@@ -148,8 +149,9 @@ impl Store for Client {
                 .map_err(aws_sdk_kms::Error::from)?
                 .plaintext
                 .unwrap()
-                .into_inner(),
-        )))
+                .into_inner()
+                .into(),
+        ))
     }
 
     async fn create_permit(
@@ -274,19 +276,98 @@ impl Store for Client {
             .map_err(aws_sdk_dynamodb::Error::from)?;
         Ok(())
     }
-}
 
-impl From<IdentityLocator> for AttributeValue {
-    fn from(identity: IdentityLocator) -> Self {
-        S(identity.to_key())
+    async fn get_verifier(
+        &self,
+        permitter: PermitterLocator,
+        identity: IdentityId,
+    ) -> Result<Option<Vec<u8>>, Error> {
+        Ok(self
+            .db_client
+            .query()
+            .table_name(self.verifiers_table())
+            .key_condition_expression("permitter = :permitter AND #i = :identity")
+            .expression_attribute_names("#i", "identity")
+            .expression_attribute_values(":permitter", permitter.into())
+            .expression_attribute_values(":identity", identity.into())
+            .projection_expression("config")
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)?
+            .items
+            .and_then(|items| items.into_iter().nth(0))
+            .and_then(|mut res| {
+                res.remove("config").map(|v| match v {
+                    B(config) => config.into_inner(),
+                    _ => panic!("expected blob config"),
+                })
+            }))
+    }
+
+    async fn update_verifier(
+        &self,
+        permitter: PermitterLocator,
+        identity: IdentityId,
+        config: Vec<u8>,
+        EventIndex { block, log_index }: EventIndex,
+    ) -> Result<(), Error> {
+        let n_block = N(block.to_string());
+        let n_log_index = N(log_index.to_string());
+        let res = self
+            .db_client
+            .put_item()
+            .table_name(self.verifiers_table())
+            .item("permitter", permitter.into())
+            .item("identity", identity.into())
+            .item("config", B(Blob::new(config)))
+            .item("block", n_block.clone())
+            .item("log_index", n_log_index.clone())
+            .condition_expression(
+                "attribute_not_exists(#b) OR #b < :block OR (#b = :block AND log_index < :li)",
+            )
+            .expression_attribute_names("#b", "block")
+            .expression_attribute_values(":block", n_block)
+            .expression_attribute_values(":li", n_log_index)
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from);
+        match res {
+            Ok(_) => Ok(()),
+            Err(aws_sdk_dynamodb::Error::ConditionalCheckFailedException(_)) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    #[cfg(test)]
+    async fn clear_verifier(
+        &self,
+        permitter: PermitterLocator,
+        identity: IdentityId,
+    ) -> Result<(), Error> {
+        self.db_client
+            .delete_item()
+            .table_name(self.verifiers_table())
+            .key("permitter", permitter.into())
+            .key("identity", identity.into())
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)?;
+        Ok(())
     }
 }
 
-impl From<ShareId> for AttributeValue {
-    fn from(share: ShareId) -> Self {
-        S(share.to_key())
+macro_rules! impl_into_attribute_value {
+    ($($ty:ident),+ $(,)?) => {
+        $(
+            impl From<$ty> for AttributeValue {
+                fn from(v: $ty) -> Self {
+                    S(v.to_key())
+                }
+            }
+        )+
     }
 }
+impl_into_attribute_value!(IdentityLocator, PermitterLocator, IdentityId, ShareId);
 
 fn unpack_version(res: &HashMap<String, AttributeValue>) -> u64 {
     res.get("version")
@@ -321,5 +402,5 @@ fn address_to_value(addr: &Address) -> AttributeValue {
 mod tests {
     use super::*;
 
-    crate::make_sstore_tests!(Client::connect(Environment::Dev).await);
+    crate::make_store_tests!(Client::connect(Environment::Dev).await);
 }

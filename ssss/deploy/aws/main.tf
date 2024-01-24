@@ -45,7 +45,7 @@ resource "aws_dynamodb_table" "permits" {
   name           = "escrin-permits-${terraform.workspace}"
   read_capacity  = 2
   write_capacity = 2
-  hash_key       = "share" // compound key of 'shares.id#shares.version'
+  hash_key       = "share"
   range_key      = "recipient"
 
   attribute {
@@ -84,6 +84,30 @@ resource "aws_dynamodb_table" "chain_state" {
   deletion_protection_enabled = terraform.workspace != "dev"
 }
 
+resource "aws_dynamodb_table" "verifiers" {
+  name           = "escrin-verifiers-${terraform.workspace}"
+  read_capacity  = 2
+  write_capacity = 2
+  hash_key       = "permitter"
+  range_key      = "identity"
+
+  attribute {
+    name = "permitter"
+    type = "S"
+  }
+
+  attribute {
+    name = "identity"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = terraform.workspace != "dev"
+  }
+
+  deletion_protection_enabled = terraform.workspace != "dev"
+}
+
 resource "aws_iam_policy" "km_policy" {
   name        = "km_policy"
   description = "Escrin KM access policy"
@@ -107,6 +131,7 @@ resource "aws_iam_policy" "km_policy" {
         "${aws_kms_key.sek.arn}",
         "${aws_dynamodb_table.shares.arn}",
         "${aws_dynamodb_table.permits.arn}",
+        "${aws_dynamodb_table.verifiers.arn}",
         "${aws_dynamodb_table.chain_state.arn}"
       ]
     }

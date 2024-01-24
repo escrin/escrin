@@ -2,16 +2,16 @@ use std::sync::LazyLock;
 
 use webpki::types::{CertificateDer, UnixTime};
 
-use crate::sync::PermitActionEvent;
+use crate::sync::PermitRequestEvent;
 
 static CA_CERT_DER: &[u8] = include_bytes!("./root.der");
 static CA_CERT: LazyLock<CertificateDer<'static>> = LazyLock::new(|| CA_CERT_DER.into());
 static ANCHORS: LazyLock<Vec<webpki::types::TrustAnchor<'static>>> =
     LazyLock::new(|| vec![webpki::anchor_from_trusted_cert(&CA_CERT).unwrap()]);
 
-pub async fn verify(action: PermitActionEvent) -> Option<()> {
+pub async fn verify(action: PermitRequestEvent) -> Option<()> {
     // TODO: filter identities that are not registered with this SSSS
-    let PermitActionEvent {
+    let PermitRequestEvent {
         kind,
         identity,
         requester,

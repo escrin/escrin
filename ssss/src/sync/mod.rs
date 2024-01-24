@@ -10,8 +10,9 @@ use futures::stream::StreamExt as _;
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, trace, warn};
 
-pub use self::eth::PermitActionEvent;
+pub use self::eth::PermitRequestEvent;
 use crate::store::Store;
+use crate::utils::retry;
 
 #[tracing::instrument(skip_all)]
 pub async fn run(
@@ -81,25 +82,33 @@ async fn sync_chain<S: Store + 'static>(
         .map(futures::stream::iter)
         .flatten()
         .for_each(|event| async move {
-            let action = match event {
-                eth::Event::PermitAction(action) => action,
+            match event {
+                eth::Event::PermitRequest(action) => {
+                    let pass = match action.selector().as_deref() {
+                        #[cfg(feature = "aws")]
+                        Some("nitro") => crate::verify::nitro::verify(action).await,
+                        _ => {
+                            warn!("encountered unknown context in: {}", action.tx);
+                            None
+                        }
+                    };
+                    if pass.is_none() {
+                        return;
+                    }
+                    todo!()
+                },
+                eth::Event::Configuration(config) => {
+                    retry(|| store.update_verifier_config(crate::store::IdentityLocator {
+                        chain: chain_id,
+                        registry: todo!(),
+                        id: todo!(),
+                    })).await;
+                }
                 eth::Event::ProcessedBlock(n) => {
                     processed_block.store(n, Ordering::Release);
                     return;
                 }
             };
-            let pass = match action.selector().as_deref() {
-                #[cfg(feature = "aws")]
-                Some("nitro") => crate::verify::nitro::verify(action).await,
-                _ => {
-                    warn!("encountered unknown context in: {}", action.tx);
-                    None
-                }
-            };
-            if pass.is_none() {
-                return;
-            }
-            todo!()
         })
         .await;
 

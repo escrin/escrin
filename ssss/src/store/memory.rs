@@ -12,10 +12,15 @@ pub struct MemoryStore {
     state: Arc<State>,
 }
 
+type ShareGrantee = (ShareId, Address);
+type PermitterIdentityLocator = (PermitterLocator, IdentityId);
+type VerionedVerifierConfig = (Vec<u8>, EventIndex);
+
 #[derive(Default)]
 struct State {
     shares: RwLock<HashMap<IdentityLocator, Vec<Option<Vec<u8>>>>>,
-    permits: RwLock<HashMap<(ShareId, Address), Permit>>,
+    permits: RwLock<HashMap<ShareGrantee, Permit>>,
+    verifiers: RwLock<HashMap<PermitterIdentityLocator, VerionedVerifierConfig>>,
     chain: RwLock<HashMap<u64, ChainState>>,
 }
 
@@ -35,10 +40,9 @@ impl Store for MemoryStore {
     async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error> {
         Ok(
             match self.state.shares.read().unwrap().get(&share.identity) {
-                Some(versions) if versions.len() >= share.version as usize => versions
-                    [share.version as usize - 1]
-                    .clone()
-                    .map(WrappedShare),
+                Some(versions) if versions.len() >= share.version as usize => {
+                    versions[share.version as usize - 1].clone().map(Into::into)
+                }
                 _ => None,
             },
         )
@@ -129,11 +133,63 @@ impl Store for MemoryStore {
         self.state.chain.write().unwrap().remove(&chain);
         Ok(())
     }
+
+    async fn get_verifier(
+        &self,
+        permitter: PermitterLocator,
+        identity: IdentityId,
+    ) -> Result<Option<Vec<u8>>, Error> {
+        Ok(self
+            .state
+            .verifiers
+            .read()
+            .unwrap()
+            .get(&(permitter, identity))
+            .map(|(config, _)| config.clone()))
+    }
+
+    async fn update_verifier(
+        &self,
+        permitter: PermitterLocator,
+        identity: IdentityId,
+        config: Vec<u8>,
+        version: EventIndex,
+    ) -> Result<(), Error> {
+        let mut config = Some(config);
+        self.state
+            .verifiers
+            .write()
+            .unwrap()
+            .entry((permitter, identity))
+            .and_modify(|(current_config, current_version)| {
+                if version <= *current_version {
+                    return;
+                }
+                *current_config = config.take().unwrap();
+                *current_version = version;
+            })
+            .or_insert_with(|| (config.take().unwrap(), version));
+        Ok(())
+    }
+
+    #[cfg(test)]
+    async fn clear_verifier(
+        &self,
+        permitter: PermitterLocator,
+        identity: IdentityId,
+    ) -> Result<(), Error> {
+        self.state
+            .verifiers
+            .write()
+            .unwrap()
+            .remove(&(permitter, identity));
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    crate::make_sstore_tests!(MemoryStore::default());
+    crate::make_store_tests!(MemoryStore::default());
 }

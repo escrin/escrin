@@ -5,6 +5,7 @@ mod api;
 mod cli;
 mod store;
 mod sync;
+mod types;
 mod utils;
 mod verify;
 

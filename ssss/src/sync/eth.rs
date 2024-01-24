@@ -136,7 +136,7 @@ impl SsssPermitter {
                     ethers::abi::Bytes,
                 ) = AbiDecode::decode(input).unwrap();
                 (
-                    PermitAction::Grant { duration },
+                    PermitRequestKind::Grant { duration },
                     identity,
                     recipient,
                     context,
@@ -151,7 +151,7 @@ impl SsssPermitter {
                     ethers::abi::Bytes,
                 ) = AbiDecode::decode(input).unwrap();
                 (
-                    PermitAction::Revoke,
+                    PermitRequestKind::Revoke,
                     identity,
                     recipient,
                     context,
@@ -160,7 +160,7 @@ impl SsssPermitter {
             }
         };
 
-        Some(Event::PermitAction(PermitActionEvent {
+        Some(Event::PermitRequest(PermitRequestEvent {
             kind: action,
             identity,
             requester: from,
@@ -219,13 +219,14 @@ pub async fn providers(rpcs: impl Iterator<Item = impl AsRef<str>>) -> Result<Pr
 
 #[derive(Clone, Debug)]
 pub enum Event {
-    PermitAction(PermitActionEvent),
+    PermitRequest(PermitRequestEvent),
+    Configuration(ConfigurationEvent),
     ProcessedBlock(u64),
 }
 
 #[derive(Clone, Debug)]
-pub struct PermitActionEvent {
-    pub kind: PermitAction,
+pub struct PermitRequestEvent {
+    pub kind: PermitRequestKind,
     pub identity: U256,
     pub requester: Address,
     pub recipient: Address,
@@ -235,7 +236,15 @@ pub struct PermitActionEvent {
     pub log_index: u64,
 }
 
-impl PermitActionEvent {
+#[derive(Clone, Debug)]
+pub struct ConfigurationEvent {
+    pub identity: U256,
+    pub config: Vec<u8>,
+    pub tx: TxHash,
+    pub log_index: u64,
+}
+
+impl PermitRequestEvent {
     pub fn selector(&self) -> Option<String> {
         let sel: String = AbiDecode::decode(&self.context).ok()?;
         Some(sel)
@@ -243,7 +252,7 @@ impl PermitActionEvent {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum PermitAction {
+pub enum PermitRequestKind {
     Grant { duration: u64 },
     Revoke,
 }
