@@ -1,19 +1,22 @@
 use std::{collections::HashMap, sync::Arc};
 
 use ethers::{
-    abi::AbiDecode,
+    abi::{AbiDecode, Bytes},
     contract::EthLogDecode as _,
     providers::{
         Http, HttpRateLimitRetryPolicy, JsonRpcClient as _, Middleware as _,
         Provider as EthersProvider, Quorum, QuorumProvider, RetryClient, WeightedProvider,
     },
-    types::{Address, Filter, Log, Transaction, TxHash, ValueOrArray, U256, U64},
+    types::{Address, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U64},
 };
 use futures::{future::BoxFuture, FutureExt, Stream, StreamExt as _, TryStreamExt as _};
 use smallvec::{smallvec, SmallVec};
 use tracing::{trace, warn};
 
-use crate::utils::{retry, retry_if};
+use crate::{
+    types::{EventIndex, IdentityId},
+    utils::{retry, retry_if},
+};
 
 pub type ChainId = u64;
 
@@ -23,6 +26,7 @@ pub type Provider = EthersProvider<QuorumProvider<RetryClient<Http>>>;
 ethers::contract::abigen!(
     SsssPermitterContract,
     r"[
+        event Configuration()
         event GrantPermitRequested()
         event RevokePermitRequested()
         function creationBlock() view returns (uint256)
@@ -31,17 +35,17 @@ ethers::contract::abigen!(
 
 #[derive(Clone)]
 pub struct SsssPermitter {
-    addr: Address,
+    pub address: Address,
     contract: SsssPermitterContract<Provider>,
     provider: Arc<Provider>,
 }
 
 impl SsssPermitter {
-    pub fn new(addr: Address, provider: Provider) -> Self {
+    pub fn new(address: Address, provider: Provider) -> Self {
         let provider = Arc::new(provider);
         Self {
-            addr,
-            contract: SsssPermitterContract::new(addr, provider.clone()),
+            address,
+            contract: SsssPermitterContract::new(address, provider.clone()),
             provider,
         }
     }
@@ -57,8 +61,12 @@ impl SsssPermitter {
     ) -> impl Stream<Item = BoxFuture<SmallVec<[Event; 4]>>> {
         async_stream::stream!({
             for await block in self.blocks(start_block).await {
-                yield self.get_block_events(block, self.addr).boxed();
-                yield futures::future::ready(smallvec![Event::ProcessedBlock(block)]).boxed();
+                yield self.get_block_events(block, self.address).boxed();
+                yield futures::future::ready(smallvec![Event {
+                    kind: EventKind::ProcessedBlock,
+                    index: Default::default(),
+                    tx: Default::default(),
+                }]).boxed();
                 if Some(block) == stop_block {
                     break;
                 }
@@ -112,8 +120,13 @@ impl SsssPermitter {
     }
 
     async fn decode_permitter_event(&self, log: Log) -> Option<Event> {
-        let (log_index, tx_hash) = match (log.log_index, log.transaction_hash, log.removed) {
-            (Some(ix), Some(tx), None) => (ix.as_u64(), tx),
+        let (block, tx, log_index) = match (
+            log.block_number,
+            log.transaction_hash,
+            log.log_index,
+            log.removed,
+        ) {
+            (Some(block), Some(tx), Some(index), None) => (block.as_u64(), tx, index.as_u64()),
             _ => return None,
         };
         let raw_log = (log.topics, log.data.to_vec()).into();
@@ -125,51 +138,50 @@ impl SsssPermitter {
             }
         };
         let Transaction { from, input, .. } =
-            retry_if(|| self.provider.get_transaction(tx_hash), |tx| tx).await;
-        let (action, identity, recipient, context, authorization) = match event {
+            retry_if(|| self.provider.get_transaction(tx), |tx| tx).await;
+        let kind = match event {
+            SsssPermitterContractEvents::ConfigurationFilter(_) => {
+                let (identity, config): (H256, Bytes) = AbiDecode::decode(input).unwrap();
+                EventKind::Configuration(ConfigurationEvent {
+                    identity: identity.into(),
+                    config,
+                })
+            }
             SsssPermitterContractEvents::GrantPermitRequestedFilter(_) => {
                 let (identity, recipient, duration, context, authorization): (
-                    U256,
+                    H256,
                     Address,
                     u64,
-                    ethers::abi::Bytes,
-                    ethers::abi::Bytes,
+                    Bytes,
+                    Bytes,
                 ) = AbiDecode::decode(input).unwrap();
-                (
-                    PermitRequestKind::Grant { duration },
-                    identity,
+                EventKind::PermitRequest(PermitRequestEvent {
+                    kind: PermitRequestKind::Grant { duration },
+                    identity: identity.into(),
+                    requester: from,
                     recipient,
                     context,
                     authorization,
-                )
+                })
             }
             SsssPermitterContractEvents::RevokePermitRequestedFilter(_) => {
-                let (identity, recipient, context, authorization): (
-                    U256,
-                    Address,
-                    ethers::abi::Bytes,
-                    ethers::abi::Bytes,
-                ) = AbiDecode::decode(input).unwrap();
-                (
-                    PermitRequestKind::Revoke,
-                    identity,
+                let (identity, recipient, context, authorization): (H256, Address, Bytes, Bytes) =
+                    AbiDecode::decode(input).unwrap();
+                EventKind::PermitRequest(PermitRequestEvent {
+                    kind: PermitRequestKind::Revoke,
+                    identity: identity.into(),
+                    requester: from,
                     recipient,
                     context,
                     authorization,
-                )
+                })
             }
         };
-
-        Some(Event::PermitRequest(PermitRequestEvent {
-            kind: action,
-            identity,
-            requester: from,
-            recipient,
-            context,
-            authorization,
-            tx: tx_hash,
-            log_index,
-        }))
+        Some(Event {
+            kind,
+            tx: Some(tx),
+            index: EventIndex { block, log_index },
+        })
     }
 }
 
@@ -218,30 +230,33 @@ pub async fn providers(rpcs: impl Iterator<Item = impl AsRef<str>>) -> Result<Pr
 }
 
 #[derive(Clone, Debug)]
-pub enum Event {
+pub struct Event {
+    pub kind: EventKind,
+    pub index: EventIndex,
+    pub tx: Option<TxHash>,
+}
+
+#[derive(Clone, Debug)]
+pub enum EventKind {
     PermitRequest(PermitRequestEvent),
     Configuration(ConfigurationEvent),
-    ProcessedBlock(u64),
+    ProcessedBlock,
 }
 
 #[derive(Clone, Debug)]
 pub struct PermitRequestEvent {
     pub kind: PermitRequestKind,
-    pub identity: U256,
+    pub identity: IdentityId,
     pub requester: Address,
     pub recipient: Address,
     pub context: Vec<u8>,
     pub authorization: Vec<u8>,
-    pub tx: TxHash,
-    pub log_index: u64,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConfigurationEvent {
-    pub identity: U256,
+    pub identity: IdentityId,
     pub config: Vec<u8>,
-    pub tx: TxHash,
-    pub log_index: u64,
 }
 
 impl PermitRequestEvent {

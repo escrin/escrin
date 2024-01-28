@@ -11,8 +11,11 @@ use tokio::time::{sleep, Duration};
 use tracing::{debug, error, trace, warn};
 
 pub use self::eth::PermitRequestEvent;
-use crate::store::Store;
-use crate::utils::retry;
+use crate::{
+    store::Store,
+    types::{ChainState, ChainStateUpdate, PermitterLocator},
+    utils::retry,
+};
 
 #[tracing::instrument(skip_all)]
 pub async fn run(
@@ -48,7 +51,7 @@ async fn sync_chain<S: Store + 'static>(
     store: &S,
 ) -> Result<(), Error> {
     let start_block = match store.get_chain_state(chain_id).await? {
-        Some(crate::store::ChainState { block }) => block,
+        Some(ChainState { block }) => block,
         None => permitter.creation_block().await?,
     };
 
@@ -63,7 +66,7 @@ async fn sync_chain<S: Store + 'static>(
                 if let Err(e) = store
                     .update_chain_state(
                         chain_id,
-                        crate::store::ChainStateUpdate {
+                        ChainStateUpdate {
                             block: Some(processed_block.load(Ordering::Acquire)),
                         },
                     )
@@ -82,13 +85,16 @@ async fn sync_chain<S: Store + 'static>(
         .map(futures::stream::iter)
         .flatten()
         .for_each(|event| async move {
-            match event {
-                eth::Event::PermitRequest(action) => {
+            match event.kind {
+                eth::EventKind::PermitRequest(action) => {
                     let pass = match action.selector().as_deref() {
                         #[cfg(feature = "aws")]
                         Some("nitro") => crate::verify::nitro::verify(action).await,
                         _ => {
-                            warn!("encountered unknown context in: {}", action.tx);
+                            warn!(
+                                "encountered unknown context in: {}",
+                                event.tx.unwrap_or_default()
+                            );
                             None
                         }
                     };
@@ -96,19 +102,24 @@ async fn sync_chain<S: Store + 'static>(
                         return;
                     }
                     todo!()
-                },
-                eth::Event::Configuration(config) => {
-                    retry(|| store.update_verifier_config(crate::store::IdentityLocator {
-                        chain: chain_id,
-                        registry: todo!(),
-                        id: todo!(),
-                    })).await;
                 }
-                eth::Event::ProcessedBlock(n) => {
-                    processed_block.store(n, Ordering::Release);
-                    return;
+                eth::EventKind::Configuration(eth::ConfigurationEvent {
+                    identity, config, ..
+                }) => {
+                    retry(|| {
+                        store.update_verifier(
+                            PermitterLocator::new(chain_id, permitter.address),
+                            identity,
+                            config.clone(),
+                            event.index,
+                        )
+                    })
+                    .await;
                 }
-            };
+                eth::EventKind::ProcessedBlock => {
+                    processed_block.store(event.index.block, Ordering::Release);
+                }
+            }
         })
         .await;
 
