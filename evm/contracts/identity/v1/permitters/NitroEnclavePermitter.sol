@@ -121,9 +121,9 @@ library NE {
         /// pcr0 A contiguous measure of the contents of the image file, without the section data.
         /// pcr1 A contiguous measurement of the kernel and boot ramfs data.
         /// pcr2 A contiguous, in-order measurement of the user applications, without the boot ramfs.
-        /// pcr3 A contiguous measurement of the IAM role assigned to the parent instance. Ensures that the attestation process succeeds only when the parent instance has the correct IAM role.
-        /// pcr4 A contiguous measurement of the ID of the parent instance. Ensures that the attestation process succeeds only when the parent instance has a specific instance ID.
-        /// pcr8 A measure of the signing certificate specified for the enclave image file. Ensures that the attestation process succeeds only when the enclave was booted from an enclave image file signed by a specific certificate.
+        /// pcr3 A measurement of the IAM role assigned to the parent instance. Ensures that the attestation process succeeds only when the parent instance has the correct IAM role.
+        /// pcr4 A measurement of the ID of the parent instance. Ensures that the attestation process succeeds only when the parent instance has a specific instance ID.
+        /// pcr8 A measurement of the signing certificate specified for the enclave image file. Ensures that the attestation process succeeds only when the enclave was booted from an enclave image file signed by a specific certificate.
         uint16 mask;
         /// The hash of `uint256(mask & 0x11f) || concat(pcr[i] if mask[i] else "" for i in (0, 1, 2, 3, 4, 8))`
         bytes32 hash;
