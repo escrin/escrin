@@ -23,6 +23,7 @@ export interface Runner {
 export type GetAttestationParams = {
   network: NetworkNameOrNetwork;
   identity: IdentityIdOrIdentity;
+  audience: Address;
   purpose?: 'acquire' | 'release';
 };
 
@@ -100,7 +101,7 @@ class RunnerInterface implements Runner {
       [
         [
           BigInt(network.chainId),
-          identity.registry,
+          params.audience,
           hexToBigInt(identity.id),
           !params.purpose || params.purpose === 'acquire' ? 1 : 0,
         ],

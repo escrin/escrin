@@ -55,9 +55,9 @@ abstract contract BaseNitroEnclavePermitter is Permitter {
         NE.UserData memory userdata = NE.verifyAttestationDocument(doc, _getPCRs(identity), nbf);
         if (IdentityId.unwrap(burnt[userdata.nonce]) != 0) revert DocAlreadyUsed();
         bytes32 leaf = keccak256(
-            bytes.concat(keccak256(abi.encode(block.chainid, identityRegistry, identity, !release)))
+            bytes.concat(keccak256(abi.encode(block.chainid, address(this), identity, !release)))
         );
-        (,bytes32[] memory proof) = abi.decode(context, (bytes,bytes32[]));
+        (, bytes32[] memory proof) = abi.decode(context, (bytes, bytes32[]));
         MerkleProof.verify(proof, userdata.merkleRoot, leaf);
         burnt[userdata.nonce] = identity;
     }
