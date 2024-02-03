@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, RwLock},
 };
 
@@ -22,6 +22,7 @@ struct State {
     permits: RwLock<HashMap<ShareGrantee, Permit>>,
     verifiers: RwLock<HashMap<PermitterIdentityLocator, VerionedVerifierConfig>>,
     chain: RwLock<HashMap<u64, ChainState>>,
+    nonces: RwLock<HashSet<Nonce>>,
 }
 
 impl Store for MemoryStore {
@@ -63,7 +64,11 @@ impl Store for MemoryStore {
         share: ShareId,
         recipient: Address,
         expiry: u64,
+        nonce: Nonce,
     ) -> Result<Option<Permit>, Error> {
+        if !self.state.nonces.write().unwrap().insert(nonce) {
+            return Ok(None);
+        }
         Ok(
             match self
                 .state

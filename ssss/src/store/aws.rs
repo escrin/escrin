@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use aws_sdk_dynamodb::{
     primitives::Blob,
-    types::AttributeValue::{self, B, N, S},
+    types::{
+        AttributeValue::{self, B, N, S},
+        Put, TransactWriteItem,
+    },
 };
 use rand::RngCore as _;
 
@@ -41,6 +44,7 @@ impl Client {
 
     naming_fn!(shares_table, "escrin-shares");
     naming_fn!(permits_table, "escrin-permits");
+    naming_fn!(nonces_table, "escrin-nonces");
     naming_fn!(verifiers_table, "escrin-verifiers");
     naming_fn!(chain_state_table, "escrin-chain-state");
     naming_fn!(kms_key, "alias/escrin-sek");
@@ -159,23 +163,70 @@ impl Store for Client {
         share: ShareId,
         recipient: Address,
         expiry: u64,
+        nonce: Nonce,
     ) -> Result<Option<Permit>, Error> {
+        let b_nonce = B(Blob::new(nonce));
         let n_exp = N(expiry.to_string());
+
+        let nonce_used = self
+            .db_client
+            .get_item()
+            .table_name(self.nonces_table())
+            .key("nonce", b_nonce.clone())
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)?
+            .item
+            .is_some();
+        if nonce_used {
+            return Ok(None);
+        }
+
         let res = self
             .db_client
-            .put_item()
-            .table_name(self.permits_table())
-            .item("share", share.into())
-            .item("expiry", n_exp.clone())
-            .item("recipient", address_to_value(&recipient))
-            .condition_expression("attribute_not_exists(expiry) OR expiry < :expiry")
-            .expression_attribute_values(":expiry", n_exp)
+            .transact_write_items()
+            .transact_items(
+                TransactWriteItem::builder()
+                    .put(
+                        Put::builder()
+                            .table_name(self.nonces_table())
+                            .item("nonce", b_nonce.clone())
+                            .build()?,
+                    )
+                    .build(),
+            )
+            .transact_items(
+                TransactWriteItem::builder()
+                    .put(
+                        Put::builder()
+                            .table_name(self.permits_table())
+                            .item("share", share.into())
+                            .item("expiry", n_exp.clone())
+                            .item("recipient", address_to_value(&recipient))
+                            .condition_expression(
+                                "attribute_not_exists(expiry) OR expiry < :expiry",
+                            )
+                            .expression_attribute_values(":expiry", n_exp)
+                            .build()?,
+                    )
+                    .build(),
+            )
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from);
         match res {
             Ok(_) => Ok(Some(Permit { expiry })),
-            Err(aws_sdk_dynamodb::Error::ConditionalCheckFailedException(_)) => Ok(None),
+            Err(aws_sdk_dynamodb::Error::TransactionCanceledException(_)) => {
+                // The current expiry is later than the provided one, but set the nonce anyway.
+                self.db_client
+                    .put_item()
+                    .table_name(self.nonces_table())
+                    .item("nonce", b_nonce)
+                    .send()
+                    .await
+                    .map_err(aws_sdk_dynamodb::Error::from)?;
+                Ok(None)
+            }
             Err(e) => Err(e.into()),
         }
     }

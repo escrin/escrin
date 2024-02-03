@@ -70,6 +70,29 @@ resource "aws_dynamodb_table" "permits" {
   deletion_protection_enabled = terraform.workspace != "dev"
 }
 
+resource "aws_dynamodb_table" "nonces" {
+  name           = "escrin-nonces-${terraform.workspace}"
+  read_capacity  = 2
+  write_capacity = 2
+  hash_key       = "nonce"
+
+  attribute {
+    name = "nonce"
+    type = "B"
+  }
+
+  ttl {
+    attribute_name = "expiry"
+    enabled        = true
+  }
+
+  point_in_time_recovery {
+    enabled = terraform.workspace != "dev"
+  }
+
+  deletion_protection_enabled = terraform.workspace != "dev"
+}
+
 resource "aws_dynamodb_table" "chain_state" {
   name           = "escrin-chain-state-${terraform.workspace}"
   read_capacity  = 1
@@ -122,15 +145,17 @@ resource "aws_iam_policy" "km_policy" {
         "kms:Encrypt",
         "kms:ReEncrypt",
         "kms:Decrypt",
-        "dynamodb:Query",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
         "dynamodb:GetItem",
         "dynamodb:PutItem",
-        "dynamodb:DeleteItem"
+        "dynamodb:Query"
       ],
       "Resource": [
         "${aws_kms_key.sek.arn}",
         "${aws_dynamodb_table.shares.arn}",
         "${aws_dynamodb_table.permits.arn}",
+        "${aws_dynamodb_table.nonces.arn}",
         "${aws_dynamodb_table.verifiers.arn}",
         "${aws_dynamodb_table.chain_state.arn}"
       ]

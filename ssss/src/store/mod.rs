@@ -11,6 +11,8 @@ use crate::{cli, types::*};
 
 const SHARE_SIZE: usize = 32;
 
+type Nonce = Vec<u8>;
+
 pub trait Store: Clone + Send + Sync {
     async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error>;
 
@@ -24,6 +26,7 @@ pub trait Store: Clone + Send + Sync {
         share: ShareId,
         recipient: Address,
         expiry: u64,
+        nonce: Nonce,
     ) -> Result<Option<Permit>, Error>;
 
     async fn read_permit(
@@ -115,10 +118,11 @@ impl Store for DynStore {
         share: ShareId,
         recipient: Address,
         expiry: u64,
+        nonce: Nonce,
     ) -> Result<Option<Permit>, Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.create_permit(share, recipient, expiry).await,
-            DynStoreKind::Memory(s) => s.create_permit(share, recipient, expiry).await,
+            DynStoreKind::Aws(s) => s.create_permit(share, recipient, expiry, nonce).await,
+            DynStoreKind::Memory(s) => s.create_permit(share, recipient, expiry, nonce).await,
             DynStoreKind::Local => todo!(),
         }
     }
@@ -254,6 +258,7 @@ mod tests {
                 roundtrip_permit,
                 refresh_permit,
                 expired_permit,
+                used_nonce_permit,
                 defresh_permit_fail,
                 delete_defresh_permit,
                 roundtrip_chain_state,
@@ -361,7 +366,26 @@ mod tests {
     where
         Fut: futures::Future<Output = T> + 'a,
     {
-        let permit = store.create_permit(share, recipient, expiry).await.unwrap();
+        let mut nonce = vec![0u8; 32];
+        rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
+        with_permit_nonce(store, share, recipient, expiry, f, nonce).await
+    }
+
+    async fn with_permit_nonce<'a, S: Store, Fut, T>(
+        store: &'a S,
+        share: ShareId,
+        recipient: Address,
+        expiry: u64,
+        f: impl FnOnce(&'a S, Permit) -> Fut,
+        nonce: Vec<u8>,
+    ) -> Option<T>
+    where
+        Fut: futures::Future<Output = T> + 'a,
+    {
+        let permit = store
+            .create_permit(share, recipient, expiry, nonce)
+            .await
+            .unwrap();
         match permit {
             Some(p) => {
                 let res = f(store, p).await;
@@ -416,6 +440,30 @@ mod tests {
         .await
         .unwrap()
         .unwrap();
+    }
+
+    pub async fn used_nonce_permit(store: impl Store) {
+        let share = mock_share();
+        let recipient = Address::random();
+        let expiry = now() - 60;
+        let nonce = vec![1u8; 32];
+
+        with_permit_nonce(
+            &store,
+            share,
+            recipient,
+            expiry,
+            |_, _| async {},
+            nonce.clone(),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            with_permit_nonce(&store, share, recipient, expiry, |_, _| async {}, nonce)
+                .await
+                .is_none()
+        );
     }
 
     pub async fn refresh_permit(store: impl Store) {
