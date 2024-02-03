@@ -7,7 +7,7 @@ pub trait ToKey: Copy {
 pub type ShareVersion = u64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct IdentityId(H256);
+pub struct IdentityId(pub H256);
 
 impl From<H256> for IdentityId {
     fn from(h: H256) -> Self {

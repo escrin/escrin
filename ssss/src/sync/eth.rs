@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use ethers::{
-    abi::{AbiDecode, Bytes},
+    abi::AbiDecode,
     contract::EthLogDecode as _,
     providers::{
         Http, HttpRateLimitRetryPolicy, JsonRpcClient as _, Middleware as _,
@@ -141,7 +141,7 @@ impl SsssPermitter {
             retry_if(|| self.provider.get_transaction(tx), |tx| tx).await;
         let kind = match event {
             SsssPermitterContractEvents::ConfigurationFilter(_) => {
-                let (identity, config): (H256, Bytes) = AbiDecode::decode(input).unwrap();
+                let (identity, config): (H256, Vec<u8>) = AbiDecode::decode(input).unwrap();
                 EventKind::Configuration(ConfigurationEvent {
                     identity: identity.into(),
                     config,
@@ -152,11 +152,12 @@ impl SsssPermitter {
                     H256,
                     Address,
                     u64,
-                    Bytes,
-                    Bytes,
+                    Vec<u8>,
+                    Vec<u8>,
                 ) = AbiDecode::decode(input).unwrap();
                 EventKind::PermitRequest(PermitRequestEvent {
                     kind: PermitRequestKind::Grant { duration },
+                    permitter: self.address,
                     identity: identity.into(),
                     requester: from,
                     recipient,
@@ -165,10 +166,15 @@ impl SsssPermitter {
                 })
             }
             SsssPermitterContractEvents::RevokePermitRequestedFilter(_) => {
-                let (identity, recipient, context, authorization): (H256, Address, Bytes, Bytes) =
-                    AbiDecode::decode(input).unwrap();
+                let (identity, recipient, context, authorization): (
+                    H256,
+                    Address,
+                    Vec<u8>,
+                    Vec<u8>,
+                ) = AbiDecode::decode(input).unwrap();
                 EventKind::PermitRequest(PermitRequestEvent {
                     kind: PermitRequestKind::Revoke,
+                    permitter: self.address,
                     identity: identity.into(),
                     requester: from,
                     recipient,
@@ -246,6 +252,7 @@ pub enum EventKind {
 #[derive(Clone, Debug)]
 pub struct PermitRequestEvent {
     pub kind: PermitRequestKind,
+    pub permitter: Address,
     pub identity: IdentityId,
     pub requester: Address,
     pub recipient: Address,
@@ -266,7 +273,7 @@ impl PermitRequestEvent {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PermitRequestKind {
     Grant { duration: u64 },
     Revoke,

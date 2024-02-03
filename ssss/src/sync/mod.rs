@@ -10,11 +10,12 @@ use futures::stream::StreamExt as _;
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, trace, warn};
 
-pub use self::eth::PermitRequestEvent;
+pub use self::eth::{PermitRequestEvent, PermitRequestKind};
 use crate::{
     store::Store,
     types::{ChainState, ChainStateUpdate, PermitterLocator},
-    utils::retry,
+    utils::{retry, retry_times},
+    verify::Verifier as _,
 };
 
 #[tracing::instrument(skip_all)]
@@ -86,10 +87,32 @@ async fn sync_chain<S: Store + 'static>(
         .flatten()
         .for_each(|event| async move {
             match event.kind {
-                eth::EventKind::PermitRequest(action) => {
-                    let pass = match action.selector().as_deref() {
+                eth::EventKind::PermitRequest(req) => {
+                    let policy_result = retry_times(
+                        || {
+                            store.get_verifier(
+                                PermitterLocator::new(chain_id, permitter.address),
+                                req.identity,
+                            )
+                        },
+                        Some,
+                        Some(3),
+                    )
+                    .await;
+                    let policy = match policy_result {
+                        Ok(p) => p.unwrap_or_default(),
+                        Err(e) => {
+                            error!("failed to fetch policy: {e}");
+                            return;
+                        }
+                    };
+                    let pass = match req.selector().as_deref() {
                         #[cfg(feature = "aws")]
-                        Some("nitro") => crate::verify::nitro::verify(action).await,
+                        Some("nitro") => {
+                            crate::verify::NitroEnclaveVerifier
+                                .verify(req, &policy)
+                                .await
+                        }
                         _ => {
                             warn!(
                                 "encountered unknown context in: {}",
@@ -103,9 +126,7 @@ async fn sync_chain<S: Store + 'static>(
                     }
                     todo!()
                 }
-                eth::EventKind::Configuration(eth::ConfigurationEvent {
-                    identity, config, ..
-                }) => {
+                eth::EventKind::Configuration(eth::ConfigurationEvent { identity, config }) => {
                     retry(|| {
                         store.update_verifier(
                             PermitterLocator::new(chain_id, permitter.address),
