@@ -177,9 +177,18 @@ impl Store for Client {
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?
             .item
+            .and_then(|v| (unpack_u64("expiry", &v) > now()).then_some(()))
             .is_some();
         if nonce_used {
             return Ok(None);
+        }
+
+        macro_rules! add_put_nonce_items {
+            ($inp:expr) => {
+                $inp.table_name(self.nonces_table())
+                    .item("nonce", b_nonce.clone())
+                    .item("expiry", n_exp.clone())
+            };
         }
 
         let res = self
@@ -187,12 +196,7 @@ impl Store for Client {
             .transact_write_items()
             .transact_items(
                 TransactWriteItem::builder()
-                    .put(
-                        Put::builder()
-                            .table_name(self.nonces_table())
-                            .item("nonce", b_nonce.clone())
-                            .build()?,
-                    )
+                    .put(add_put_nonce_items!(Put::builder()).build()?)
                     .build(),
             )
             .transact_items(
@@ -206,7 +210,7 @@ impl Store for Client {
                             .condition_expression(
                                 "attribute_not_exists(expiry) OR expiry < :expiry",
                             )
-                            .expression_attribute_values(":expiry", n_exp)
+                            .expression_attribute_values(":expiry", n_exp.clone())
                             .build()?,
                     )
                     .build(),
@@ -218,10 +222,7 @@ impl Store for Client {
             Ok(_) => Ok(Some(Permit { expiry })),
             Err(aws_sdk_dynamodb::Error::TransactionCanceledException(_)) => {
                 // The current expiry is later than the provided one, but set the nonce anyway.
-                self.db_client
-                    .put_item()
-                    .table_name(self.nonces_table())
-                    .item("nonce", b_nonce)
+                add_put_nonce_items!(self.db_client.put_item())
                     .send()
                     .await
                     .map_err(aws_sdk_dynamodb::Error::from)?;
@@ -252,11 +253,7 @@ impl Store for Client {
             .first()
             .and_then(|v| {
                 let expiry = unpack_u64("expiry", v);
-                if expiry <= now() {
-                    None
-                } else {
-                    Some(Permit { expiry })
-                }
+                (expiry > now()).then_some(Permit { expiry })
             }))
     }
 

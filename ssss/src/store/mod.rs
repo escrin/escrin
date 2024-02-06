@@ -410,7 +410,7 @@ mod tests {
     pub async fn roundtrip_permit(store: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
-        let expiry = now() + 240;
+        let expiry = now() + 20;
         with_permit(
             &store,
             share,
@@ -445,8 +445,9 @@ mod tests {
     pub async fn used_nonce_permit(store: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
-        let expiry = now() - 60;
-        let nonce = vec![1u8; 32];
+        let expiry = now() + 5;
+        let mut nonce = vec![0u8; 32];
+        rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
 
         with_permit_nonce(
             &store,
@@ -469,8 +470,8 @@ mod tests {
     pub async fn refresh_permit(store: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
-        let expiry_soon = now() + 60;
-        let expiry_far = now() + 120;
+        let expiry_soon = now() + 5;
+        let expiry_far = now() + 10;
         with_permit(
             &store,
             share,
@@ -498,8 +499,8 @@ mod tests {
     pub async fn defresh_permit_fail(store: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
-        let expiry_soon = now() + 60;
-        let expiry_far = now() + 120;
+        let expiry_soon = now() + 5;
+        let expiry_far = now() + 10;
         with_permit(
             &store,
             share,
@@ -520,8 +521,8 @@ mod tests {
     pub async fn delete_defresh_permit(store: impl Store) {
         let share = mock_share();
         let recipient = Address::random();
-        let expiry_soon = now() + 60;
-        let expiry_far = now() + 120;
+        let expiry_soon = now() + 5;
+        let expiry_far = now() + 10;
         with_permit(
             &store,
             share,
