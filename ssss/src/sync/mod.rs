@@ -29,7 +29,7 @@ pub async fn run(
 
     for (chain, provider) in providers.into_iter() {
         let store = store.clone();
-        let permitter = eth::SsssPermitter::new(permitter_addr, provider);
+        let permitter = eth::SsssPermitter::new(chain, permitter_addr, provider);
         trace!("launching task for chain {chain}");
         tokio::spawn(async move {
             loop {

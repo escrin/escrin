@@ -35,15 +35,17 @@ ethers::contract::abigen!(
 
 #[derive(Clone)]
 pub struct SsssPermitter {
+    pub chain: u64,
     pub address: Address,
     contract: SsssPermitterContract<Provider>,
     provider: Arc<Provider>,
 }
 
 impl SsssPermitter {
-    pub fn new(address: Address, provider: Provider) -> Self {
+    pub fn new(chain: u64, address: Address, provider: Provider) -> Self {
         let provider = Arc::new(provider);
         Self {
+            chain,
             address,
             contract: SsssPermitterContract::new(address, provider.clone()),
             provider,
@@ -157,6 +159,7 @@ impl SsssPermitter {
                 ) = AbiDecode::decode(input).unwrap();
                 EventKind::PermitRequest(PermitRequestEvent {
                     kind: PermitRequestKind::Grant { duration },
+                    chain: self.chain,
                     permitter: self.address,
                     identity: identity.into(),
                     requester: from,
@@ -174,6 +177,7 @@ impl SsssPermitter {
                 ) = AbiDecode::decode(input).unwrap();
                 EventKind::PermitRequest(PermitRequestEvent {
                     kind: PermitRequestKind::Revoke,
+                    chain: self.chain,
                     permitter: self.address,
                     identity: identity.into(),
                     requester: from,
@@ -252,6 +256,7 @@ pub enum EventKind {
 #[derive(Clone, Debug)]
 pub struct PermitRequestEvent {
     pub kind: PermitRequestKind,
+    pub chain: u64,
     pub permitter: Address,
     pub identity: IdentityId,
     pub requester: Address,

@@ -26,6 +26,7 @@ impl Verifier for NitroEnclaveVerifier {
 
         let binding = ethers::core::utils::keccak256(
             (
+                req.chain,
                 req.permitter,
                 req.identity.0,
                 req.recipient,
