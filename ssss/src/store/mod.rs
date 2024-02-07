@@ -13,10 +13,13 @@ const SHARE_SIZE: usize = 32;
 
 type Nonce = Vec<u8>;
 
-pub trait Store: Clone + Send + Sync {
+pub trait Store: Clone + Send + Sync + 'static {
     async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error>;
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error>;
+    fn get_share(
+        &self,
+        share: ShareId,
+    ) -> impl Future<Output = Result<Option<SecretShare>, Error>> + Send;
 
     #[cfg(test)]
     async fn destroy_share(&self, share: ShareId) -> Result<(), Error>;
@@ -29,11 +32,11 @@ pub trait Store: Clone + Send + Sync {
         nonce: Nonce,
     ) -> Result<Option<Permit>, Error>;
 
-    async fn read_permit(
+    fn read_permit(
         &self,
         share: ShareId,
         recipient: Address,
-    ) -> Result<Option<Permit>, Error>;
+    ) -> impl Future<Output=Result<Option<Permit>, Error>> + Send;
 
     async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error>;
 
@@ -96,7 +99,7 @@ impl Store for DynStore {
         }
     }
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error> {
+    async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
         match &self.inner {
             DynStoreKind::Aws(s) => s.get_share(share).await,
             DynStoreKind::Memory(s) => s.get_share(share).await,

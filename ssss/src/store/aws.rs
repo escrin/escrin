@@ -118,7 +118,7 @@ impl Store for Client {
         Ok(())
     }
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error> {
+    async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
         let maybe_enc_share = self
             .db_client
             .query()

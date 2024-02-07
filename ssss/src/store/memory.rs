@@ -38,7 +38,7 @@ impl Store for MemoryStore {
         })
     }
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<WrappedShare>, Error> {
+    async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
         Ok(
             match self.state.shares.read().unwrap().get(&share.identity) {
                 Some(versions) if versions.len() >= share.version as usize => {
