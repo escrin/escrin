@@ -1,4 +1,5 @@
 use ethers::types::{Address, H256};
+use serde::{Deserialize, Serialize};
 
 pub trait ToKey: Copy {
     fn to_key(self) -> String;
@@ -6,7 +7,8 @@ pub trait ToKey: Copy {
 
 pub type ShareVersion = u64;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct IdentityId(pub H256);
 
 impl From<H256> for IdentityId {
@@ -35,7 +37,7 @@ impl ToKey for IdentityId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentityLocator {
     pub chain: u64,
     pub registry: Address,
@@ -53,7 +55,7 @@ impl ToKey for IdentityLocator {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ShareId {
     pub identity: IdentityLocator,
     pub version: ShareVersion,
@@ -102,9 +104,15 @@ pub struct ChainStateUpdate {
 
 #[derive(zeroize::Zeroize)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
-pub struct WrappedShare(Vec<u8>);
+pub struct SecretShare(Vec<u8>);
 
-impl From<Vec<u8>> for WrappedShare {
+impl SecretShare {
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+}
+
+impl From<Vec<u8>> for SecretShare {
     fn from(bytes: Vec<u8>) -> Self {
         Self(bytes)
     }

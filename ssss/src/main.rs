@@ -37,10 +37,10 @@ async fn main() -> Result<(), Error> {
     let store = store::create(args.store, args.env).await;
 
     trace!("running sync tasks");
-    sync::run(store, args.gateway.iter(), args.permitter).await?;
+    sync::run(store.clone(), args.gateway.iter(), args.permitter).await?;
 
     trace!("starting API task");
-    let api_task = api::serve(args.port);
+    let api_task = api::serve(store, args.port);
 
     tokio::join!(api_task);
 
