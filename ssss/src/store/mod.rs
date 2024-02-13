@@ -24,21 +24,25 @@ pub trait Store: Clone + Send + Sync + 'static {
     #[cfg(test)]
     async fn destroy_share(&self, share: ShareId) -> Result<(), Error>;
 
-    async fn create_permit(
+    fn create_permit(
         &self,
         share: ShareId,
         recipient: Address,
         expiry: u64,
         nonce: Nonce,
-    ) -> Result<Option<Permit>, Error>;
+    ) -> impl Future<Output = Result<Option<Permit>, Error>> + Send;
 
     fn read_permit(
         &self,
         share: ShareId,
         recipient: Address,
-    ) -> impl Future<Output=Result<Option<Permit>, Error>> + Send;
+    ) -> impl Future<Output = Result<Option<Permit>, Error>> + Send;
 
-    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error>;
+    fn delete_permit(
+        &self,
+        share: ShareId,
+        recipient: Address,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn get_chain_state(
         &self,

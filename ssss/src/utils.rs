@@ -7,7 +7,7 @@ where
     E: std::fmt::Display,
     Fut: Future<Output = Result<T, E>>,
 {
-    retry_times(f, Some, None).await.unwrap()
+    do_retry(f, Some, None).await.unwrap()
 }
 
 pub async fn retry_if<T, E, U, Fut>(f: impl Fn() -> Fut, map_done: impl Fn(T) -> Option<U>) -> U
@@ -15,10 +15,21 @@ where
     E: std::fmt::Display,
     Fut: Future<Output = Result<T, E>>,
 {
-    retry_times(f, map_done, None).await.unwrap()
+    do_retry(f, map_done, None).await.unwrap()
 }
 
-pub async fn retry_times<T, E, U, Fut>(
+pub async fn retry_times<T, E, Fut>(
+    f: impl Fn() -> Fut,
+    limit: u64,
+) -> Result<T, RetriesExceeded>
+where
+    E: std::fmt::Display,
+    Fut: Future<Output = Result<T, E>>,
+{
+    do_retry(f, Some, Some(limit)).await
+}
+
+async fn do_retry<T, E, U, Fut>(
     f: impl Fn() -> Fut,
     map_done: impl Fn(T) -> Option<U>,
     limit: Option<u64>,

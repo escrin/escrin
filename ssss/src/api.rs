@@ -1,10 +1,13 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
 use axum::{
-    extract::State,
-    http::StatusCode,
+    extract::{Path, Query, State},
+    http::{
+        header::{self, HeaderMap},
+        Method, StatusCode,
+    },
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{any, delete, get, post},
     Json, Router,
 };
 use ethers::{
@@ -12,28 +15,54 @@ use ethers::{
     types::{transaction::eip712::Eip712, Address, H256},
 };
 use serde::{Deserialize, Serialize};
+use tower_http::cors;
 
-use crate::{store::Store, types::ShareId};
+use crate::{store::Store, types::*, utils::retry_times, verify};
 
 #[derive(Clone)]
 struct AppState<S> {
     store: S,
 }
 
-#[derive(Debug)]
-struct Error(anyhow::Error);
-
-impl<T: Into<anyhow::Error>> From<T> for Error {
-    fn from(e: T) -> Self {
-        Self(e.into())
-    }
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("{0}")]
+    BadRequest(String),
+    #[error("unable to find the requested {0}")]
+    NotFound(String),
+    #[error("{0}")]
+    Unauthorized(String),
+    #[error("{0}")]
+    Forbidden(String),
+    #[error("internal server error")]
+    Unhandled(#[from] anyhow::Error),
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        tracing::error!(error = ?self.0, "api error");
-        StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        if let Error::Unhandled(e) = &self {
+            tracing::error!(error = ?e, "api error");
+        }
+        let status_code = match self {
+            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Self::Forbidden(_) => StatusCode::FORBIDDEN,
+            Self::Unhandled(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        (
+            status_code,
+            Json(ErrorResponse {
+                error: self.to_string(),
+            }),
+        )
+            .into_response()
     }
+}
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
 }
 
 pub async fn serve<S: Store>(store: S, port: u16) {
@@ -46,9 +75,28 @@ pub async fn serve<S: Store>(store: S, port: u16) {
 
 fn make_router<S: Store>(state: AppState<S>) -> Router {
     Router::new()
-        .route("/", get(root))
-        .route("/omni-key", post(get_omni_key))
+        .route("/", any(root))
+        .nest(
+            "v1",
+            Router::new()
+                .nest(
+                    "/permits/:chain/:registry/:identity",
+                    Router::new()
+                        .route("/", post(acqrel_identity))
+                        .route("/", delete(acqrel_identity)),
+                )
+                .route(
+                    "/v1/shares/omni/:chain/:registry/:identity",
+                    get(get_omni_key_share),
+                ),
+        )
         .layer(tower_http::trace::TraceLayer::new_for_http())
+        .layer(
+            cors::CorsLayer::new()
+                .allow_methods([Method::GET, Method::POST, Method::DELETE])
+                .allow_origin(cors::Any)
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]),
+        )
         .with_state(state)
 }
 
@@ -56,47 +104,163 @@ async fn root() -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-async fn get_omni_key<S: Store>(
+async fn acqrel_identity<S: Store>(
+    method: Method,
+    Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
     State(AppState { store }): State<AppState<S>>,
-    Json(OmniKeyRequest { share, signature }): Json<OmniKeyRequest>,
-) -> Result<Result<Json<OmniKeyResponse>, StatusCode>, Error> {
+    Json(AcqRelIdentityRequest {
+        duration,
+        authorization,
+        context,
+        permitter,
+        recipient,
+    }): Json<AcqRelIdentityRequest>,
+) -> Result<Json<AcqRelIdentityResponse>, Error> {
+    let policy_bytes = retry_times(
+        || store.get_verifier(PermitterLocator::new(chain, permitter), identity),
+        3,
+    )
+    .await
+    .map_err(anyhow::Error::from)?
+    .ok_or_else(|| Error::NotFound("policy not found".into()))?;
+
+    let identity_locator = IdentityLocator {
+        chain,
+        registry,
+        id: identity,
+    };
+    let verification = verify::verify(
+        &policy_bytes,
+        match method {
+            Method::GET => verify::RequestKind::Grant { duration },
+            Method::DELETE => verify::RequestKind::Revoke,
+            _ => unreachable!(),
+        },
+        identity_locator,
+        recipient,
+        &context,
+        &authorization,
+    )
+    .await
+    .map_err(|e| Error::Unauthorized(e.to_string()))?;
+
+    let share = ShareId {
+        identity: identity_locator,
+        version: 0,
+    };
+    Ok(Json(match method {
+        Method::GET => {
+            let expiry = verification
+                .expiry
+                .ok_or_else(|| Error::Unauthorized("verification failed".into()))?;
+            let permit = retry_times(
+                || store.create_permit(share, recipient, expiry, verification.nonce.clone()),
+                3,
+            )
+            .await
+            .map_err(anyhow::Error::from)?
+            .ok_or_else(|| {
+                Error::Unauthorized(
+                    "permit not created. maybe the nonce was already consumed".into(),
+                )
+            })?;
+            // TODO: call permitter to approve
+            AcqRelIdentityResponse {
+                permit: Some(permit),
+            }
+        }
+        Method::DELETE => {
+            retry_times(|| store.delete_permit(share, recipient), 3)
+                .await
+                .map_err(anyhow::Error::from)?;
+            AcqRelIdentityResponse { permit: None }
+        }
+        _ => unreachable!(),
+    }))
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct AcqRelIdentityRequest {
+    #[serde(default)]
+    duration: u64,
+    #[serde(with = "hex::serde")]
+    authorization: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    context: Vec<u8>,
+    permitter: Address,
+    recipient: Address,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct AcqRelIdentityResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    permit: Option<Permit>,
+}
+
+fn extract_header<T>(
+    headers: &HeaderMap,
+    header: &'static str,
+    mapper: impl FnOnce(&str) -> anyhow::Result<T>,
+) -> Result<T, Error> {
+    let header_str = headers
+        .get(header)
+        .ok_or(Error::BadRequest(format!("missing `{header}` header")))?
+        .to_str()
+        .map_err(|_| Error::BadRequest(format!("invalid `${header}` header")))?;
+    mapper(header_str).map_err(|e| Error::BadRequest(format!("invalid `{header}` header: {e}")))
+}
+
+async fn get_omni_key_share<S: Store>(
+    headers: HeaderMap,
+    Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
+    Query(GetOmniKeyQuery { share_version }): Query<GetOmniKeyQuery>,
+    State(AppState { store }): State<AppState<S>>,
+) -> Result<Json<OmniKeyResponse>, Error> {
+    let sig: ethers::types::Signature = extract_header(&headers, "signature", |h| {
+        let sig_bytes = hex::decode(h)?;
+        Ok(sig_bytes.as_slice().try_into()?)
+    })?;
+    let host = extract_header(&headers, "host", |h: &str| Ok(h.to_string()))?;
+
     let req721_hash = H256(
         OmniKeyRequest721 {
-            chain: share.identity.chain,
-            registry: share.identity.registry,
-            identity: share.identity.id.0,
-            share_version: share.version,
+            audience: host,
+            chain,
+            registry,
+            identity: identity.0,
+            share_version,
         }
         .encode_eip712()
         .unwrap(),
     );
-    let sig: ethers::types::Signature = match signature.as_ref().try_into() {
-        Ok(sig) => sig,
-        Err(_) => return Ok(Err(StatusCode::BAD_REQUEST)),
+    let requester = sig
+        .recover(req721_hash)
+        .map_err(|_| Error::Forbidden("invalid eip712 signature".into()))?;
+    let share_id = ShareId {
+        identity: IdentityLocator {
+            chain,
+            registry,
+            id: identity,
+        },
+        version: share_version,
     };
-    let requester = match sig.recover(req721_hash) {
-        Ok(a) => a,
-        Err(_) => return Ok(Err(StatusCode::FORBIDDEN)),
-    };
-    if store.read_permit(share, requester).await?.is_none() {
-        return Ok(Err(StatusCode::UNAUTHORIZED));
-    }
-    let share = match store.get_share(share).await? {
-        Some(s) => s.to_vec(),
-        None => return Ok(Err(StatusCode::NOT_FOUND)),
-    };
-    Ok(Ok(Json(OmniKeyResponse {
-        share: share.into(),
-    })))
+    store
+        .read_permit(share_id, requester)
+        .await?
+        .ok_or_else(|| Error::Unauthorized("no acceptable permit found".into()))?;
+    let share = store
+        .get_share(share_id)
+        .await?
+        .ok_or_else(|| Error::NotFound("share not found".into()))?;
+    Ok(Json(OmniKeyResponse {
+        share: share.to_vec().into(),
+    }))
 }
 
-type EthSignatureBytes = [u8; 65];
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct OmniKeyRequest {
-    share: ShareId,
-    #[serde(with = "hex::serde")]
-    signature: EthSignatureBytes,
+struct GetOmniKeyQuery {
+    #[serde(rename = "version")]
+    share_version: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -113,6 +277,7 @@ struct OmniKeyResponse {
     verifying_contract = "0x0000000000000000000000000000000000000000"
 )]
 pub struct OmniKeyRequest721 {
+    audience: String,
     chain: u64,
     registry: Address,
     identity: H256,

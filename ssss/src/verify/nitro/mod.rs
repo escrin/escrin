@@ -1,13 +1,15 @@
 use std::{collections::HashMap, sync::LazyLock};
 
-use ethers::{abi::AbiEncode as _, types::U256};
+use anyhow::anyhow;
+use ethers::{
+    abi::AbiEncode as _,
+    types::{H256, U256},
+};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use tracing::warn;
 use webpki::types::{CertificateDer, UnixTime};
 
 use super::*;
-use crate::sync::{PermitRequestEvent, PermitRequestKind};
 
 static CA_CERT_DER: &[u8] = include_bytes!("./root.der");
 static CA_CERT: LazyLock<CertificateDer<'static>> = LazyLock::new(|| CA_CERT_DER.into());
@@ -18,37 +20,50 @@ static ANCHORS: LazyLock<Vec<webpki::types::TrustAnchor<'static>>> =
 pub struct NitroEnclaveVerifier;
 
 impl Verifier for NitroEnclaveVerifier {
-    async fn verify(&self, req: PermitRequestEvent, policy_bytes: &[u8]) -> Option<Verification> {
-        // TODO: filter identities that are not registered with this SSSS
-        let PermitRequestEvent { authorization, .. } = req;
+    async fn verify(
+        &self,
+        policy_bytes: &[u8],
+        req: RequestKind,
+        identity: IdentityLocator,
+        recipient: Address,
+        authorization: &[u8],
+        _context: &[u8],
+    ) -> Result<Verification, Error> {
+        let policy: Policy = ciborium::from_reader(policy_bytes)
+            .map_err(|e| Error::PolicyDecode(anyhow::Error::from(e)))?;
 
-        let policy: Policy = ciborium::from_reader(policy_bytes).ok()?;
+        let (ud, pcrs) = Self::verify_attestation_document(authorization, UnixTime::now())?;
+        let binding = (ud.user_data.len() >= H256::len_bytes())
+            .then(|| &ud.user_data[0..H256::len_bytes()])
+            .ok_or(Error::InvalidBinding)?;
 
-        let binding = ethers::core::utils::keccak256(
+        let expected_binding = ethers::core::utils::keccak256(
             (
-                req.chain,
-                req.permitter,
-                req.identity.0,
-                req.recipient,
-                match req.kind {
-                    PermitRequestKind::Revoke => U256::zero(),
-                    PermitRequestKind::Grant { duration } => U256::from(duration),
+                identity.chain,
+                identity.registry,
+                identity.id.0,
+                recipient,
+                match req {
+                    RequestKind::Revoke => U256::zero(),
+                    RequestKind::Grant { duration } => U256::from(duration),
                 },
             )
                 .encode(),
         );
 
-        let (ud, pcrs) = Self::verify_attestation_document(&authorization, UnixTime::now())?;
-
-        if ud.user_data.len() < binding.len() || ud.user_data[0..binding.len()] != binding {
-            return None;
+        if binding != expected_binding {
+            return Err(Error::BindingMismatch(SmallVec::from_buf(expected_binding)));
         }
 
         policy.pcrs.check(&pcrs)?;
 
-        Some(Verification {
+        Ok(Verification {
             nonce: ud.nonce,
             public_key: ud.public_key,
+            expiry: match req {
+                RequestKind::Grant { duration } => Some(duration.min(policy.max_duration)),
+                RequestKind::Revoke => None,
+            },
         })
     }
 }
@@ -57,21 +72,28 @@ impl NitroEnclaveVerifier {
     fn verify_attestation_document(
         doc_bytes: &[u8],
         now: UnixTime,
-    ) -> Option<(AttestationUserData, HashMap<usize, Pcr>)> {
-        let sign1 = <coset::CoseSign1 as coset::CborSerializable>::from_slice(doc_bytes).ok()?;
+    ) -> Result<(AttestationUserData, HashMap<usize, Pcr>), Error> {
+        let sign1 = <coset::CoseSign1 as coset::CborSerializable>::from_slice(doc_bytes)
+            .map_err(|e| Error::AttestationDecode(anyhow::Error::from(e)))?;
 
-        let doc: AttestationDocument = ciborium::from_reader(sign1.payload.as_deref()?).unwrap();
+        let doc: AttestationDocument = ciborium::from_reader(
+            sign1
+                .payload
+                .as_deref()
+                .ok_or_else(|| Error::AttestationDecode(anyhow!("missing Sign1 payload")))?,
+        )
+        .unwrap();
 
         if doc.digest != "SHA384" {
-            warn!(
-                "received unsupported digest in attestation document: {}",
+            return Err(Error::AttestationDecode(anyhow!(
+                "unsupported attesation digest: {}",
                 doc.digest
-            );
-            return None;
+            )));
         }
 
         let cert_der = doc.certificate.into();
-        let ee_cert = webpki::EndEntityCert::try_from(&cert_der).ok()?;
+        let ee_cert = webpki::EndEntityCert::try_from(&cert_der)
+            .map_err(|e| Error::AttestationDecode(anyhow::Error::from(e)))?;
         ee_cert
             .verify_for_usage(
                 webpki::ALL_VERIFICATION_ALGS,
@@ -86,13 +108,13 @@ impl NitroEnclaveVerifier {
                 None, // TODO: support CRL
                 None,
             )
-            .ok()?;
+            .map_err(|e| Error::AttestationDecode(anyhow::Error::from(e)))?;
 
         sign1
             .verify_signature(&[], |sig, data| ee_cert.verify_signature(&ES384, data, sig))
-            .ok()?;
+            .map_err(|e| Error::AttestationDecode(anyhow::Error::from(e)))?;
 
-        Some((
+        Ok((
             AttestationUserData {
                 user_data: doc.user_data,
                 public_key: doc.public_key,
@@ -133,6 +155,7 @@ struct AttestationUserData {
 struct Policy {
     version: u8,
     pcrs: PolicyPcrs,
+    max_duration: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -158,7 +181,7 @@ struct PolicyPcrs {
 }
 
 impl PolicyPcrs {
-    fn check(&self, pcr_map: &HashMap<usize, Pcr>) -> Option<()> {
+    fn check(&self, pcr_map: &HashMap<usize, Pcr>) -> Result<(), Error> {
         let PolicyPcrs {
             pcr0,
             pcr1,
@@ -171,15 +194,15 @@ impl PolicyPcrs {
             ($($pcr:literal),+ $(,)?) => {
                 $(
                     if let Some(expected_pcr) = &paste::paste!([< pcr $pcr >]) {
-                        if pcr_map.get(&$pcr)? != expected_pcr {
-                            return None;
+                        if pcr_map.get(&$pcr).ok_or(Error::PcrMismatch($pcr))? != expected_pcr {
+                            return Err(Error::PcrMismatch($pcr));
                         }
                     }
                 )+
             }
         }
         check_pcrs!(0, 1, 2, 3, 4, 8);
-        Some(())
+        Ok(())
     }
 }
 

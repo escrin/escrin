@@ -25,7 +25,7 @@ serde = { version = "1.0.195", features = ["derive"] }
 smallvec = { version = "1.12.0", features = ["const_generics", "serde"] }
 thiserror = "1.0.56"
 tokio = { version = "1.35.1", features = ["rt-multi-thread", "macros"] }
-tower-http = { version = "0.5.0", features = ["trace"] }
+tower-http = { version = "0.5.0", features = ["trace", "cors"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 url = { version = "2.5.0", features = ["serde"] }

@@ -5,6 +5,8 @@ pub trait ToKey: Copy {
     fn to_key(self) -> String;
 }
 
+pub type ChainId = u64;
+
 pub type ShareVersion = u64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -87,7 +89,7 @@ impl ToKey for PermitterLocator {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Permit {
     pub expiry: u64,
 }

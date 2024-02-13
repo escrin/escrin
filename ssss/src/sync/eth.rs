@@ -14,11 +14,9 @@ use smallvec::{smallvec, SmallVec};
 use tracing::{trace, warn};
 
 use crate::{
-    types::{EventIndex, IdentityId},
+    types::{ChainId, EventIndex, IdentityId},
     utils::{retry, retry_if},
 };
-
-pub type ChainId = u64;
 
 pub type Providers = HashMap<ChainId, Provider>;
 pub type Provider = EthersProvider<QuorumProvider<RetryClient<Http>>>;
@@ -27,8 +25,8 @@ ethers::contract::abigen!(
     SsssPermitterContract,
     r"[
         event Configuration()
-        event GrantPermitRequested()
-        event RevokePermitRequested()
+        event Unimplemented()
+
         function creationBlock() view returns (uint256)
     ]"
 );
@@ -139,7 +137,7 @@ impl SsssPermitter {
                 return None;
             }
         };
-        let Transaction { from, input, .. } =
+        let Transaction { input, .. } =
             retry_if(|| self.provider.get_transaction(tx), |tx| tx).await;
         let kind = match event {
             SsssPermitterContractEvents::ConfigurationFilter(_) => {
@@ -149,43 +147,7 @@ impl SsssPermitter {
                     config,
                 })
             }
-            SsssPermitterContractEvents::GrantPermitRequestedFilter(_) => {
-                let (identity, recipient, duration, context, authorization): (
-                    H256,
-                    Address,
-                    u64,
-                    Vec<u8>,
-                    Vec<u8>,
-                ) = AbiDecode::decode(input).unwrap();
-                EventKind::PermitRequest(PermitRequestEvent {
-                    kind: PermitRequestKind::Grant { duration },
-                    chain: self.chain,
-                    permitter: self.address,
-                    identity: identity.into(),
-                    requester: from,
-                    recipient,
-                    context,
-                    authorization,
-                })
-            }
-            SsssPermitterContractEvents::RevokePermitRequestedFilter(_) => {
-                let (identity, recipient, context, authorization): (
-                    H256,
-                    Address,
-                    Vec<u8>,
-                    Vec<u8>,
-                ) = AbiDecode::decode(input).unwrap();
-                EventKind::PermitRequest(PermitRequestEvent {
-                    kind: PermitRequestKind::Revoke,
-                    chain: self.chain,
-                    permitter: self.address,
-                    identity: identity.into(),
-                    requester: from,
-                    recipient,
-                    context,
-                    authorization,
-                })
-            }
+            _ => return None,
         };
         Some(Event {
             kind,
@@ -248,40 +210,14 @@ pub struct Event {
 
 #[derive(Clone, Debug)]
 pub enum EventKind {
-    PermitRequest(PermitRequestEvent),
     Configuration(ConfigurationEvent),
     ProcessedBlock,
-}
-
-#[derive(Clone, Debug)]
-pub struct PermitRequestEvent {
-    pub kind: PermitRequestKind,
-    pub chain: u64,
-    pub permitter: Address,
-    pub identity: IdentityId,
-    pub requester: Address,
-    pub recipient: Address,
-    pub context: Vec<u8>,
-    pub authorization: Vec<u8>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConfigurationEvent {
     pub identity: IdentityId,
     pub config: Vec<u8>,
-}
-
-impl PermitRequestEvent {
-    pub fn selector(&self) -> Option<String> {
-        let sel: String = AbiDecode::decode(&self.context).ok()?;
-        Some(sel)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PermitRequestKind {
-    Grant { duration: u64 },
-    Revoke,
 }
 
 #[derive(Debug, thiserror::Error)]
