@@ -3,6 +3,7 @@
 
 mod api;
 mod cli;
+mod eth;
 mod store;
 mod sync;
 mod types;
@@ -33,14 +34,21 @@ async fn main() -> Result<(), Error> {
 
     debug!(args = ?args, "loaded config");
 
+    trace!("loading providers");
+    let providers = eth::providers(args.gateway.iter()).await?;
+    let sssss: Vec<_> = providers
+        .into_iter()
+        .map(|(chain, provider)| eth::SsssPermitter::new(chain, args.permitter, provider))
+        .collect();
+
     trace!("creating store");
     let store = store::create(args.store, args.env).await;
 
     trace!("running sync tasks");
-    sync::run(store.clone(), args.gateway.iter(), args.permitter).await?;
+    sync::run(store.clone(), sssss.iter().cloned()).await?;
 
     trace!("starting API task");
-    let api_task = api::serve(store, args.port);
+    let api_task = api::serve(store, sssss.into_iter(), args.port);
 
     tokio::join!(api_task);
 

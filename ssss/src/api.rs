@@ -1,9 +1,12 @@
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::{
+    collections::HashMap,
+    net::{Ipv4Addr, SocketAddrV4},
+};
 
 use axum::{
     extract::{Path, Query, State},
     http::{
-        header::{self, HeaderMap},
+        header::{self, HeaderMap, HeaderName},
         Method, StatusCode,
     },
     response::{IntoResponse, Response},
@@ -17,11 +20,12 @@ use ethers::{
 use serde::{Deserialize, Serialize};
 use tower_http::cors;
 
-use crate::{store::Store, types::*, utils::retry_times, verify};
+use crate::{eth, store::Store, types::*, utils::retry_times, verify};
 
 #[derive(Clone)]
 struct AppState<S> {
     store: S,
+    sssss: HashMap<ChainId, eth::SsssPermitter>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -65,12 +69,18 @@ struct ErrorResponse {
     error: String,
 }
 
-pub async fn serve<S: Store>(store: S, port: u16) {
+pub async fn serve<S: Store>(store: S, sssss: impl Iterator<Item = eth::SsssPermitter>, port: u16) {
     let bind_addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port);
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();
-    axum::serve(listener, make_router(AppState { store }))
-        .await
-        .unwrap();
+    axum::serve(
+        listener,
+        make_router(AppState {
+            store,
+            sssss: sssss.map(|ssss| (ssss.chain, ssss)).collect(),
+        }),
+    )
+    .await
+    .unwrap();
 }
 
 fn make_router<S: Store>(state: AppState<S>) -> Router {
@@ -95,7 +105,11 @@ fn make_router<S: Store>(state: AppState<S>) -> Router {
             cors::CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST, Method::DELETE])
                 .allow_origin(cors::Any)
-                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]),
+                .allow_headers([
+                    header::CONTENT_TYPE,
+                    header::AUTHORIZATION,
+                    HeaderName::from_static("signature"),
+                ]),
         )
         .with_state(state)
 }
@@ -107,7 +121,7 @@ async fn root() -> StatusCode {
 async fn acqrel_identity<S: Store>(
     method: Method,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
-    State(AppState { store }): State<AppState<S>>,
+    State(AppState { store, sssss }): State<AppState<S>>,
     Json(AcqRelIdentityRequest {
         duration,
         authorization,
@@ -115,7 +129,11 @@ async fn acqrel_identity<S: Store>(
         permitter,
         recipient,
     }): Json<AcqRelIdentityRequest>,
-) -> Result<Json<AcqRelIdentityResponse>, Error> {
+) -> Result<StatusCode, Error> {
+    let ssss = sssss
+        .get(&chain)
+        .ok_or_else(|| Error::BadRequest(format!("unsupported chain: {chain}")))?;
+
     let policy_bytes = retry_times(
         || store.get_verifier(PermitterLocator::new(chain, permitter), identity),
         3,
@@ -132,7 +150,7 @@ async fn acqrel_identity<S: Store>(
     let verification = verify::verify(
         &policy_bytes,
         match method {
-            Method::GET => verify::RequestKind::Grant { duration },
+            Method::POST => verify::RequestKind::Grant { duration },
             Method::DELETE => verify::RequestKind::Revoke,
             _ => unreachable!(),
         },
@@ -148,12 +166,20 @@ async fn acqrel_identity<S: Store>(
         identity: identity_locator,
         version: 0,
     };
-    Ok(Json(match method {
-        Method::GET => {
+
+    // TODO: call permitter to approve or revoke
+
+    if ssss.upstream().await.map_err(anyhow::Error::from)? != registry {
+        return Ok(StatusCode::ACCEPTED);
+    }
+    // If the upstream of the SsssPermitter is the identity registry, it's
+    // safe to optimistically create the permit rather than waiting for quorum.
+    match method {
+        Method::POST => {
             let expiry = verification
                 .expiry
                 .ok_or_else(|| Error::Unauthorized("verification failed".into()))?;
-            let permit = retry_times(
+            retry_times(
                 || store.create_permit(share, recipient, expiry, verification.nonce.clone()),
                 3,
             )
@@ -164,19 +190,16 @@ async fn acqrel_identity<S: Store>(
                     "permit not created. maybe the nonce was already consumed".into(),
                 )
             })?;
-            // TODO: call permitter to approve
-            AcqRelIdentityResponse {
-                permit: Some(permit),
-            }
+            Ok(StatusCode::CREATED)
         }
         Method::DELETE => {
             retry_times(|| store.delete_permit(share, recipient), 3)
                 .await
                 .map_err(anyhow::Error::from)?;
-            AcqRelIdentityResponse { permit: None }
+            Ok(StatusCode::NO_CONTENT)
         }
         _ => unreachable!(),
-    }))
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -214,7 +237,7 @@ async fn get_omni_key_share<S: Store>(
     headers: HeaderMap,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
     Query(GetOmniKeyQuery { share_version }): Query<GetOmniKeyQuery>,
-    State(AppState { store }): State<AppState<S>>,
+    State(AppState { store, .. }): State<AppState<S>>,
 ) -> Result<Json<OmniKeyResponse>, Error> {
     let sig: ethers::types::Signature = extract_header(&headers, "signature", |h| {
         let sig_bytes = hex::decode(h)?;

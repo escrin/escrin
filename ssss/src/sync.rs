@@ -1,16 +1,14 @@
-mod eth;
-
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
 };
 
-use ethers::types::Address;
 use futures::stream::StreamExt as _;
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, trace, warn};
 
 use crate::{
+    eth,
     store::Store,
     types::{ChainId, ChainState, ChainStateUpdate, PermitterLocator},
     utils::retry,
@@ -19,19 +17,18 @@ use crate::{
 #[tracing::instrument(skip_all)]
 pub async fn run(
     store: impl Store + 'static,
-    gateways: impl Iterator<Item = impl AsRef<str>>,
-    permitter_addr: Address,
+    sssss: impl Iterator<Item = eth::SsssPermitter>,
 ) -> Result<(), eth::Error> {
     trace!("collating providers");
-    let providers = eth::providers(gateways).await?;
 
-    for (chain, provider) in providers.into_iter() {
+    for ssss in sssss {
         let store = store.clone();
-        let permitter = eth::SsssPermitter::new(chain, permitter_addr, provider);
+        let chain = ssss.chain;
         trace!("launching task for chain {chain}");
         tokio::spawn(async move {
+            let ssss = &ssss;
             loop {
-                match sync_chain(chain, &permitter, &store).await {
+                match sync_chain(chain, ssss, &store).await {
                     Ok(_) => warn!("sync task for chain {chain} unexpectedly exited"),
                     Err(e) => error!("sync task for chain {chain} exited with error: {e}"),
                 }

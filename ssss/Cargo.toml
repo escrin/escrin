@@ -24,7 +24,7 @@ rustls-webpki = { version = "0.102.1", optional = true, features = ["std"] }
 serde = { version = "1.0.195", features = ["derive"] }
 smallvec = { version = "1.12.0", features = ["const_generics", "serde"] }
 thiserror = "1.0.56"
-tokio = { version = "1.35.1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.35.1", features = ["rt-multi-thread", "macros", "sync"] }
 tower-http = { version = "0.5.0", features = ["trace", "cors"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use ethers::{
     abi::AbiDecode,
@@ -11,6 +15,7 @@ use ethers::{
 };
 use futures::{future::BoxFuture, FutureExt, Stream, StreamExt as _, TryStreamExt as _};
 use smallvec::{smallvec, SmallVec};
+use tokio::sync::{Mutex, OnceCell};
 use tracing::{trace, warn};
 
 use crate::{
@@ -19,7 +24,7 @@ use crate::{
 };
 
 pub type Providers = HashMap<ChainId, Provider>;
-pub type Provider = EthersProvider<QuorumProvider<RetryClient<Http>>>;
+pub type Provider = EthersProvider<Arc<QuorumProvider<RetryClient<Http>>>>;
 
 ethers::contract::abigen!(
     SsssPermitterContract,
@@ -28,6 +33,9 @@ ethers::contract::abigen!(
         event Unimplemented()
 
         function creationBlock() view returns (uint256)
+        function registry() view returns (address)
+
+        function approveRequests(bytes32[] identities, address[] requesters, uint64[] durations) external
     ]"
 );
 
@@ -37,6 +45,9 @@ pub struct SsssPermitter {
     pub address: Address,
     contract: SsssPermitterContract<Provider>,
     provider: Arc<Provider>,
+
+    creation_block: Arc<OnceCell<u64>>,
+    upstream: Arc<Mutex<(Address, Instant)>>,
 }
 
 impl SsssPermitter {
@@ -47,11 +58,30 @@ impl SsssPermitter {
             address,
             contract: SsssPermitterContract::new(address, provider.clone()),
             provider,
+            creation_block: Default::default(),
+            upstream: Arc::new(Mutex::new((Address::zero(), Instant::now()))),
         }
     }
 
     pub async fn creation_block(&self) -> Result<u64, Error> {
-        Ok(self.contract.creation_block().call().await?.as_u64())
+        match self.creation_block.get() {
+            Some(b) => Ok(*b),
+            None => {
+                let b = self.contract.creation_block().call().await?.as_u64();
+                self.creation_block.set(b).ok();
+                Ok(b)
+            }
+        }
+    }
+
+    pub async fn upstream(&self) -> Result<Address, Error> {
+        let mut up = self.upstream.lock().await;
+        if up.1 > Instant::now() {
+            return Ok(up.0);
+        }
+        let r = self.contract.registry().call().await?;
+        *up = (r, Instant::now() + Duration::from_secs(60 * 60));
+        Ok(r)
     }
 
     pub fn events(
@@ -192,10 +222,10 @@ pub async fn providers(rpcs: impl Iterator<Item = impl AsRef<str>>) -> Result<Pr
     .map(|(chain_id, providers)| {
         (
             chain_id,
-            EthersProvider::new(QuorumProvider::new(
+            EthersProvider::new(Arc::new(QuorumProvider::new(
                 Quorum::Majority,
                 providers.into_iter().map(WeightedProvider::new),
-            )),
+            ))),
         )
     })
     .collect())

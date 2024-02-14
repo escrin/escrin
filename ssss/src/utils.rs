@@ -18,10 +18,7 @@ where
     do_retry(f, map_done, None).await.unwrap()
 }
 
-pub async fn retry_times<T, E, Fut>(
-    f: impl Fn() -> Fut,
-    limit: u64,
-) -> Result<T, RetriesExceeded>
+pub async fn retry_times<T, E, Fut>(f: impl Fn() -> Fut, limit: u64) -> Result<T, RetriesExceeded>
 where
     E: std::fmt::Display,
     Fut: Future<Output = Result<T, E>>,
