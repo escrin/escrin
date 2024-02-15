@@ -1,3 +1,6 @@
+[workspace]
+members = ["s4"]
+
 [package]
 name = "ssss"
 version = "0.1.0"
@@ -31,10 +34,6 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 url = { version = "2.5.0", features = ["serde"] }
 zeroize = { version = "1.7.0", features = ["derive"] }
 
-[profile.release]
-lto = true
-codegen-units = 1
-
 [features]
 default = ["aws"]
 aws = [
@@ -45,3 +44,7 @@ aws = [
   "dep:ciborium",
   "dep:rustls-webpki",
 ]
+
+[profile.release]
+lto = true
+codegen-units = 1

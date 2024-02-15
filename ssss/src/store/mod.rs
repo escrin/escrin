@@ -7,14 +7,17 @@ use std::future::Future;
 
 use ethers::types::Address;
 
-use crate::{cli, types::*};
+use crate::types::*;
 
 const SHARE_SIZE: usize = 32;
 
 type Nonce = Vec<u8>;
 
 pub trait Store: Clone + Send + Sync + 'static {
-    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error>;
+    fn create_share(
+        &self,
+        identity: IdentityLocator,
+    ) -> impl Future<Output = Result<ShareId, Error>>;
 
     fn get_share(
         &self,
@@ -230,13 +233,29 @@ impl Store for DynStore {
 // pub struct Error(#[from] anyhow::Error);
 pub type Error = anyhow::Error;
 
-pub async fn create(backend: cli::Store, env: cli::Environment) -> impl Store {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+#[value(rename_all = "lowercase")]
+pub enum StoreKind {
+    Memory,
+    Local,
+    #[cfg(feature = "aws")]
+    Aws,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+#[value(rename_all = "lowercase")]
+pub enum Environment {
+    Dev,
+    Prod,
+}
+
+pub async fn create(backend: StoreKind, env: Environment) -> impl Store {
     DynStore {
         inner: match backend {
             #[cfg(feature = "aws")]
-            crate::cli::Store::Aws => DynStoreKind::Aws(aws::Client::connect(env).await),
-            crate::cli::Store::Memory => DynStoreKind::Memory(Default::default()),
-            crate::cli::Store::Local => todo!(),
+            StoreKind::Aws => DynStoreKind::Aws(aws::Client::connect(env).await),
+            StoreKind::Memory => DynStoreKind::Memory(Default::default()),
+            StoreKind::Local => todo!(),
         },
     }
 }

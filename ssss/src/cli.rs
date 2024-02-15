@@ -1,6 +1,6 @@
 use clap::{
     ArgAction::{Append, Count},
-    Parser, ValueEnum,
+    Parser, ValueHint,
 };
 
 #[derive(Parser, Debug)]
@@ -13,38 +13,22 @@ pub struct Args {
     pub port: u16,
 
     /// Specify multiple gateways to watch multiple chains or multiple providers per chain.
-    #[arg(short, long, action = Append, default_values_t = ["http://127.0.0.1:8545".to_string()])]
+    #[arg(short, long, action = Append, default_values_t = ["http://127.0.0.1:8545".to_string()], value_hint = ValueHint::Url)]
     pub gateway: Vec<String>,
 
     #[arg(short, long, value_enum, default_value = "memory")]
-    pub store: Store,
+    pub store: crate::store::StoreKind,
 
-    /// The address of the SsssPermitter (same for all chains).
+    /// The address of the SsssPermitter.
     #[arg(long, default_value = "0x0000000000000000000000000000000000000000")]
     pub permitter: ethers::types::Address,
 
     #[arg(long, value_enum, default_value = "dev")]
-    pub env: Environment,
+    pub env: crate::store::Environment,
 }
 
 impl Args {
     pub fn parse() -> Self {
         Parser::parse()
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-#[value(rename_all = "lowercase")]
-pub enum Store {
-    Memory,
-    Local,
-    #[cfg(feature = "aws")]
-    Aws,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-#[value(rename_all = "lowercase")]
-pub enum Environment {
-    Dev,
-    Prod,
 }

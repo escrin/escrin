@@ -8,8 +8,8 @@ use ethers::{
     abi::AbiDecode,
     contract::EthLogDecode as _,
     providers::{
-        Http, HttpRateLimitRetryPolicy, JsonRpcClient as _, Middleware as _,
-        Provider as EthersProvider, Quorum, QuorumProvider, RetryClient, WeightedProvider,
+        Http, HttpRateLimitRetryPolicy, JsonRpcClient as _, Middleware, Provider as EthersProvider,
+        Quorum, QuorumProvider, RetryClient, WeightedProvider,
     },
     types::{Address, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U64},
 };
@@ -36,22 +36,23 @@ ethers::contract::abigen!(
         function registry() view returns (address)
 
         function approveRequests(bytes32[] identities, address[] requesters, uint64[] durations) external
+        function configure(bytes32 identity, bytes calldata config) external
     ]"
 );
 
 #[derive(Clone)]
-pub struct SsssPermitter {
+pub struct SsssPermitter<M> {
     pub chain: u64,
     pub address: Address,
-    contract: SsssPermitterContract<Provider>,
-    provider: Arc<Provider>,
+    contract: SsssPermitterContract<M>,
+    provider: Arc<M>,
 
     creation_block: Arc<OnceCell<u64>>,
     upstream: Arc<Mutex<(Address, Instant)>>,
 }
 
-impl SsssPermitter {
-    pub fn new(chain: u64, address: Address, provider: Provider) -> Self {
+impl<M: Middleware> SsssPermitter<M> {
+    pub fn new(chain: u64, address: Address, provider: M) -> Self {
         let provider = Arc::new(provider);
         Self {
             chain,
@@ -63,7 +64,7 @@ impl SsssPermitter {
         }
     }
 
-    pub async fn creation_block(&self) -> Result<u64, Error> {
+    pub async fn creation_block(&self) -> Result<u64, Error<M>> {
         match self.creation_block.get() {
             Some(b) => Ok(*b),
             None => {
@@ -74,7 +75,7 @@ impl SsssPermitter {
         }
     }
 
-    pub async fn upstream(&self) -> Result<Address, Error> {
+    pub async fn upstream(&self) -> Result<Address, Error<M>> {
         let mut up = self.upstream.lock().await;
         if up.1 > Instant::now() {
             return Ok(up.0);
@@ -82,6 +83,21 @@ impl SsssPermitter {
         let r = self.contract.registry().call().await?;
         *up = (r, Instant::now() + Duration::from_secs(60 * 60));
         Ok(r)
+    }
+
+    pub async fn configure(
+        &self,
+        identity: IdentityId,
+        config: Vec<u8>,
+    ) -> Result<TxHash, Error<M>> {
+        let tx = self
+            .contract
+            .configure(identity.0.into(), config.into())
+            .send()
+            .await?
+            .await?
+            .unwrap();
+        Ok(tx.transaction_hash)
     }
 
     pub fn events(
@@ -105,9 +121,16 @@ impl SsssPermitter {
     }
 
     async fn blocks(&self, start_block: u64) -> impl Stream<Item = u64> + '_ {
-        let init_block =
-            retry(|| async { Ok::<_, Error>(self.provider.get_block_number().await?.as_u64()) })
-                .await;
+        let init_block = retry(|| async {
+            Ok::<_, Error<M>>(
+                self.provider
+                    .get_block_number()
+                    .await
+                    .map_err(Error::RpcProvider)?
+                    .as_u64(),
+            )
+        })
+        .await;
         async_stream::stream!({
             let mut current_block = start_block;
             loop {
@@ -125,7 +148,15 @@ impl SsssPermitter {
     async fn wait_for_block(&self, block_number: u64) {
         trace!(block = block_number, "waiting for block");
         retry_if(
-            || async { Ok::<_, Error>(self.provider.get_block_number().await?.as_u64()) },
+            || async {
+                Ok::<_, Error<M>>(
+                    self.provider
+                        .get_block_number()
+                        .await
+                        .map_err(Error::RpcProvider)?
+                        .as_u64(),
+                )
+            },
             |num| (num >= block_number).then_some(num),
         )
         .await;
@@ -187,7 +218,9 @@ impl SsssPermitter {
     }
 }
 
-pub async fn providers(rpcs: impl Iterator<Item = impl AsRef<str>>) -> Result<Providers, Error> {
+pub async fn providers(
+    rpcs: impl Iterator<Item = impl AsRef<str>>,
+) -> Result<Providers, Error<Provider>> {
     Ok(futures::stream::iter(rpcs.map(|rpc| {
         let rpc = rpc.as_ref();
         let url = url::Url::parse(rpc).map_err(|_| Error::UnsupportedRpc(rpc.into()))?;
@@ -251,9 +284,11 @@ pub struct ConfigurationEvent {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum Error<M: Middleware> {
     #[error("contract call error: {0}")]
-    Contract(#[from] ethers::contract::ContractError<Provider>),
+    Contract(#[from] ethers::contract::ContractError<M>),
+    #[error("provider error: {0}")]
+    RpcProvider(M::Error),
     #[error("provider error: {0}")]
     Provider(#[from] ethers::providers::ProviderError),
     #[error("unsupported rpc url: {0}")]

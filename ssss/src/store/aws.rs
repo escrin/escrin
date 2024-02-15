@@ -10,7 +10,7 @@ use aws_sdk_dynamodb::{
 use rand::RngCore as _;
 
 use super::*;
-use crate::{cli::Environment, types::ToKey as _};
+use crate::types::ToKey as _;
 
 #[derive(Clone)]
 pub struct Client {

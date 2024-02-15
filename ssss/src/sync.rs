@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 
+use ethers::middleware::Middleware;
 use futures::stream::StreamExt as _;
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, trace, warn};
@@ -15,10 +16,10 @@ use crate::{
 };
 
 #[tracing::instrument(skip_all)]
-pub async fn run(
+pub async fn run<M: Middleware + 'static>(
     store: impl Store + 'static,
-    sssss: impl Iterator<Item = eth::SsssPermitter>,
-) -> Result<(), eth::Error> {
+    sssss: impl Iterator<Item = eth::SsssPermitter<M>>,
+) -> Result<(), eth::Error<eth::Provider>> {
     trace!("collating providers");
 
     for ssss in sssss {
@@ -41,11 +42,11 @@ pub async fn run(
 }
 
 #[tracing::instrument(skip_all)]
-async fn sync_chain<S: Store + 'static>(
+async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
     chain_id: ChainId,
-    permitter: &eth::SsssPermitter,
+    permitter: &eth::SsssPermitter<M>,
     store: &S,
-) -> Result<(), Error> {
+) -> Result<(), Error<M>> {
     let start_block = match store.get_chain_state(chain_id).await? {
         Some(ChainState { block }) => block,
         None => permitter.creation_block().await?,
@@ -105,9 +106,9 @@ async fn sync_chain<S: Store + 'static>(
 }
 
 #[derive(Debug, thiserror::Error)]
-enum Error {
+enum Error<M: Middleware> {
     #[error(transparent)]
     Store(#[from] crate::store::Error),
     #[error(transparent)]
-    Eth(#[from] eth::Error),
+    Eth(#[from] eth::Error<M>),
 }

@@ -14,18 +14,21 @@ use axum::{
     Json, Router,
 };
 use ethers::{
-    middleware::contract::{Eip712, EthAbiType},
+    middleware::{
+        contract::{Eip712, EthAbiType},
+        Middleware,
+    },
     types::{transaction::eip712::Eip712, Address, H256},
 };
 use serde::{Deserialize, Serialize};
 use tower_http::cors;
 
-use crate::{eth, store::Store, types::*, utils::retry_times, verify};
+use crate::{eth::SsssPermitter, store::Store, types::*, utils::retry_times, verify};
 
 #[derive(Clone)]
-struct AppState<S> {
+struct AppState<M: Middleware, S> {
     store: S,
-    sssss: HashMap<ChainId, eth::SsssPermitter>,
+    sssss: HashMap<ChainId, SsssPermitter<M>>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -69,7 +72,11 @@ struct ErrorResponse {
     error: String,
 }
 
-pub async fn serve<S: Store>(store: S, sssss: impl Iterator<Item = eth::SsssPermitter>, port: u16) {
+pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
+    store: S,
+    sssss: impl Iterator<Item = SsssPermitter<M>>,
+    port: u16,
+) {
     let bind_addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port);
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();
     axum::serve(
@@ -83,7 +90,7 @@ pub async fn serve<S: Store>(store: S, sssss: impl Iterator<Item = eth::SsssPerm
     .unwrap();
 }
 
-fn make_router<S: Store>(state: AppState<S>) -> Router {
+fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>) -> Router {
     Router::new()
         .route("/", any(root))
         .nest(
@@ -118,10 +125,10 @@ async fn root() -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-async fn acqrel_identity<S: Store>(
+async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     method: Method,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
-    State(AppState { store, sssss }): State<AppState<S>>,
+    State(AppState { store, sssss }): State<AppState<M, S>>,
     Json(AcqRelIdentityRequest {
         duration,
         authorization,
@@ -233,11 +240,11 @@ fn extract_header<T>(
     mapper(header_str).map_err(|e| Error::BadRequest(format!("invalid `{header}` header: {e}")))
 }
 
-async fn get_omni_key_share<S: Store>(
+async fn get_omni_key_share<M: Middleware, S: Store>(
     headers: HeaderMap,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
     Query(GetOmniKeyQuery { share_version }): Query<GetOmniKeyQuery>,
-    State(AppState { store, .. }): State<AppState<S>>,
+    State(AppState { store, .. }): State<AppState<M, S>>,
 ) -> Result<Json<OmniKeyResponse>, Error> {
     let sig: ethers::types::Signature = extract_header(&headers, "signature", |h| {
         let sig_bytes = hex::decode(h)?;
