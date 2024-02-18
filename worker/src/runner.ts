@@ -73,16 +73,19 @@ export default new (class {
     if (config.schedule) {
       const cron = config.schedule;
       let iters = 0;
-      const interval = setInterval(async () => {
-        if (env.mode === 'demo') {
-          iters++;
-          if (iters === 5) {
-            clearInterval(interval);
-            this.#schedules.delete(workerId);
+      const interval = setInterval(
+        async () => {
+          if (env.mode === 'demo') {
+            iters++;
+            if (iters === 5) {
+              clearInterval(interval);
+              this.#schedules.delete(workerId);
+            }
           }
-        }
-        await this.#dispatchScheduledEvent(env.workerd, workerId, cron);
-      }, 5 * 60 * 1000);
+          await this.#dispatchScheduledEvent(env.workerd, workerId, cron);
+        },
+        5 * 60 * 1000,
+      );
       this.#schedules.set(workerId, interval);
     }
     ctx.waitUntil(this.#dispatchScheduledEvent(env.workerd, workerId, ''));
