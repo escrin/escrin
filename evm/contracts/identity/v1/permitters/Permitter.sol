@@ -16,15 +16,30 @@ abstract contract Permitter is IPermitter, ERC165 {
     /// The requested duration of the permit was too long.
     error DurationTooLong();
 
-    IIdentityRegistry public immutable identityRegistry;
+    enum UpstreamKind {
+        Unknown,
+        Registry,
+        Permitter
+    }
 
-    constructor(IIdentityRegistry registry) {
-        if (
-            !ERC165Checker.supportsInterface(address(registry), type(IIdentityRegistry).interfaceId)
-        ) {
+    bytes32 private immutable upstreamAndKind;
+
+    constructor(address upstreamRegistryOrPermitter) {
+        bytes4[] memory identityInterfaces = new bytes4[](2);
+        identityInterfaces[0] = type(IIdentityRegistry).interfaceId;
+        identityInterfaces[1] = type(IPermitter).interfaceId;
+        bool[] memory supportedInterfaces =
+            ERC165Checker.getSupportedInterfaces(upstreamRegistryOrPermitter, identityInterfaces);
+        UpstreamKind upstreamKind;
+        if (supportedInterfaces[0]) {
+            upstreamKind = UpstreamKind.Registry;
+        } else if (supportedInterfaces[1]) {
+            upstreamKind = UpstreamKind.Permitter;
+        } else {
             revert InterfaceUnsupported();
         }
-        identityRegistry = registry;
+        upstreamAndKind =
+            bytes32(uint256(bytes32(bytes20(upstreamRegistryOrPermitter))) | uint8(upstreamKind));
     }
 
     function acquireIdentity(
@@ -48,7 +63,16 @@ abstract contract Permitter is IPermitter, ERC165 {
             context: context,
             authorization: authorization
         });
-        identityRegistry.grantIdentity(identity, requester, expiry);
+        (UpstreamKind upstreamKind, address up) = _upstream();
+        if (upstreamKind == UpstreamKind.Registry) {
+            IIdentityRegistry(up).grantIdentity(identity, requester, expiry);
+        } else if (upstreamKind == UpstreamKind.Permitter) {
+            expiry = IPermitter(up).acquireIdentity(
+                identity, requester, duration, context, authorization
+            );
+        } else {
+            revert InterfaceUnsupported();
+        }
         _afterAcquireIdentity(identity, requester, context);
     }
 
@@ -70,8 +94,20 @@ abstract contract Permitter is IPermitter, ERC165 {
             context: context,
             authorization: authorization
         });
-        identityRegistry.revokeIdentity(identity, requester);
+        (UpstreamKind upstreamKind, address up) = _upstream();
+        if (upstreamKind == UpstreamKind.Registry) {
+            IIdentityRegistry(up).revokeIdentity(identity, requester);
+        } else if (upstreamKind == UpstreamKind.Permitter) {
+            IPermitter(up).releaseIdentity(identity, requester, context, authorization);
+        } else {
+            revert InterfaceUnsupported();
+        }
         _afterRevokePermit(identity, requester, context);
+    }
+
+    function upstream() external view virtual override returns (address) {
+        (, address addr) = _upstream();
+        return addr;
     }
 
     function supportsInterface(bytes4 interfaceId)
@@ -82,6 +118,23 @@ abstract contract Permitter is IPermitter, ERC165 {
         returns (bool)
     {
         return interfaceId == type(IPermitter).interfaceId || super.supportsInterface(interfaceId);
+    }
+
+    function _upstream() internal view returns (UpstreamKind, address) {
+        bytes32 up = upstreamAndKind;
+        address addr = address(bytes20(up));
+        UpstreamKind kind = UpstreamKind(uint256(up) & 0xff);
+        return (kind, addr);
+    }
+
+    function _getIdentityRegistry() internal view returns (IIdentityRegistry) {
+        (UpstreamKind kind, address up) = _upstream();
+        bool isRegistry = kind == UpstreamKind.Registry;
+        while (!isRegistry) {
+            up = IPermitter(up).upstream();
+            isRegistry = ERC165Checker.supportsInterface(up, type(IIdentityRegistry).interfaceId);
+        }
+        return IIdentityRegistry(up);
     }
 
     /// Authorizes the identity acquisition request, returning the expiry if approved or reverting if denied.

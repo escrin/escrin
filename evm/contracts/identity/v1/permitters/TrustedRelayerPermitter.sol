@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
+import {IdentityId, Permitter} from "./Permitter.sol";
 
 contract TrustedRelayerPermitter is Permitter {
     address private immutable trustedRelayer_;
 
-    constructor(IIdentityRegistry registry, address trustedRelayer) Permitter(registry) {
+    constructor(address upstream, address trustedRelayer) Permitter(upstream) {
         trustedRelayer_ = trustedRelayer;
     }
 

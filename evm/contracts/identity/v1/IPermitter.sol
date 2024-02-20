@@ -32,4 +32,7 @@ interface IPermitter is IERC165 {
         bytes calldata context,
         bytes calldata authorization
     ) external;
+
+    /// Returns the the upstream permitter or identity registry called upon successful identity acquisition/release.
+    function upstream() external view returns (address);
 }

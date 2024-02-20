@@ -8,7 +8,7 @@ import {
 } from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
+import {IdentityId, IIdentityRegistry, Permitter} from "./Permitter.sol";
 
 // Whether to strictly validate attestation doc exons in return for paying up to 30k more gas.
 bool constant STRICT = false;
@@ -20,7 +20,7 @@ abstract contract BaseNitroEnclavePermitter is Permitter {
 
     mapping(bytes32 => IdentityId) public burnt;
 
-    constructor(IIdentityRegistry registry) Permitter(registry) {}
+    constructor(address upstream) Permitter(upstream) {}
 
     function _acquireIdentity(
         IdentityId identity,
@@ -79,9 +79,7 @@ contract StaticNitroEnclavePermitter is BaseNitroEnclavePermitter {
     uint16 public immutable pcrMask;
     bytes32 public immutable pcrHash;
 
-    constructor(IIdentityRegistry registry, uint16 mask, bytes32 hash)
-        BaseNitroEnclavePermitter(registry)
-    {
+    constructor(address upstream, uint16 mask, bytes32 hash) BaseNitroEnclavePermitter(upstream) {
         pcrMask = mask;
         pcrHash = hash;
     }
@@ -94,10 +92,10 @@ contract StaticNitroEnclavePermitter is BaseNitroEnclavePermitter {
 contract MultiNitroEnclavePermitter is BaseNitroEnclavePermitter {
     mapping(IdentityId => NE.PcrSelector) public pcrs;
 
-    constructor(IIdentityRegistry registry) BaseNitroEnclavePermitter(registry) {}
+    constructor(address upstream) BaseNitroEnclavePermitter(upstream) {}
 
     function setPCRs(IdentityId identity, NE.PcrSelector calldata pcrSel) external {
-        (address registrant,) = identityRegistry.getRegistrant(identity);
+        (address registrant,) = IIdentityRegistry(_getIdentityRegistry()).getRegistrant(identity);
         if (msg.sender != registrant) revert Unauthorized();
         pcrs[identity] = pcrSel;
     }
