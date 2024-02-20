@@ -11,7 +11,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
 
 // Whether to strictly validate attestation doc exons in return for paying up to 30k more gas.
-bool constant STRICT = true;
+bool constant STRICT = false;
 
 abstract contract BaseNitroEnclavePermitter is Permitter {
     /// The presented attestation document has already been used to acquire an identity using this permitter.

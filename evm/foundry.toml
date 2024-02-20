@@ -1,8 +1,7 @@
 [profile.default]
-solc_version = "0.8.21"
-optimizer = true
+solc_version = "0.8.23"
+optimizer = false
 via_ir = true
-optimizer_runs = 1_000_000_000
 
 fs_permissions = [{ access = "read", path = "./test/identity/v1/permitters/att_doc_sample.bin"}]
 
@@ -18,3 +17,8 @@ sapphire-mainnet = "https://sapphire.oasis.io"
 
 [fmt]
 line_length = 100
+
+[profile.release]
+solc_version = "0.8.23"
+optimizer = true
+optimizer_runs = 1_000_000_000
