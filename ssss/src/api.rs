@@ -5,21 +5,17 @@ use std::{
 
 use axum::{
     extract::{Path, Query, State},
-    http::{
-        header::{self, HeaderMap, HeaderName},
-        Method, StatusCode,
-    },
+    http::{header, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{any, delete, get, post},
     Json, Router,
 };
+use axum_extra::{headers, TypedHeader};
 use ethers::{
-    middleware::{
-        contract::{Eip712, EthAbiType},
-        Middleware,
-    },
-    types::{transaction::eip712::Eip712, Address, H256},
+    middleware::Middleware,
+    types::{transaction::eip712::Eip712 as _, Address, Bytes, H256},
 };
+use futures::TryFutureExt as _;
 use serde::{Deserialize, Serialize};
 use tower_http::cors;
 
@@ -94,7 +90,7 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
     Router::new()
         .route("/", any(root))
         .nest(
-            "v1",
+            "/v1",
             Router::new()
                 .nest(
                     "/permits/:chain/:registry/:identity",
@@ -103,7 +99,7 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                         .route("/", delete(acqrel_identity)),
                 )
                 .route(
-                    "/v1/shares/omni/:chain/:registry/:identity",
+                    "/shares/omni/:chain/:registry/:identity",
                     get(get_omni_key_share),
                 ),
         )
@@ -115,7 +111,7 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                 .allow_headers([
                     header::CONTENT_TYPE,
                     header::AUTHORIZATION,
-                    HeaderName::from_static("signature"),
+                    SIGNATURE_HEADER_NAME.clone(),
                 ]),
         )
         .with_state(state)
@@ -147,7 +143,7 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     )
     .await
     .map_err(anyhow::Error::from)?
-    .ok_or_else(|| Error::NotFound("policy not found".into()))?;
+    .ok_or_else(|| Error::NotFound("policy".into()))?;
 
     let identity_locator = IdentityLocator {
         chain,
@@ -163,15 +159,16 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
         },
         identity_locator,
         recipient,
-        &context,
         &authorization,
+        &context,
+        Default::default(), // TODO: request signing
     )
     .await
     .map_err(|e| Error::Unauthorized(e.to_string()))?;
 
     let share = ShareId {
         identity: identity_locator,
-        version: 0,
+        version: 1,
     };
 
     // TODO: call permitter to approve or revoke
@@ -194,7 +191,9 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
             .map_err(anyhow::Error::from)?
             .ok_or_else(|| {
                 Error::Unauthorized(
-                    "permit not created. maybe the nonce was already consumed".into(),
+                    "permit not created. maybe there is already a permit or this request's nonce \
+                     was already consumed"
+                        .into(),
                 )
             })?;
             Ok(StatusCode::CREATED)
@@ -209,14 +208,12 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct AcqRelIdentityRequest {
     #[serde(default)]
     duration: u64,
-    #[serde(with = "hex::serde")]
-    authorization: Vec<u8>,
-    #[serde(default, with = "hex::serde")]
-    context: Vec<u8>,
+    authorization: Bytes,
+    context: Bytes,
     permitter: Address,
     recipient: Address,
 }
@@ -227,34 +224,58 @@ struct AcqRelIdentityResponse {
     permit: Option<Permit>,
 }
 
-fn extract_header<T>(
-    headers: &HeaderMap,
-    header: &'static str,
-    mapper: impl FnOnce(&str) -> anyhow::Result<T>,
-) -> Result<T, Error> {
-    let header_str = headers
-        .get(header)
-        .ok_or(Error::BadRequest(format!("missing `{header}` header")))?
-        .to_str()
-        .map_err(|_| Error::BadRequest(format!("invalid `${header}` header")))?;
-    mapper(header_str).map_err(|e| Error::BadRequest(format!("invalid `{header}` header: {e}")))
+struct SignatureHeader(ethers::types::Signature);
+
+static SIGNATURE_HEADER_NAME: header::HeaderName = header::HeaderName::from_static("signature");
+
+impl headers::Header for SignatureHeader {
+    fn name() -> &'static header::HeaderName {
+        &SIGNATURE_HEADER_NAME
+    }
+
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        Self: Sized,
+        I: Iterator<Item = &'i header::HeaderValue>,
+    {
+        let sig_hex = values.next().ok_or_else(headers::Error::invalid)?;
+        let sig_bytes: Bytes = sig_hex
+            .to_str()
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .ok_or_else(headers::Error::invalid)?;
+        Ok(Self(
+            (&*sig_bytes)
+                .try_into()
+                .map_err(|_| headers::Error::invalid())?,
+        ))
+    }
+
+    fn encode<E: Extend<header::HeaderValue>>(&self, values: &mut E) {
+        values.extend(std::iter::once(
+            header::HeaderValue::from_str(&format!("0x{}", hex::encode(self.0.to_vec()))).unwrap(),
+        ));
+    }
+}
+
+impl std::ops::Deref for SignatureHeader {
+    type Target = ethers::types::Signature;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 async fn get_omni_key_share<M: Middleware, S: Store>(
-    headers: HeaderMap,
+    sig: TypedHeader<SignatureHeader>,
+    host: TypedHeader<headers::Host>,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
     Query(GetOmniKeyQuery { share_version }): Query<GetOmniKeyQuery>,
     State(AppState { store, .. }): State<AppState<M, S>>,
 ) -> Result<Json<OmniKeyResponse>, Error> {
-    let sig: ethers::types::Signature = extract_header(&headers, "signature", |h| {
-        let sig_bytes = hex::decode(h)?;
-        Ok(sig_bytes.as_slice().try_into()?)
-    })?;
-    let host = extract_header(&headers, "host", |h: &str| Ok(h.to_string()))?;
-
     let req721_hash = H256(
         OmniKeyRequest721 {
-            audience: host,
+            audience: host.to_string(),
             chain,
             registry,
             identity: identity.0,
@@ -274,14 +295,25 @@ async fn get_omni_key_share<M: Middleware, S: Store>(
         },
         version: share_version,
     };
-    store
-        .read_permit(share_id, requester)
+
+    retry_times(|| store.read_permit(share_id, requester), 3)
+        .map_err(anyhow::Error::from)
         .await?
         .ok_or_else(|| Error::Unauthorized("no acceptable permit found".into()))?;
-    let share = store
-        .get_share(share_id)
-        .await?
-        .ok_or_else(|| Error::NotFound("share not found".into()))?;
+
+    let get_share = || retry_times(|| store.get_share(share_id), 3).map_err(anyhow::Error::from);
+    let share = match get_share().await? {
+        Some(share) => share,
+        None => {
+            retry_times(|| store.create_share(share_id.identity), 3)
+                .await
+                .map_err(anyhow::Error::from)?;
+            get_share()
+                .await?
+                .ok_or_else(|| Error::NotFound("share".into()))?
+        }
+    };
+
     Ok(Json(OmniKeyResponse {
         share: share.to_vec().into(),
     }))
@@ -295,21 +327,5 @@ struct GetOmniKeyQuery {
 
 #[derive(Clone, Debug, Serialize)]
 struct OmniKeyResponse {
-    #[serde(with = "hex::serde")]
-    share: zeroize::Zeroizing<Vec<u8>>,
-}
-
-#[derive(Clone, Default, EthAbiType, Eip712)]
-#[eip712(
-    name = "OmniKeyRequest",
-    version = "1",
-    chain_id = 0,
-    verifying_contract = "0x0000000000000000000000000000000000000000"
-)]
-pub struct OmniKeyRequest721 {
-    audience: String,
-    chain: u64,
-    registry: Address,
-    identity: H256,
-    share_version: u64,
+    share: Bytes,
 }

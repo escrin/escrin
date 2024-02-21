@@ -1,4 +1,7 @@
-use ethers::types::{Address, H256};
+use ethers::{
+    middleware::contract::{Eip712, EthAbiType},
+    types::{Address, H256},
+};
 use serde::{Deserialize, Serialize};
 
 pub trait ToKey: Copy {
@@ -124,4 +127,19 @@ impl From<Vec<u8>> for SecretShare {
 pub struct EventIndex {
     pub block: u64,
     pub log_index: u64,
+}
+
+#[derive(Clone, Default, EthAbiType, Eip712)]
+#[eip712(
+    name = "OmniKeyRequest",
+    version = "1",
+    chain_id = 0,
+    verifying_contract = "0x0000000000000000000000000000000000000000"
+)]
+pub struct OmniKeyRequest721 {
+    pub audience: String,
+    pub chain: u64,
+    pub registry: Address,
+    pub identity: H256,
+    pub share_version: u64,
 }

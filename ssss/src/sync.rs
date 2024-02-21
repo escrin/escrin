@@ -19,7 +19,7 @@ use crate::{
 pub async fn run<M: Middleware + 'static>(
     store: impl Store + 'static,
     sssss: impl Iterator<Item = eth::SsssPermitter<M>>,
-) -> Result<(), eth::Error<eth::Provider>> {
+) -> Result<(), eth::Error<M>> {
     trace!("collating providers");
 
     for ssss in sssss {
@@ -78,12 +78,23 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
     let processed_block = &processed_block;
     permitter
         .events(start_block, None)
-        .buffered(100)
+        .buffered(1)
         .map(futures::stream::iter)
         .flatten()
         .for_each(|event| async move {
+            trace!(event = ?event, "event");
             match event.kind {
-                eth::EventKind::Configuration(eth::ConfigurationEvent { identity, config }) => {
+                eth::EventKind::PolicyChange(eth::PolicyChange {
+                    identity,
+                    config: config_br,
+                }) => {
+                    let mut config = Vec::new();
+                    if brotli_decompressor::BrotliDecompress(&mut config_br.as_slice(), &mut config)
+                        .is_err()
+                    {
+                        warn!("failed to decompress config");
+                        return;
+                    }
                     retry(|| {
                         store.update_verifier(
                             PermitterLocator::new(chain_id, permitter.address),
@@ -93,6 +104,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                         )
                     })
                     .await;
+                    trace!("set updated policy");
                 }
                 eth::EventKind::ProcessedBlock => {
                     processed_block.store(event.index.block, Ordering::Release);

@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::LazyLock};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::LazyLock,
+};
 
 use anyhow::anyhow;
 use ethers::{
@@ -28,9 +31,25 @@ impl Verifier for NitroEnclaveVerifier {
         recipient: Address,
         authorization: &[u8],
         _context: &[u8],
+        relayer: Option<Address>,
     ) -> Result<Verification, Error> {
         let policy: Policy = ciborium::from_reader(policy_bytes)
             .map_err(|e| Error::PolicyDecode(anyhow::Error::from(e)))?;
+
+        if policy.version != 1 {
+            return Err(Error::PolicyDecode(anyhow::anyhow!(
+                "unsupported NE policy version {}",
+                policy.version
+            )));
+        }
+
+        if !policy.relayers.is_empty()
+            && !relayer
+                .map(|r| policy.relayers.contains(&r))
+                .unwrap_or_default()
+        {
+            return Err(Error::Unauthorized("not a trusted relayer".into()));
+        }
 
         let (ud, pcrs) = Self::verify_attestation_document(authorization, UnixTime::now())?;
         let binding = (ud.user_data.len() >= H256::len_bytes())
@@ -151,11 +170,15 @@ struct AttestationUserData {
     nonce: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
+#[forbid(unused)]
 struct Policy {
     version: u8,
     pcrs: PolicyPcrs,
+    #[serde(default)]
     max_duration: u64,
+    #[serde(default)]
+    relayers: HashSet<Address>,
 }
 
 #[derive(Serialize, Deserialize)]

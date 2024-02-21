@@ -17,7 +17,7 @@ pub trait Store: Clone + Send + Sync + 'static {
     fn create_share(
         &self,
         identity: IdentityLocator,
-    ) -> impl Future<Output = Result<ShareId, Error>>;
+    ) -> impl Future<Output = Result<ShareId, Error>> + Send;
 
     fn get_share(
         &self,
@@ -25,7 +25,7 @@ pub trait Store: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<SecretShare>, Error>> + Send;
 
     #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Error>;
+    fn destroy_share(&self, share: ShareId) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn create_permit(
         &self,
@@ -59,7 +59,7 @@ pub trait Store: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), Error>> + Send;
 
     #[cfg(test)]
-    async fn clear_chain_state(&self, chain: u64) -> Result<(), Error>;
+    fn clear_chain_state(&self, chain: u64) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn get_verifier(
         &self,
@@ -76,11 +76,11 @@ pub trait Store: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), Error>> + Send;
 
     #[cfg(test)]
-    async fn clear_verifier(
+    fn clear_verifier(
         &self,
         permitter: PermitterLocator,
         identity: IdentityId,
-    ) -> Result<(), Error>;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 #[derive(Clone)]

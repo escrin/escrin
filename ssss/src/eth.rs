@@ -7,11 +7,8 @@ use std::{
 use ethers::{
     abi::AbiDecode,
     contract::EthLogDecode as _,
-    providers::{
-        Http, HttpRateLimitRetryPolicy, JsonRpcClient as _, Middleware, Provider as EthersProvider,
-        Quorum, QuorumProvider, RetryClient, WeightedProvider,
-    },
-    types::{Address, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U64},
+    providers::{self, JsonRpcClient as _},
+    types::{Address, Bytes, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U64},
 };
 use futures::{future::BoxFuture, FutureExt, Stream, StreamExt as _, TryStreamExt as _};
 use smallvec::{smallvec, SmallVec};
@@ -23,20 +20,16 @@ use crate::{
     utils::{retry, retry_if},
 };
 
-pub type Providers = HashMap<ChainId, Provider>;
-pub type Provider = EthersProvider<Arc<QuorumProvider<RetryClient<Http>>>>;
-
 ethers::contract::abigen!(
     SsssPermitterContract,
     r"[
-        event Configuration()
-        event Unimplemented()
+        event PolicyChange()
+        event ApproverChange()
 
         function creationBlock() view returns (uint256)
-        function registry() view returns (address)
+        function upstream() view returns (address)
 
-        function approveRequests(bytes32[] identities, address[] requesters, uint64[] durations) external
-        function configure(bytes32 identity, bytes calldata config) external
+        function setPolicy(bytes32 identity, bytes calldata config) external
     ]"
 );
 
@@ -51,7 +44,7 @@ pub struct SsssPermitter<M> {
     upstream: Arc<Mutex<(Address, Instant)>>,
 }
 
-impl<M: Middleware> SsssPermitter<M> {
+impl<M: providers::Middleware> SsssPermitter<M> {
     pub fn new(chain: u64, address: Address, provider: M) -> Self {
         let provider = Arc::new(provider);
         Self {
@@ -80,24 +73,31 @@ impl<M: Middleware> SsssPermitter<M> {
         if up.1 > Instant::now() {
             return Ok(up.0);
         }
-        let r = self.contract.registry().call().await?;
+        let r = self.contract.upstream().call().await?;
         *up = (r, Instant::now() + Duration::from_secs(60 * 60));
         Ok(r)
     }
 
-    pub async fn configure(
+    pub async fn set_policy(
         &self,
         identity: IdentityId,
         config: Vec<u8>,
     ) -> Result<TxHash, Error<M>> {
-        let tx = self
+        let receipt = self
             .contract
-            .configure(identity.0.into(), config.into())
+            .set_policy(identity.0.into(), config.into())
             .send()
             .await?
+            .interval(match self.chain {
+                1337 | 31337 => providers::DEFAULT_LOCAL_POLL_INTERVAL,
+                _ => providers::DEFAULT_POLL_INTERVAL,
+            })
             .await?
             .unwrap();
-        Ok(tx.transaction_hash)
+        match receipt.status.map(|s| s.as_u64()) {
+            Some(1) => Ok(receipt.transaction_hash),
+            _ => Err(ethers::contract::ContractError::Revert(Default::default()).into()),
+        }
     }
 
     pub fn events(
@@ -187,7 +187,9 @@ impl<M: Middleware> SsssPermitter<M> {
             log.log_index,
             log.removed,
         ) {
-            (Some(block), Some(tx), Some(index), None) => (block.as_u64(), tx, index.as_u64()),
+            (Some(block), Some(tx), Some(index), None | Some(false)) => {
+                (block.as_u64(), tx, index.as_u64())
+            }
             _ => return None,
         };
         let raw_log = (log.topics, log.data.to_vec()).into();
@@ -201,11 +203,11 @@ impl<M: Middleware> SsssPermitter<M> {
         let Transaction { input, .. } =
             retry_if(|| self.provider.get_transaction(tx), |tx| tx).await;
         let kind = match event {
-            SsssPermitterContractEvents::ConfigurationFilter(_) => {
-                let (identity, config): (H256, Vec<u8>) = AbiDecode::decode(input).unwrap();
-                EventKind::Configuration(ConfigurationEvent {
+            SsssPermitterContractEvents::PolicyChangeFilter(_) if input.len() > 4 => {
+                let (identity, config): (H256, Bytes) = AbiDecode::decode(&input[4..]).unwrap();
+                EventKind::PolicyChange(PolicyChange {
                     identity: identity.into(),
-                    config,
+                    config: config.to_vec(),
                 })
             }
             _ => return None,
@@ -218,6 +220,10 @@ impl<M: Middleware> SsssPermitter<M> {
     }
 }
 
+type Providers = HashMap<ChainId, Provider>;
+type Provider =
+    providers::Provider<Arc<providers::QuorumProvider<providers::RetryClient<providers::Http>>>>;
+
 pub async fn providers(
     rpcs: impl Iterator<Item = impl AsRef<str>>,
 ) -> Result<Providers, Error<Provider>> {
@@ -227,9 +233,9 @@ pub async fn providers(
         if url.scheme() != "http" {
             return Err(Error::UnsupportedRpc(rpc.into()));
         }
-        Ok(RetryClient::new(
-            Http::new(url),
-            Box::<HttpRateLimitRetryPolicy>::default(),
+        Ok(providers::RetryClient::new(
+            providers::Http::new(url),
+            Box::<providers::HttpRateLimitRetryPolicy>::default(),
             10,
             2_000,
         ))
@@ -255,9 +261,9 @@ pub async fn providers(
     .map(|(chain_id, providers)| {
         (
             chain_id,
-            EthersProvider::new(Arc::new(QuorumProvider::new(
-                Quorum::Majority,
-                providers.into_iter().map(WeightedProvider::new),
+            providers::Provider::new(Arc::new(providers::QuorumProvider::new(
+                providers::Quorum::Majority,
+                providers.into_iter().map(providers::WeightedProvider::new),
             ))),
         )
     })
@@ -273,18 +279,18 @@ pub struct Event {
 
 #[derive(Clone, Debug)]
 pub enum EventKind {
-    Configuration(ConfigurationEvent),
+    PolicyChange(PolicyChange),
     ProcessedBlock,
 }
 
 #[derive(Clone, Debug)]
-pub struct ConfigurationEvent {
+pub struct PolicyChange {
     pub identity: IdentityId,
     pub config: Vec<u8>,
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<M: Middleware> {
+pub enum Error<M: providers::Middleware> {
     #[error("contract call error: {0}")]
     Contract(#[from] ethers::contract::ContractError<M>),
     #[error("provider error: {0}")]
