@@ -3,6 +3,8 @@ mod cli;
 use ethers::{
     middleware::MiddlewareBuilder,
     providers::{Http, Middleware, Provider},
+    signers::Signer as _,
+    types::transaction::eip712::Eip712 as _,
 };
 use eyre::{Result, WrapErr as _};
 use ssss::{eth::SsssPermitter, types::ChainId};
@@ -34,13 +36,44 @@ async fn main() -> Result<()> {
                 None => Box::new(std::io::stdin()),
             };
             let policy: serde_json::Value = serde_json::from_reader(input)?;
+            let mut policy_bytes = Vec::new();
+            ciborium::into_writer(&policy, &mut policy_bytes)?;
+            let mut cpolicy = Vec::with_capacity(policy_bytes.len());
+            brotli::BrotliCompress(
+                &mut policy_bytes.as_slice(),
+                &mut cpolicy,
+                &brotli::enc::backward_references::BrotliEncoderParams {
+                    quality: 11,
+                    size_hint: policy_bytes.len(),
+                    magic_number: true,
+                    ..Default::default()
+                },
+            )?;
 
             let (chain, provider) = get_provider(&args.gateway).await?;
-            let provider = provider.with_signer(private_key);
+            let provider = provider.with_signer(private_key.with_chain_id(chain));
             let ssss = SsssPermitter::new(chain, args.permitter, provider);
 
-            ssss.configure(args.identity.into(), serde_json::to_vec(&policy).unwrap())
-                .await?;
+            ssss.set_policy(args.identity.into(), cpolicy).await?;
+        }
+        cli::Command::SignOmniKeyRequest {
+            chain,
+            audience,
+            registry,
+            identity,
+            share_version,
+            private_key,
+        } => {
+            let req = ssss::types::OmniKeyRequest721 {
+                audience,
+                chain,
+                registry,
+                identity,
+                share_version,
+            };
+            let req_hash = req.encode_eip712()?;
+            let sig = private_key.sign_hash(req_hash.into())?;
+            println!("0x{sig}");
         }
     }
 

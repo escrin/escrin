@@ -24,10 +24,38 @@ pub enum Command {
         args: PolicyArgs,
 
         /// The file from which to read the JSON policy document or stdin if not specified.
-        #[arg(long = "policy", value_hint = ValueHint::FilePath)]
+        #[arg(value_hint = ValueHint::FilePath)]
         policy_path: Option<String>,
 
-        #[arg(long, required = true)]
+        #[arg(
+            long,
+            default_value = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        )]
+        private_key: ethers::signers::LocalWallet,
+    },
+    SignOmniKeyRequest {
+        #[arg(long, default_value_t = 31337)]
+        chain: u64,
+
+        #[arg(long, default_value = "127.0.0.1:1056")]
+        audience: String,
+
+        #[arg(long, default_value = "0x5FbDB2315678afecb367f032d93F642f64180aa3")]
+        registry: Address,
+
+        #[arg(
+            long,
+            default_value = "0xb725694d2cfafceaf7dbbf2b29ce7f8879ba0c23451f19aee5db8722812e3409"
+        )]
+        identity: H256,
+
+        #[arg(long, default_value_t = 1)]
+        share_version: u64,
+
+        #[arg(
+            long,
+            default_value = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        )]
         private_key: ethers::signers::LocalWallet,
     },
 }
@@ -39,9 +67,12 @@ pub struct PolicyArgs {
     pub gateway: String,
 
     /// The address of the SsssPermitter.
-    #[arg(long, default_value = "0x0000000000000000000000000000000000000000")]
+    #[arg(long, default_value = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512")]
     pub permitter: Address,
 
-    #[arg(long, required = true)]
+    #[arg(
+        long,
+        default_value = "0xb725694d2cfafceaf7dbbf2b29ce7f8879ba0c23451f19aee5db8722812e3409"
+    )]
     pub identity: H256,
 }
