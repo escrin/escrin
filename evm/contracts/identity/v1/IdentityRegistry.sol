@@ -154,27 +154,26 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
         if (block.chainid == 0x5aff || block.chainid == 0x5afe || block.chainid == 0x5afd) {
             return Sapphire.randomBytes(count, pers);
         }
+        bool isLocalnet = block.chainid == 1337 || block.chainid == 31337;
         uint256 words = (count + 31) >> 5;
         bytes memory out = new bytes(words << 5);
-        bytes32 seed;
-        if (block.chainid == 1337 || block.chainid == 31337) {
-            seed = keccak256(abi.encodePacked(msg.sender, count, pers));
-        } else {
-            seed = keccak256(
-                abi.encodePacked(
-                    msg.sender,
-                    blockhash(block.number),
-                    block.timestamp,
-                    block.prevrandao,
-                    block.coinbase,
-                    count,
-                    pers
-                )
+        bytes memory preSeed = isLocalnet
+            ? abi.encodePacked(msg.sender, count, pers)
+            : abi.encodePacked(
+                msg.sender,
+                blockhash(block.number),
+                block.timestamp,
+                block.prevrandao,
+                block.coinbase,
+                count,
+                pers
             );
-        }
+        bytes32 seed = keccak256(preSeed);
         for (uint256 i = 0; i < words; i++) {
-            unchecked {
-                seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i - 1)));
+            if (!isLocalnet) {
+                unchecked {
+                    seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i - 1)));
+                }
             }
             assembly ("memory-safe") {
                 mstore(add(out, add(32, mul(32, i))), seed)
