@@ -5,7 +5,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import {IPermitter} from "./IPermitter.sol";
 
-type IdentityId is uint256;
+type IdentityId is bytes32;
 
 interface IIdentityRegistry is IERC165 {
     /// The action is disallowed.

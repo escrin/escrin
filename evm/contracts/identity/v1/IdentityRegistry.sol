@@ -40,7 +40,7 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
         override
         returns (IdentityId id)
     {
-        id = IdentityId.wrap(uint256(bytes32(_randomBytes(32, pers))));
+        id = IdentityId.wrap(bytes32(_randomBytes(32, pers)));
         require(!registrations[id].registered, "unlucky");
         registrations[id] = Registration({registered: true, registrant: msg.sender});
         permitters[id] = _requireIsPermitter(permitter);
@@ -173,12 +173,14 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
             );
         }
         for (uint256 i = 0; i < words; i++) {
-            seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i - 1)));
-            assembly {
+            unchecked {
+                seed = keccak256(abi.encodePacked(seed, i, blockhash(block.number - i - 1)));
+            }
+            assembly ("memory-safe") {
                 mstore(add(out, add(32, mul(32, i))), seed)
             }
         }
-        assembly {
+        assembly ("memory-safe") {
             mstore(out, count)
         }
         return out;

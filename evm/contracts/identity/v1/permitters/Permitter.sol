@@ -25,15 +25,21 @@ abstract contract Permitter is IPermitter, ERC165 {
     bytes32 private immutable upstreamAndKind;
 
     constructor(address upstreamRegistryOrPermitter) {
-        bytes4[] memory identityInterfaces = new bytes4[](2);
-        identityInterfaces[0] = type(IIdentityRegistry).interfaceId;
-        identityInterfaces[1] = type(IPermitter).interfaceId;
-        bool[] memory supportedInterfaces =
-            ERC165Checker.getSupportedInterfaces(upstreamRegistryOrPermitter, identityInterfaces);
+        if (!ERC165Checker.supportsERC165(upstreamRegistryOrPermitter)) {
+            revert InterfaceUnsupported();
+        }
         UpstreamKind upstreamKind;
-        if (supportedInterfaces[0]) {
+        if (
+            ERC165Checker.supportsERC165InterfaceUnchecked(
+                upstreamRegistryOrPermitter, type(IIdentityRegistry).interfaceId
+            )
+        ) {
             upstreamKind = UpstreamKind.Registry;
-        } else if (supportedInterfaces[1]) {
+        } else if (
+            ERC165Checker.supportsERC165InterfaceUnchecked(
+                upstreamRegistryOrPermitter, type(IPermitter).interfaceId
+            )
+        ) {
             upstreamKind = UpstreamKind.Permitter;
         } else {
             revert InterfaceUnsupported();
@@ -82,7 +88,7 @@ abstract contract Permitter is IPermitter, ERC165 {
         bytes calldata context,
         bytes calldata authorization
     ) external virtual override {
-        _beforeRevokePermit({
+        _beforeReleaseIdentity({
             identity: identity,
             requester: requester,
             context: context,
@@ -102,7 +108,7 @@ abstract contract Permitter is IPermitter, ERC165 {
         } else {
             revert InterfaceUnsupported();
         }
-        _afterRevokePermit(identity, requester, context);
+        _afterReleaseIdentity(identity, requester, context);
     }
 
     function upstream() external view virtual override returns (address) {
@@ -167,14 +173,14 @@ abstract contract Permitter is IPermitter, ERC165 {
         virtual
     {}
 
-    function _beforeRevokePermit(
+    function _beforeReleaseIdentity(
         IdentityId identity,
         address requester,
         bytes calldata context,
         bytes calldata authorization
     ) internal virtual {}
 
-    function _afterRevokePermit(IdentityId identity, address requester, bytes calldata context)
+    function _afterReleaseIdentity(IdentityId identity, address requester, bytes calldata context)
         internal
         virtual
     {}

@@ -7,7 +7,8 @@ contract UnstableSsssPermitter is Permitter {
     /// The SSSS permitter does not respond directly to acquire/release identity requests.
     error Unsupported();
 
-    event Configuration();
+    event PolicyChange();
+    event ApproverChange();
 
     uint256 public immutable creationBlock;
 
@@ -15,10 +16,10 @@ contract UnstableSsssPermitter is Permitter {
         creationBlock = block.number;
     }
 
-    function setPolicy(IdentityId identity, bytes calldata /* config */) external {
+    function setPolicy(IdentityId identity, bytes calldata /* config */ ) external {
         (address registrant,) = IIdentityRegistry(_getIdentityRegistry()).getRegistrant(identity);
         if (msg.sender != registrant) revert Unauthorized();
-        emit Configuration();
+        emit PolicyChange();
     }
 
     function _acquireIdentity(IdentityId, address, uint64, bytes calldata, bytes calldata)
