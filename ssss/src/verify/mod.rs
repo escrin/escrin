@@ -1,4 +1,3 @@
-#[cfg(feature = "aws")]
 mod nitro;
 
 use ethers::types::Address;

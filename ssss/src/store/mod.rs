@@ -1,5 +1,6 @@
 #[cfg(feature = "aws")]
 pub mod aws;
+#[cfg(feature = "local")]
 pub mod local;
 pub mod memory;
 
@@ -90,36 +91,42 @@ pub struct DynStore {
 
 #[derive(Clone)]
 pub enum DynStoreKind {
+    Memory(memory::MemoryStore),
     #[cfg(feature = "aws")]
     Aws(aws::Client),
-    Memory(memory::MemoryStore),
-    #[allow(unused)]
-    Local,
+    #[cfg(feature = "local")]
+    Local(local::LocalStore),
 }
 
 impl Store for DynStore {
     async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.create_share(identity).await,
             DynStoreKind::Memory(s) => s.create_share(identity).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.create_share(identity).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.create_share(identity).await,
         }
     }
 
     async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.get_share(share).await,
             DynStoreKind::Memory(s) => s.get_share(share).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.get_share(share).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.get_share(share).await,
         }
     }
 
     #[cfg(test)]
     async fn destroy_share(&self, share: ShareId) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.destroy_share(share).await,
             DynStoreKind::Memory(s) => s.destroy_share(share).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.destroy_share(share).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.destroy_share(share).await,
         }
     }
 
@@ -131,9 +138,11 @@ impl Store for DynStore {
         nonce: Nonce,
     ) -> Result<Option<Permit>, Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.create_permit(share, recipient, expiry, nonce).await,
             DynStoreKind::Memory(s) => s.create_permit(share, recipient, expiry, nonce).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.create_permit(share, recipient, expiry, nonce).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.create_permit(share, recipient, expiry, nonce).await,
         }
     }
 
@@ -143,42 +152,52 @@ impl Store for DynStore {
         recipient: Address,
     ) -> Result<Option<Permit>, Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.read_permit(share, recipient).await,
             DynStoreKind::Memory(s) => s.read_permit(share, recipient).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.read_permit(share, recipient).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.read_permit(share, recipient).await,
         }
     }
 
     async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error> {
         match &self.inner {
+            DynStoreKind::Memory(s) => s.delete_permit(share, recipient).await,
+            #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.delete_permit(share, recipient).await,
-            DynStoreKind::Memory(ss) => ss.delete_permit(share, recipient).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.delete_permit(share, recipient).await,
         }
     }
 
     async fn get_chain_state(&self, chain: u64) -> Result<Option<ChainState>, Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.get_chain_state(chain).await,
             DynStoreKind::Memory(s) => s.get_chain_state(chain).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.get_chain_state(chain).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.get_chain_state(chain).await,
         }
     }
 
     async fn update_chain_state(&self, chain: u64, update: ChainStateUpdate) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.update_chain_state(chain, update).await,
             DynStoreKind::Memory(s) => s.update_chain_state(chain, update).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.update_chain_state(chain, update).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.update_chain_state(chain, update).await,
         }
     }
 
     #[cfg(test)]
     async fn clear_chain_state(&self, chain: u64) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.clear_chain_state(chain).await,
             DynStoreKind::Memory(s) => s.clear_chain_state(chain).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.clear_chain_state(chain).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.clear_chain_state(chain).await,
         }
     }
 
@@ -188,9 +207,11 @@ impl Store for DynStore {
         identity: IdentityId,
     ) -> Result<Option<Vec<u8>>, Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => s.get_verifier(permitter, identity).await,
             DynStoreKind::Memory(s) => s.get_verifier(permitter, identity).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.get_verifier(permitter, identity).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.get_verifier(permitter, identity).await,
         }
     }
 
@@ -202,15 +223,20 @@ impl Store for DynStore {
         version: EventIndex,
     ) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Aws(s) => {
-                s.update_verifier(permitter, identity, config, version)
-                    .await
-            }
             DynStoreKind::Memory(s) => {
                 s.update_verifier(permitter, identity, config, version)
                     .await
             }
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => {
+                s.update_verifier(permitter, identity, config, version)
+                    .await
+            }
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => {
+                s.update_verifier(permitter, identity, config, version)
+                    .await
+            }
         }
     }
 
@@ -223,7 +249,8 @@ impl Store for DynStore {
         match &self.inner {
             DynStoreKind::Aws(s) => s.clear_verifier(permitter, identity).await,
             DynStoreKind::Memory(s) => s.clear_verifier(permitter, identity).await,
-            DynStoreKind::Local => todo!(),
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.clear_verifier(permitter, identity).await,
         }
     }
 }
@@ -237,9 +264,10 @@ pub type Error = anyhow::Error;
 #[value(rename_all = "lowercase")]
 pub enum StoreKind {
     Memory,
-    Local,
     #[cfg(feature = "aws")]
     Aws,
+    #[cfg(feature = "local")]
+    Local,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
@@ -249,12 +277,14 @@ pub enum Environment {
     Prod,
 }
 
+#[cfg_attr(not(feature = "aws"), allow(unused))]
 pub async fn create(backend: StoreKind, env: Environment) -> impl Store {
     DynStore {
         inner: match backend {
+            StoreKind::Memory => DynStoreKind::Memory(Default::default()),
             #[cfg(feature = "aws")]
             StoreKind::Aws => DynStoreKind::Aws(aws::Client::connect(env).await),
-            StoreKind::Memory => DynStoreKind::Memory(Default::default()),
+            #[cfg(feature = "local")]
             StoreKind::Local => todo!(),
         },
     }

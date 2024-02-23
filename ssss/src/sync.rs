@@ -6,7 +6,7 @@ use std::sync::{
 use ethers::middleware::Middleware;
 use futures::stream::StreamExt as _;
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, trace, warn};
+use tracing::{error, trace, warn};
 
 use crate::{
     eth,
@@ -59,7 +59,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
         async move {
             loop {
                 sleep(Duration::from_secs(5 * 60)).await;
-                debug!("updating sync state for chain {chain_id}");
+                trace!("updating sync state for chain {chain_id}");
                 if let Err(e) = store
                     .update_chain_state(
                         chain_id,
