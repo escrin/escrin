@@ -21,9 +21,9 @@
     "pnpm": ">=7"
   },
   "scripts": {
-    "lint:prettier": "prettier --check --plugin-search-dir=. --cache '*.json' '{src,test}/**/*.ts' '*.js'",
+    "lint:prettier": "prettier --check --cache '*.json' '{src,test}/**/*.ts' '*.js'",
     "lint": "npm-run-all lint:**",
-    "format:prettier": "prettier --write --plugin-search-dir=. --cache '*.json' '{src,test}/**/*.ts' '*.js'",
+    "format:prettier": "prettier --write --cache '*.json' '{src,test}/**/*.ts' '*.js'",
     "format": "npm-run-all format:**",
     "build:typecheck": "tsc -b",
     "build:lib": "tsc -p tsconfig.lib.json",
@@ -37,17 +37,17 @@
   "dependencies": {
     "@escrin/evm": "workspace:^",
     "@oasisprotocol/sapphire-paratime": "file:oasisprotocol-sapphire-paratime-1.2.2.tgz",
-    "@openzeppelin/merkle-tree": "^1.0.5",
-    "cborg": "^4.0.6",
-    "viem": "^2.0.3"
+    "@openzeppelin/merkle-tree": "^1.0.6",
+    "cborg": "^4.0.9",
+    "viem": "^2.7.13"
   },
   "bundleDependencies": [
     "@oasisprotocol/sapphire-paratime"
   ],
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20231218.0",
-    "@types/node": "^20.10.7",
-    "esbuild": "^0.19.11",
+    "@cloudflare/workers-types": "^4.20240222.0",
+    "@types/node": "^20.11.20",
+    "esbuild": "^0.20.1",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.2.5",
     "typescript": "^5.3.3"
