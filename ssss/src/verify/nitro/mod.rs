@@ -4,10 +4,7 @@ use std::{
 };
 
 use anyhow::anyhow;
-use ethers::{
-    abi::AbiEncode as _,
-    types::{H256, U256},
-};
+use ethers::{abi::AbiEncode as _, types::H256};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use webpki::types::{CertificateDer, UnixTime};
@@ -62,10 +59,7 @@ impl Verifier for NitroEnclaveVerifier {
                 identity.registry,
                 identity.id.0,
                 recipient,
-                match req {
-                    RequestKind::Revoke => U256::zero(),
-                    RequestKind::Grant { duration } => U256::from(duration),
-                },
+                matches!(req, RequestKind::Grant { .. }),
             )
                 .encode(),
         );

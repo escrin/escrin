@@ -6,7 +6,6 @@ pragma solidity ^0.8.18;
 import {
     Sapphire, sha384 as _sha384
 } from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import {IdentityId, IIdentityRegistry, Permitter} from "./Permitter.sol";
 
@@ -17,6 +16,8 @@ abstract contract BaseNitroEnclavePermitter is Permitter {
     /// The presented attestation document has already been used to acquire an identity using this permitter.
     /// If you want a batch identity acquisition function, please file an issue and it will be made!
     error DocAlreadyUsed();
+    /// The attestation is not bound to the request.
+    error BindingMismatch();
 
     mapping(bytes32 => IdentityId) public burnt;
 
@@ -54,11 +55,10 @@ abstract contract BaseNitroEnclavePermitter is Permitter {
         uint256 nbf = block.timestamp - _getPermitMaxDuration(identity, requester, context);
         NE.UserData memory userdata = NE.verifyAttestationDocument(doc, _getPCRs(identity), nbf);
         if (IdentityId.unwrap(burnt[userdata.nonce]) != 0) revert DocAlreadyUsed();
-        bytes32 leaf = keccak256(
-            bytes.concat(keccak256(abi.encode(block.chainid, address(this), identity, !release)))
+        bytes32 expectedBinding = keccak256(
+            abi.encode(block.chainid, _getIdentityRegistry(), identity, requester, !release)
         );
-        (, bytes32[] memory proof) = abi.decode(context, (bytes, bytes32[]));
-        MerkleProof.verify(proof, userdata.merkleRoot, leaf);
+        if (userdata.binding != expectedBinding) revert Unauthorized();
         burnt[userdata.nonce] = identity;
     }
 
@@ -128,7 +128,7 @@ library NE {
     }
 
     struct UserData {
-        bytes32 merkleRoot;
+        bytes32 binding;
         bytes32 nonce;
     }
 
@@ -351,10 +351,9 @@ library NE {
             );
         }
         cursor += 10;
-        (bytes calldata merkleRoot, uint256 userdataConsumed) =
-            _consumeOptionalBytes(input[cursor:]);
+        (bytes calldata binding, uint256 userdataConsumed) = _consumeOptionalBytes(input[cursor:]);
         cursor += userdataConsumed;
-        userdata.merkleRoot = bytes32(merkleRoot);
+        userdata.binding = bytes32(binding);
 
         if (STRICT) {
             // Key: Text(5) "nonce" - 65_6e6f6e6365

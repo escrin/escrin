@@ -35,6 +35,24 @@ export function parseIdentity(identity: unknown): { registry: Address; id: Hash 
   return { registry, id };
 }
 
+export type GetAccountRequest = {
+  method: 'get-account';
+  params: GetAccountParams;
+  response: {
+    address: Address;
+  };
+};
+
+export type GetAccountParams = {
+  id: 'worker';
+};
+
+export function parseGetAccountParams(params: Record<string, unknown>): GetAccountParams {
+  const { id } = params;
+  if (id !== 'worker') throw new ApiError(400, 'invalid account id');
+  return { id };
+}
+
 export type AcquireIdentityRequest = {
   method: 'acquire-identity';
   params: AcquireIdentityParams;

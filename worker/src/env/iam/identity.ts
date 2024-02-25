@@ -10,6 +10,15 @@ import { getPublicClient, getWalletClient } from './chains.js';
 
 import * as types from './types.js';
 
+export async function handleGetAccount(
+  requesterService: string,
+  { id }: types.GetAccountParams,
+): Promise<types.GetAccountRequest['response']> {
+  if (id !== 'worker') throw new Error(`unknown account: ${id}`);
+  const { address } = allocateAccount(requesterService);
+  return { address };
+}
+
 export async function handleAcquireIdentity(
   gasKey: Hash,
   requesterService: string,

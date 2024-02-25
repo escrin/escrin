@@ -2,7 +2,7 @@ import { isHash } from 'viem';
 
 import { ApiError, decodeRequest, wrapFetch } from '../../rpc.js';
 
-import { handleAcquireIdentity } from './identity.js';
+import * as identity from './identity.js';
 import { handleGetKey } from './key.js';
 import * as types from './types.js';
 
@@ -16,9 +16,17 @@ export default new (class {
     if (!requester) throw new ApiError(500, 'escrin-runner did not set x-caller-id header');
     const { method, params } = await decodeRequest(req);
 
+    if (method === ('get-account' satisfies types.GetAccountRequest['method'])) {
+      return identity.handleGetAccount(requester, types.parseGetAccountParams(params));
+    }
+
     if (method === ('acquire-identity' satisfies types.AcquireIdentityRequest['method'])) {
       if (!env.gasKey || !isHash(env.gasKey)) throw new ApiError(500, 'gas key not configured');
-      return handleAcquireIdentity(env.gasKey, requester, types.parseAcquireIdentityParams(params));
+      return identity.handleAcquireIdentity(
+        env.gasKey,
+        requester,
+        types.parseAcquireIdentityParams(params),
+      );
     }
 
     if (method === ('get-key' satisfies types.GetKeyRequest['method'])) {

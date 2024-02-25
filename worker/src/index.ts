@@ -1,6 +1,5 @@
 import { ExecutionContext, Fetcher, Request } from '@cloudflare/workers-types/experimental';
-import { StandardMerkleTree } from '@openzeppelin/merkle-tree';
-import { Address, Hash, Hex, encodeAbiParameters, hexToBigInt, hexToBytes, toHex } from 'viem';
+import { Address, Hash, Hex, encodeAbiParameters, hexToBytes, keccak256, toHex } from 'viem';
 
 import { ApiError, decodeRequest, rpc, wrapFetch } from './rpc.js';
 import * as iamTypes from './env/iam/types.js';
@@ -20,25 +19,25 @@ export interface Runner {
   getOmniKey(params: GetOmniKeyParams): Promise<CryptoKey>;
 }
 
-export type GetAttestationParams = {
+export type AcqRelIdentityParams = {
   network: NetworkNameOrNetwork;
   identity: IdentityIdOrIdentity;
+  recipient?: Address;
+};
+
+export type GetAttestationParams = AcqRelIdentityParams & {
   purpose?: 'acquire' | 'release';
 };
 
 export type Attestation = {
   document: Hex;
-  context: Hex;
 };
 
-export type AcquireIdentityParams = {
-  network: NetworkNameOrNetwork;
-  identity: IdentityIdOrIdentity;
+export type AcquireIdentityParams = AcqRelIdentityParams & {
   permitter?: Address;
   permitTtl?: number;
-  recipient?: Address;
-  authorization?: Uint8Array | Hex;
   duration?: number;
+  authorization?: Uint8Array | Hex;
 };
 
 export type GetOmniKeyParams = {
@@ -96,31 +95,32 @@ class RunnerInterface implements Runner {
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
 
-    const tree = StandardMerkleTree.of(
-      [
+    const recipient =
+      params.recipient ??
+      (await rpc<iamTypes.GetAccountRequest>(this.#iam, 'get-account', { id: 'worker' })).address;
+
+    const userdata = keccak256(
+      encodeAbiParameters(
+        [
+          { name: 'chain', type: 'uint64' },
+          { name: 'registry', type: 'address' },
+          { name: 'identity', type: 'bytes32' },
+          { name: 'recipient', type: 'address' },
+          { name: 'acquire', type: 'bool' },
+        ],
         [
           BigInt(network.chainId),
-          hexToBigInt(identity.id),
-          !params.purpose || params.purpose === 'acquire' ? 1 : 0,
+          identity.registry,
+          identity.id,
+          recipient,
+          !params.purpose || params.purpose === 'acquire',
         ],
-      ],
-      ['uint256', 'address', 'uint256', 'bool'],
-    );
-    const proof = tree.getProof(0) as Hash[];
-
-    const { document } = await rpc<tpmTypes.AttestationRequest>(this.#tpm, 'get-attestation', {
-      userdata: tree.root as Hash,
-    });
-    return {
-      document,
-      context: encodeAbiParameters(
-        [
-          { name: 'context', type: 'string' },
-          { name: 'proof', type: 'bytes32[]' },
-        ],
-        ['nitro', proof],
       ),
-    };
+    );
+    const { document } = await rpc<tpmTypes.AttestationRequest>(this.#tpm, 'get-attestation', {
+      userdata,
+    });
+    return { document };
   }
 
   async acquireIdentity(params: AcquireIdentityParams): Promise<void> {
