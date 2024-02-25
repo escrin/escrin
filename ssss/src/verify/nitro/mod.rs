@@ -48,7 +48,8 @@ impl Verifier for NitroEnclaveVerifier {
             return Err(Error::Unauthorized("not a trusted relayer".into()));
         }
 
-        let (ud, pcrs) = Self::verify_attestation_document(authorization, UnixTime::now())?;
+        let (ud, pcrs) =
+            Self::verify_attestation_document(authorization, policy.max_age, UnixTime::now())?;
         let binding = (ud.user_data.len() >= H256::len_bytes())
             .then(|| &ud.user_data[0..H256::len_bytes()])
             .ok_or(Error::InvalidBinding)?;
@@ -84,6 +85,7 @@ impl Verifier for NitroEnclaveVerifier {
 impl NitroEnclaveVerifier {
     fn verify_attestation_document(
         doc_bytes: &[u8],
+        max_age: u64,
         now: UnixTime,
     ) -> Result<(AttestationUserData, HashMap<usize, Pcr>), Error> {
         let sign1 = <coset::CoseSign1 as coset::CborSerializable>::from_slice(doc_bytes)
@@ -96,6 +98,13 @@ impl NitroEnclaveVerifier {
                 .ok_or_else(|| Error::AttestationDecode(anyhow!("missing Sign1 payload")))?,
         )
         .unwrap();
+
+        if doc.timestamp > (now.as_secs() + 5) {
+            return Err(Error::Timing("attestation doc not yet valid".into()));
+        }
+        if now.as_secs() - doc.timestamp >= max_age {
+            return Err(Error::Timing("attestation doc expired".into()));
+        }
 
         if doc.digest != "SHA384" {
             return Err(Error::AttestationDecode(anyhow!(
@@ -139,12 +148,12 @@ impl NitroEnclaveVerifier {
 }
 
 #[derive(Deserialize)]
+#[deny(unused)]
 struct AttestationDocument {
     #[allow(unused)]
     module_id: serde::de::IgnoredAny,
     digest: String,
-    #[allow(unused)]
-    timestamp: serde::de::IgnoredAny,
+    timestamp: u64,
     pcrs: HashMap<usize, Pcr>,
     certificate: Vec<u8>,
     cabundle: Vec<Vec<u8>>,
@@ -173,6 +182,13 @@ struct Policy {
     max_duration: u64,
     #[serde(default)]
     relayers: HashSet<Address>,
+    /// Attestation max age (seconds)
+    #[serde(default = "default_max_age")]
+    max_age: u64,
+}
+
+fn default_max_age() -> u64 {
+    15 * 60 // 15 minutes
 }
 
 #[derive(Serialize, Deserialize)]
@@ -265,6 +281,7 @@ mod tests {
         .unwrap();
         NitroEnclaveVerifier::verify_attestation_document(
             &attestaion_doc,
+            u64::max_value(),
             UnixTime::since_unix_epoch(std::time::Duration::from_secs(1703101376)),
         )
         .unwrap();

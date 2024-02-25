@@ -40,6 +40,8 @@ pub enum Error {
     PcrMismatch(usize),
     #[error("{0}")]
     Unauthorized(String),
+    #[error("timing error: {0}")]
+    Timing(String),
 }
 
 #[derive(Clone, Debug)]
