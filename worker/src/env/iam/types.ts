@@ -44,12 +44,12 @@ export type GetAccountRequest = {
 };
 
 export type GetAccountParams = {
-  id: 'worker';
+  id: EphemeralAccount;
 };
 
 export function parseGetAccountParams(params: Record<string, unknown>): GetAccountParams {
   const { id } = params;
-  if (id !== 'worker') throw new ApiError(400, 'invalid account id');
+  if (id !== 'ephemeral-account') throw new ApiError(400, 'invalid account id');
   return { id };
 }
 
@@ -84,11 +84,30 @@ export type AcquireIdentityParams = {
 
   /** Set this to the duration of the permit-requiring critical section to hint to the runner that it can avoid renewing a permit. */
   duration?: number;
+
+  /** @experimental */
+  sssss?: SsssParams;
+};
+
+export type SsssParams = {
+  /** The M in the M-of-N secret sharing scheme. */
+  quorum?: number;
+  /** The URLs of the SSSSs to be contacted. */
+  urls: string[];
 };
 
 export function parseAcquireIdentityParams(params: Record<string, unknown>): AcquireIdentityParams {
-  const { network, identity, permitter, permitTtl, recipient, context, authorization, duration } =
-    params;
+  const {
+    network,
+    identity,
+    permitter,
+    permitTtl,
+    recipient,
+    context,
+    authorization,
+    duration,
+    sssss,
+  } = params;
 
   if (recipient !== undefined && !isAddress(recipient))
     throw new ApiError(400, 'invalid recipient');
@@ -112,6 +131,7 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
     authorization,
     permitTtl,
     duration,
+    sssss: checkSssss(sssss),
   };
 }
 
@@ -121,12 +141,14 @@ export type GetKeyRequest = {
   response: { key: Hex };
 };
 
+type EphemeralAccount = 'ephemeral-account';
+
 export type GetKeyParams =
   | ({
       keyId: 'omni';
     } & EvmKeyStoreParams)
   | {
-      keyId: 'ephemeral-account';
+      keyId: EphemeralAccount;
     };
 
 export type EvmKeyStoreParams = {
@@ -135,6 +157,7 @@ export type EvmKeyStoreParams = {
     registry: Address;
     id: Hash;
   };
+  sssss?: SsssParams;
 };
 
 export function parseGetKeyParams(params: Record<string, unknown>): GetKeyParams {
@@ -142,10 +165,38 @@ export function parseGetKeyParams(params: Record<string, unknown>): GetKeyParams
   if (keyId !== 'omni') throw new ApiError(400, `unknown key id ${keyId}`);
 
   // Only one provider, so no guard is needed.
-  const { network, identity } = providerParams;
+  const { network, identity, sssss } = providerParams;
   return {
     keyId,
     network: parseNetwork(network),
     identity: parseIdentity(identity),
+    sssss: checkSssss(sssss),
   };
+}
+
+function checkSssss(sssss: unknown): SsssParams | undefined {
+  if (sssss === undefined || sssss === null) return undefined;
+  let { urls, quorum } = sssss as Record<string, unknown>;
+
+  if (!Array.isArray(urls)) throw new ApiError(400, 'invalid sssss: missing urls');
+  const normalizedUrls = urls.map((u) => {
+    try {
+      const url = new URL(u);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:')
+        throw new Error(`unsupported protocol: ${url.protocol}`);
+      url.pathname = url.pathname.replace(/\/+$/, '');
+      if (!url.pathname.endsWith('/v1')) throw new Error('unsupported SSSS API version');
+      return url.toString();
+    } catch (e: any) {
+      throw new ApiError(400, `invalid ssss url: ${e}`);
+    }
+  });
+
+  if (
+    quorum !== undefined &&
+    (typeof quorum !== 'number' || quorum <= 0 || quorum % 1 > 0 || quorum > normalizedUrls.length)
+  )
+    throw new ApiError(400, 'invalid sssss: invalid quorum');
+
+  return { quorum, urls: normalizedUrls };
 }

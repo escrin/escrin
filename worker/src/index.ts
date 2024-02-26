@@ -23,6 +23,7 @@ export type AcqRelIdentityParams = {
   network: NetworkNameOrNetwork;
   identity: IdentityIdOrIdentity;
   recipient?: Address;
+  permitter?: Address;
 };
 
 export type GetAttestationParams = AcqRelIdentityParams & {
@@ -34,15 +35,18 @@ export type Attestation = {
 };
 
 export type AcquireIdentityParams = AcqRelIdentityParams & {
-  permitter?: Address;
   permitTtl?: number;
   duration?: number;
   authorization?: Uint8Array | Hex;
+  /** @experimental */
+  sssss?: iamTypes.SsssParams;
 };
 
 export type GetOmniKeyParams = {
   network: NetworkNameOrNetwork;
   identity: IdentityIdOrIdentity;
+  /** @experimental */
+  sssss?: iamTypes.SsssParams;
 };
 
 export type NetworkNameOrNetwork = 'local' | `sapphire-${'testnet' | 'mainnet'}` | iamTypes.Network;
@@ -97,7 +101,8 @@ class RunnerInterface implements Runner {
 
     const recipient =
       params.recipient ??
-      (await rpc<iamTypes.GetAccountRequest>(this.#iam, 'get-account', { id: 'worker' })).address;
+      (await rpc<iamTypes.GetAccountRequest>(this.#iam, 'get-account', { id: 'ephemeral-account' }))
+        .address;
 
     const userdata = keccak256(
       encodeAbiParameters(
@@ -132,6 +137,7 @@ class RunnerInterface implements Runner {
       authorization,
       duration,
       recipient,
+      sssss,
     } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
@@ -143,17 +149,19 @@ class RunnerInterface implements Runner {
       authorization: authorization instanceof Uint8Array ? toHex(authorization) : authorization,
       recipient,
       duration,
+      sssss,
     });
   }
 
   async getOmniKey(params: GetOmniKeyParams): Promise<CryptoKey> {
-    const { network: networkNameOrNetwork, identity: identityIdOrIdentity } = params;
+    const { network: networkNameOrNetwork, identity: identityIdOrIdentity, sssss } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
     const { key } = await rpc<iamTypes.GetKeyRequest>(this.#iam, 'get-key', {
       keyId: 'omni',
       network,
       identity,
+      sssss,
     });
     return crypto.subtle.importKey('raw', hexToBytes(key), 'HKDF', false, [
       'deriveKey',
