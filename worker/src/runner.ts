@@ -103,18 +103,21 @@ export default new (class {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        compatibilityDate: '2023-02-28',
-        serviceWorkerScript: modular ? undefined : config.code,
-        modules: modular ? [{ name: 'main', esModule: config.code }] : undefined,
-        bindings: [
-          { name: 'iam', service: { name: '@escrin/iam' } },
-          {
-            name: 'config',
-            json: typeof config.config === 'string' ? config.config : JSON.stringify(config.config),
-          },
-          ...(env.config.tpm ? [{ name: 'tpm', service: { name: '@escrin/tpm' } }] : []),
-        ],
-        schedule: config.schedule,
+        worker: {
+          compatibilityDate: '2023-02-28',
+          serviceWorkerScript: modular ? undefined : config.code,
+          modules: modular ? [{ name: 'main', esModule: config.code }] : undefined,
+          bindings: [
+            { name: 'iam', service: { name: '@escrin/iam' } },
+            {
+              name: 'config',
+              json:
+                typeof config.config === 'string' ? config.config : JSON.stringify(config.config),
+            },
+            ...(env.config.tpm ? [{ name: 'tpm', service: { name: '@escrin/tpm' } }] : []),
+          ],
+          schedule: config.schedule,
+        },
       }),
     });
 
