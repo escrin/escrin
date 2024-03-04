@@ -12,7 +12,7 @@ async-stream = "0.3.5"
 aws-config = { version = "1.1.2", optional = true }
 aws-sdk-dynamodb = { version = "1.10.0", optional = true }
 aws-sdk-kms = { version = "1.10.0", optional = true }
-axum = { version = "0.7.3", default-features = false, features = ["json", "http1", "http2", "query", "tokio", "form", "tower-log", "macros"] }
+axum = { version = "0.7.3", default-features = false, features = ["json", "http1", "http2", "query", "tokio", "tower-log", "macros", "original-uri"] }
 axum-extra = { version = "0.9.2", features = ["typed-header"] }
 brotli-decompressor = "2.5.1"
 ciborium = "0.2.1"
@@ -21,7 +21,9 @@ coset = { version = "0.3.6", features = ["std"] }
 ethers = { version = "2.0.11", features = ["ws"] }
 futures = { version = "0.3.30", default-features = false, features = ["std"] }
 hex = { version = "0.4.3", features = ["serde"] }
+http-body = "1.0.0"
 paste = "1.0.14"
+pin-project-lite = "0.2.13"
 rand = "0.8.5"
 ring = "0.17.7"
 rusqlite = { version = "0.31.0", optional = true, features = ["bundled"] }
@@ -29,6 +31,7 @@ rustls-webpki = { version = "0.102.1", features = ["std"] }
 serde = { version = "1.0.195", features = ["derive"] }
 smallvec = { version = "1.12.0", features = ["const_generics", "serde"] }
 thiserror = "1.0.56"
+tiny-keccak = "2.0.2"
 tokio = { version = "1.35.1", features = ["rt-multi-thread", "macros", "sync"] }
 tower-http = { version = "0.5.0", features = ["trace", "cors"] }
 tracing = "0.1.40"

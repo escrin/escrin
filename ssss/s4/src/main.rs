@@ -57,22 +57,23 @@ async fn main() -> Result<()> {
             ssss.set_policy(args.identity.into(), cpolicy).await?;
         }
         cli::Command::SignOmniKeyRequest {
+            ssss,
             chain,
-            audience,
             registry,
             identity,
             share_version,
             private_key,
         } => {
-            let req = ssss::types::OmniKeyRequest721 {
-                audience,
-                chain,
-                registry,
-                identity,
-                share_version,
+            let req = ssss::types::SsssRequest {
+                method: "GET".into(),
+                uri: format!(
+                    "{ssss}/v1/shares/omni/{chain}/{registry}/{identity}?version={share_version}"
+                ),
+                body: Default::default(),
             };
             let req_hash = req.encode_eip712()?;
             let sig = private_key.sign_hash(req_hash.into())?;
+            eprintln!("{:x}", ethers::types::Bytes::from(&req_hash));
             println!("0x{sig}");
         }
     }

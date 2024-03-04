@@ -1,19 +1,22 @@
+mod auth;
+
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddrV4},
 };
 
 use axum::{
-    extract::{Path, Query, State},
-    http::{header, Method, StatusCode},
+    extract::{Path, Query, Request, State},
+    http::{header, Method, StatusCode, uri::Authority},
+    middleware::Next,
     response::{IntoResponse, Response},
-    routing::{any, delete, get, post},
+    routing::{any, delete, get, post, put},
     Json, Router,
 };
-use axum_extra::{headers, TypedHeader};
+use axum_extra::TypedHeader;
 use ethers::{
     middleware::Middleware,
-    types::{transaction::eip712::Eip712 as _, Address, Bytes, H256},
+    types::{Address, Bytes},
 };
 use futures::TryFutureExt as _;
 use serde::{Deserialize, Serialize};
@@ -25,6 +28,7 @@ use crate::{eth::SsssPermitter, store::Store, types::*, utils::retry_times, veri
 struct AppState<M: Middleware, S> {
     store: S,
     sssss: HashMap<ChainId, SsssPermitter<M>>,
+    host: Authority
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -71,15 +75,16 @@ struct ErrorResponse {
 pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
     store: S,
     sssss: impl Iterator<Item = SsssPermitter<M>>,
-    port: u16,
+    host: Authority,
 ) {
-    let bind_addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port);
+    let bind_addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), host.port_u16().unwrap_or(443));
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();
     axum::serve(
         listener,
         make_router(AppState {
             store,
             sssss: sssss.map(|ssss| (ssss.chain, ssss)).collect(),
+            host,
         }),
     )
     .await
@@ -99,10 +104,29 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                         .route("/", delete(acqrel_identity)),
                 )
                 .route(
-                    "/shares/omni/:chain/:registry/:identity",
-                    get(get_omni_key_share),
-                ),
+                    "/shares/:name/:chain/:registry/:identity",
+                    get(get_share)
+                        .layer(axum::middleware::from_fn_with_state(
+                            state.clone(),
+                            auth::permitted_requester,
+                        ))
+                        .layer(axum::middleware::from_fn(support_only_omni("share"))),
+                )
+                .nest(
+                    "/keys/:name/:chain/:registry/:identity",
+                    Router::new()
+                        .route("/", put(put_key))
+                        .route("/", get(get_key))
+                        .route("/", delete(delete_key))
+                        .layer(axum::middleware::from_fn_with_state(
+                            state.clone(),
+                            auth::permitted_requester,
+                        ))
+                        .layer(axum::middleware::from_fn(support_only_omni("key"))),
+                )
+                .layer(axum::middleware::from_fn_with_state(state.clone(), auth::escrin1)),
         )
+        .with_state(state)
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(
             cors::CorsLayer::new()
@@ -111,10 +135,28 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                 .allow_headers([
                     header::CONTENT_TYPE,
                     header::AUTHORIZATION,
-                    SIGNATURE_HEADER_NAME.clone(),
+                    auth::SIGNATURE_HEADER_NAME.clone(),
+                    auth::REQUESTER_HEADER_NAME.clone(),
                 ]),
         )
-        .with_state(state)
+}
+
+fn support_only_omni(
+    item: &'static str,
+) -> impl (Fn(
+    Path<(String,)>,
+    Request,
+    Next,
+) -> futures::future::BoxFuture<'static, Result<Response, Error>>)
+       + Clone {
+    move |Path((name,)), req, next| {
+        Box::pin(async move {
+            if name != "omni" {
+                return Err(Error::NotFound(format!("{item} with name {name}")));
+            }
+            Ok(next.run(req).await)
+        })
+    }
 }
 
 async fn root() -> StatusCode {
@@ -166,11 +208,6 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     .await
     .map_err(|e| Error::Unauthorized(e.to_string()))?;
 
-    let share = ShareId {
-        identity: identity_locator,
-        version: 1,
-    };
-
     // TODO: call permitter to approve or revoke
 
     if ssss.upstream().await.map_err(anyhow::Error::from)? != registry {
@@ -184,7 +221,14 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
                 .expiry
                 .ok_or_else(|| Error::Unauthorized("verification failed".into()))?;
             retry_times(
-                || store.create_permit(share, recipient, expiry, verification.nonce.clone()),
+                || {
+                    store.create_permit(
+                        identity_locator,
+                        recipient,
+                        expiry,
+                        verification.nonce.clone(),
+                    )
+                },
                 3,
             )
             .await
@@ -199,7 +243,7 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
             Ok(StatusCode::CREATED)
         }
         Method::DELETE => {
-            retry_times(|| store.delete_permit(share, recipient), 3)
+            retry_times(|| store.delete_permit(identity_locator, recipient), 3)
                 .await
                 .map_err(anyhow::Error::from)?;
             Ok(StatusCode::NO_CONTENT)
@@ -224,108 +268,81 @@ struct AcqRelIdentityResponse {
     permit: Option<Permit>,
 }
 
-struct SignatureHeader(ethers::types::Signature);
-
-static SIGNATURE_HEADER_NAME: header::HeaderName = header::HeaderName::from_static("signature");
-
-impl headers::Header for SignatureHeader {
-    fn name() -> &'static header::HeaderName {
-        &SIGNATURE_HEADER_NAME
-    }
-
-    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
-    where
-        Self: Sized,
-        I: Iterator<Item = &'i header::HeaderValue>,
-    {
-        let sig_hex = values.next().ok_or_else(headers::Error::invalid)?;
-        let sig_bytes: Bytes = sig_hex
-            .to_str()
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .ok_or_else(headers::Error::invalid)?;
-        Ok(Self(
-            (&*sig_bytes)
-                .try_into()
-                .map_err(|_| headers::Error::invalid())?,
-        ))
-    }
-
-    fn encode<E: Extend<header::HeaderValue>>(&self, values: &mut E) {
-        values.extend(std::iter::once(
-            header::HeaderValue::from_str(&format!("0x{}", hex::encode(self.0.to_vec()))).unwrap(),
-        ));
-    }
-}
-
-impl std::ops::Deref for SignatureHeader {
-    type Target = ethers::types::Signature;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-async fn get_omni_key_share<M: Middleware, S: Store>(
-    sig: TypedHeader<SignatureHeader>,
-    host: TypedHeader<headers::Host>,
-    Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
-    Query(GetOmniKeyQuery { share_version }): Query<GetOmniKeyQuery>,
+async fn get_share<M: Middleware, S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Query(GetShareQuery { version }): Query<GetShareQuery>,
+    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
     State(AppState { store, .. }): State<AppState<M, S>>,
-) -> Result<Json<OmniKeyResponse>, Error> {
-    let req721_hash = H256(
-        OmniKeyRequest721 {
-            audience: host.to_string(),
-            chain,
-            registry,
-            identity: identity.0,
-            share_version,
-        }
-        .encode_eip712()
-        .unwrap(),
-    );
-    let requester = sig
-        .recover(req721_hash)
-        .map_err(|_| Error::Forbidden("invalid eip712 signature".into()))?;
-    let share_id = ShareId {
-        identity: IdentityLocator {
-            chain,
-            registry,
-            id: identity,
+) -> Result<Json<ShareResponse>, Error> {
+    let share = retry_times(
+        || {
+            store.get_share(ShareId {
+                identity: IdentityLocator {
+                    chain,
+                    registry,
+                    id: identity,
+                },
+                version,
+            })
         },
-        version: share_version,
-    };
+        3,
+    )
+    .map_err(anyhow::Error::from)
+    .await?
+    .ok_or_else(|| Error::NotFound("share".into()))?;
 
-    retry_times(|| store.read_permit(share_id, requester), 3)
-        .map_err(anyhow::Error::from)
-        .await?
-        .ok_or_else(|| Error::Unauthorized("no acceptable permit found".into()))?;
-
-    let get_share = || retry_times(|| store.get_share(share_id), 3).map_err(anyhow::Error::from);
-    let share = match get_share().await? {
-        Some(share) => share,
-        None => {
-            retry_times(|| store.create_share(share_id.identity), 3)
-                .await
-                .map_err(anyhow::Error::from)?;
-            get_share()
-                .await?
-                .ok_or_else(|| Error::NotFound("share".into()))?
-        }
-    };
-
-    Ok(Json(OmniKeyResponse {
+    Ok(Json(ShareResponse {
         share: share.to_vec().into(),
     }))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct GetOmniKeyQuery {
-    #[serde(rename = "version")]
-    share_version: u64,
+struct GetShareQuery {
+    version: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]
-struct OmniKeyResponse {
+struct ShareResponse {
     share: Bytes,
+}
+
+async fn put_key<M: Middleware, S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Query(GetKeyQuery { version }): Query<GetKeyQuery>,
+    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
+    State(AppState { store, .. }): State<AppState<M, S>>,
+) -> Result<StatusCode, Error> {
+    Ok(StatusCode::NOT_IMPLEMENTED)
+}
+
+async fn get_key<M: Middleware, S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Query(GetShareQuery {
+        version: share_version,
+    }): Query<GetShareQuery>,
+    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
+    State(AppState { store, .. }): State<AppState<M, S>>,
+) -> Result<Json<KeyResponse>, Error> {
+    Ok(Json(KeyResponse {
+        key: Default::default(),
+    }))
+}
+
+async fn delete_key<M: Middleware, S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Query(GetKeyQuery { version }): Query<GetKeyQuery>,
+    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
+    State(AppState { store, .. }): State<AppState<M, S>>,
+) -> Result<StatusCode, Error> {
+    Ok(StatusCode::NOT_IMPLEMENTED)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct GetKeyQuery {
+    version: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct KeyResponse {
+    key: Bytes,
 }

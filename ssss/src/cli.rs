@@ -13,8 +13,8 @@ pub struct Args {
     #[arg(short, long, action = Count, default_value_t = 0)]
     pub verbosity: u8,
 
-    #[arg(long, default_value_t = 1056)]
-    pub port: u16,
+    #[arg(long, default_value = "localhost:1075")]
+    pub host: axum::http::uri::Authority,
 
     /// Specify multiple gateways to watch multiple chains or multiple providers per chain.
     #[arg(short, long, action = Append, default_values = ["http://127.0.0.1:8545"], value_hint = ValueHint::Url)]

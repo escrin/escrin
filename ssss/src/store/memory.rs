@@ -12,14 +12,14 @@ pub struct MemoryStore {
     state: Arc<State>,
 }
 
-type ShareGrantee = (ShareId, Address);
+type Grantee = (IdentityLocator, Address);
 type PermitterIdentityLocator = (PermitterLocator, IdentityId);
 type VerionedVerifierConfig = (Vec<u8>, EventIndex);
 
 #[derive(Default)]
 struct State {
     shares: RwLock<HashMap<IdentityLocator, Vec<Option<Vec<u8>>>>>,
-    permits: RwLock<HashMap<ShareGrantee, Permit>>,
+    permits: RwLock<HashMap<Grantee, Permit>>,
     verifiers: RwLock<HashMap<PermitterIdentityLocator, VerionedVerifierConfig>>,
     chain: RwLock<HashMap<u64, ChainState>>,
     nonces: RwLock<HashSet<Nonce>>,
@@ -61,7 +61,7 @@ impl Store for MemoryStore {
 
     async fn create_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
         expiry: u64,
         nonce: Nonce,
@@ -75,7 +75,7 @@ impl Store for MemoryStore {
                 .permits
                 .write()
                 .unwrap()
-                .entry((share, recipient))
+                .entry((identity, recipient))
             {
                 std::collections::hash_map::Entry::Occupied(mut oe) => {
                     let permit = oe.get_mut();
@@ -95,23 +95,33 @@ impl Store for MemoryStore {
 
     async fn read_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
     ) -> Result<Option<Permit>, Error> {
         Ok(
-            match self.state.permits.read().unwrap().get(&(share, recipient)) {
+            match self
+                .state
+                .permits
+                .read()
+                .unwrap()
+                .get(&(identity, recipient))
+            {
                 Some(permit) if permit.expiry > now() => Some(permit.clone()),
                 _ => None,
             },
         )
     }
 
-    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error> {
+    async fn delete_permit(
+        &self,
+        identity: IdentityLocator,
+        recipient: Address,
+    ) -> Result<(), Error> {
         self.state
             .permits
             .write()
             .unwrap()
-            .remove(&(share, recipient));
+            .remove(&(identity, recipient));
         Ok(())
     }
 

@@ -30,7 +30,7 @@ pub trait Store: Clone + Send + Sync + 'static {
 
     fn create_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
         expiry: u64,
         nonce: Nonce,
@@ -38,13 +38,13 @@ pub trait Store: Clone + Send + Sync + 'static {
 
     fn read_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
     ) -> impl Future<Output = Result<Option<Permit>, Error>> + Send;
 
     fn delete_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
     ) -> impl Future<Output = Result<(), Error>> + Send;
 
@@ -132,41 +132,45 @@ impl Store for DynStore {
 
     async fn create_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
         expiry: u64,
         nonce: Nonce,
     ) -> Result<Option<Permit>, Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.create_permit(share, recipient, expiry, nonce).await,
+            DynStoreKind::Memory(s) => s.create_permit(identity, recipient, expiry, nonce).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.create_permit(share, recipient, expiry, nonce).await,
+            DynStoreKind::Aws(s) => s.create_permit(identity, recipient, expiry, nonce).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.create_permit(share, recipient, expiry, nonce).await,
+            DynStoreKind::Local(s) => s.create_permit(identity, recipient, expiry, nonce).await,
         }
     }
 
     async fn read_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
     ) -> Result<Option<Permit>, Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.read_permit(share, recipient).await,
+            DynStoreKind::Memory(s) => s.read_permit(identity, recipient).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.read_permit(share, recipient).await,
+            DynStoreKind::Aws(s) => s.read_permit(identity, recipient).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.read_permit(share, recipient).await,
+            DynStoreKind::Local(s) => s.read_permit(identity, recipient).await,
         }
     }
 
-    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error> {
+    async fn delete_permit(
+        &self,
+        identity: IdentityLocator,
+        recipient: Address,
+    ) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.delete_permit(share, recipient).await,
+            DynStoreKind::Memory(s) => s.delete_permit(identity, recipient).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.delete_permit(share, recipient).await,
+            DynStoreKind::Aws(s) => s.delete_permit(identity, recipient).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.delete_permit(share, recipient).await,
+            DynStoreKind::Local(s) => s.delete_permit(identity, recipient).await,
         }
     }
 

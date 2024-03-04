@@ -160,7 +160,7 @@ impl Store for Client {
 
     async fn create_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
         expiry: u64,
         nonce: Nonce,
@@ -204,7 +204,7 @@ impl Store for Client {
                     .put(
                         Put::builder()
                             .table_name(self.permits_table())
-                            .item("share", share.into())
+                            .item("identity", identity.into())
                             .item("expiry", n_exp.clone())
                             .item("recipient", address_to_value(&recipient))
                             .condition_expression(
@@ -234,16 +234,16 @@ impl Store for Client {
 
     async fn read_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
     ) -> Result<Option<Permit>, Error> {
         Ok(self
             .db_client
             .query()
             .table_name(self.permits_table())
-            .key_condition_expression("#s = :share AND recipient = :recipient")
-            .expression_attribute_names("#s", "share")
-            .expression_attribute_values(":share", share.into())
+            .key_condition_expression("#i = :identity AND recipient = :recipient")
+            .expression_attribute_names("#i", "identity")
+            .expression_attribute_values(":identity", identity.into())
             .expression_attribute_values(":recipient", address_to_value(&recipient))
             .projection_expression("expiry")
             .send()
@@ -257,11 +257,15 @@ impl Store for Client {
             }))
     }
 
-    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error> {
+    async fn delete_permit(
+        &self,
+        identity: IdentityLocator,
+        recipient: Address,
+    ) -> Result<(), Error> {
         self.db_client
             .delete_item()
             .table_name(self.permits_table())
-            .key("share", share.into())
+            .key("identity", identity.into())
             .key("recipient", address_to_value(&recipient))
             .send()
             .await

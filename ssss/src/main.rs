@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
     sync::run(store.clone(), sssss.iter().cloned()).await?;
 
     trace!("starting API task");
-    let api_task = api::serve(store, sssss.into_iter(), args.port);
+    let api_task = api::serve(store, sssss.into_iter(), args.host);
 
     tokio::join!(api_task);
 

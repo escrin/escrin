@@ -131,15 +131,13 @@ pub struct EventIndex {
 
 #[derive(Clone, Default, EthAbiType, Eip712)]
 #[eip712(
-    name = "OmniKeyRequest",
+    name = "SsssRequest",
     version = "1",
     chain_id = 0,
     verifying_contract = "0x0000000000000000000000000000000000000000"
 )]
-pub struct OmniKeyRequest721 {
-    pub audience: String,
-    pub chain: u64,
-    pub registry: Address,
-    pub identity: H256,
-    pub share_version: u64,
+pub struct SsssRequest {
+    pub method: String,
+    pub uri: String,
+    pub body: H256,
 }

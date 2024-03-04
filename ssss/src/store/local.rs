@@ -67,7 +67,7 @@ impl Store for LocalStore {
 
     async fn create_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
         expiry: u64,
         nonce: Nonce,
@@ -77,13 +77,17 @@ impl Store for LocalStore {
 
     async fn read_permit(
         &self,
-        share: ShareId,
+        identity: IdentityLocator,
         recipient: Address,
     ) -> Result<Option<Permit>, Error> {
         todo!()
     }
 
-    async fn delete_permit(&self, share: ShareId, recipient: Address) -> Result<(), Error> {
+    async fn delete_permit(
+        &self,
+        identity: IdentityLocator,
+        recipient: Address,
+    ) -> Result<(), Error> {
         todo!()
     }
 

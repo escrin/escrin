@@ -45,11 +45,11 @@ resource "aws_dynamodb_table" "permits" {
   name           = "escrin-permits-${terraform.workspace}"
   read_capacity  = 2
   write_capacity = 2
-  hash_key       = "share"
+  hash_key       = "identity"
   range_key      = "recipient"
 
   attribute {
-    name = "share"
+    name = "identity"
     type = "S"
   }
 
