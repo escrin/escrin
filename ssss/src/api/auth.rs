@@ -10,20 +10,17 @@ use axum::{
     response::Response,
 };
 use axum_extra::{headers, TypedHeader};
-use ethers::{
-    middleware::Middleware,
-    types::{transaction::eip712::Eip712 as _, Address, Bytes, Signature, H256},
-};
+use ethers::types::{transaction::eip712::Eip712 as _, Address, Bytes, Signature, H256};
 use pin_project_lite::pin_project;
 use tiny_keccak::{Hasher as _, Keccak};
 
-use super::{AppState, Error};
+use super::Error;
 use crate::{store::Store, types::*, utils::retry_times};
 
-pub async fn permitted_requester<M: Middleware + Clone + 'static, S: Store>(
+pub async fn permitted_requester<S: Store>(
     Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     TypedHeader(Requester(requester)): TypedHeader<Requester>,
-    State(AppState { store, .. }): State<AppState<M, S>>,
+    State(store): State<S>,
     req: Request,
     next: Next,
 ) -> Result<Response, Error> {
@@ -39,17 +36,17 @@ pub async fn permitted_requester<M: Middleware + Clone + 'static, S: Store>(
     Ok(next.run(req).await)
 }
 
-pub async fn escrin1<M: Middleware + Clone + 'static, S: Store>(
+pub async fn escrin1(
     method: Method,
     OriginalUri(uri): OriginalUri,
     TypedHeader(SignatureHeader(sig)): TypedHeader<SignatureHeader>,
     TypedHeader(Requester(requester)): TypedHeader<Requester>,
-    State(AppState { host, .. }): State<AppState<M, S>>,
+    State(host): State<axum::http::uri::Authority>,
     req: Request,
     next: Next,
 ) -> Result<Response, Error> {
     if uri.authority() != Some(&host) {
-        return Err(Error::Forbidden("incorrect audience".into()))
+        return Err(Error::Forbidden("incorrect audience".into()));
     }
     Ok(next
         .run(match method {
@@ -137,7 +134,7 @@ where
                     .finalize(&mut body_hash);
 
                 match verify_sig(
-                    *this.method,
+                    this.method.clone(),
                     this.uri.clone(),
                     *this.sig,
                     *this.requester,

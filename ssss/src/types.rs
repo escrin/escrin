@@ -4,13 +4,10 @@ use ethers::{
 };
 use serde::{Deserialize, Serialize};
 
-pub trait ToKey: Copy {
-    fn to_key(self) -> String;
-}
-
 pub type ChainId = u64;
 
 pub type ShareVersion = u64;
+pub type KeyVersion = u64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -36,28 +33,11 @@ impl IdentityId {
     }
 }
 
-impl ToKey for IdentityId {
-    fn to_key(self) -> String {
-        format!("{:#x}", self.0)
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IdentityLocator {
     pub chain: u64,
     pub registry: Address,
     pub id: IdentityId,
-}
-
-impl ToKey for IdentityLocator {
-    fn to_key(self) -> String {
-        let Self {
-            chain,
-            registry,
-            id: IdentityId(identity),
-        } = &self;
-        format!("{chain}-{registry:#x}-{identity:#x}")
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -66,11 +46,11 @@ pub struct ShareId {
     pub version: ShareVersion,
 }
 
-impl ToKey for ShareId {
-    fn to_key(self) -> String {
-        let Self { identity, version } = &self;
-        format!("{}-{version}", identity.to_key())
-    }
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct KeyId {
+    pub name: String,
+    pub identity: IdentityLocator,
+    pub version: KeyVersion,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -82,13 +62,6 @@ pub struct PermitterLocator {
 impl PermitterLocator {
     pub fn new(chain: u64, permitter: Address) -> Self {
         Self { chain, permitter }
-    }
-}
-
-impl ToKey for PermitterLocator {
-    fn to_key(self) -> String {
-        let Self { chain, permitter } = &self;
-        format!("{chain}-{permitter:#x}")
     }
 }
 
@@ -107,17 +80,33 @@ pub struct ChainStateUpdate {
     pub block: Option<u64>,
 }
 
-#[derive(zeroize::Zeroize)]
+#[derive(Clone, zeroize::Zeroize)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct SecretShare(Vec<u8>);
 
 impl SecretShare {
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.0.clone()
+    pub fn into_vec(self) -> Vec<u8> {
+        self.0
     }
 }
 
 impl From<Vec<u8>> for SecretShare {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+}
+
+#[derive(Clone, Deserialize, zeroize::Zeroize)]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+pub struct WrappedKey(Vec<u8>);
+
+impl WrappedKey {
+    pub fn into_vec(self) -> Vec<u8> {
+        self.0
+    }
+}
+
+impl From<Vec<u8>> for WrappedKey {
     fn from(bytes: Vec<u8>) -> Self {
         Self(bytes)
     }

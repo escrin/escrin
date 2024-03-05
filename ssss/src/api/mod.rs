@@ -7,13 +7,12 @@ use std::{
 
 use axum::{
     extract::{Path, Query, Request, State},
-    http::{header, Method, StatusCode, uri::Authority},
+    http::{header, uri::Authority, Method, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     routing::{any, delete, get, post, put},
     Json, Router,
 };
-use axum_extra::TypedHeader;
 use ethers::{
     middleware::Middleware,
     types::{Address, Bytes},
@@ -28,7 +27,7 @@ use crate::{eth::SsssPermitter, store::Store, types::*, utils::retry_times, veri
 struct AppState<M: Middleware, S> {
     store: S,
     sssss: HashMap<ChainId, SsssPermitter<M>>,
-    host: Authority
+    host: Authority,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -107,8 +106,12 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                     "/shares/:name/:chain/:registry/:identity",
                     get(get_share)
                         .layer(axum::middleware::from_fn_with_state(
-                            state.clone(),
-                            auth::permitted_requester,
+                            state.store.clone(),
+                            auth::permitted_requester::<S>,
+                        ))
+                        .layer(axum::middleware::from_fn_with_state(
+                            state.host.clone(),
+                            auth::escrin1,
                         ))
                         .layer(axum::middleware::from_fn(support_only_omni("share"))),
                 )
@@ -119,12 +122,15 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                         .route("/", get(get_key))
                         .route("/", delete(delete_key))
                         .layer(axum::middleware::from_fn_with_state(
-                            state.clone(),
-                            auth::permitted_requester,
+                            state.store.clone(),
+                            auth::permitted_requester::<S>,
+                        ))
+                        .layer(axum::middleware::from_fn_with_state(
+                            state.host.clone(),
+                            auth::escrin1,
                         ))
                         .layer(axum::middleware::from_fn(support_only_omni("key"))),
-                )
-                .layer(axum::middleware::from_fn_with_state(state.clone(), auth::escrin1)),
+                ),
         )
         .with_state(state)
         .layer(tower_http::trace::TraceLayer::new_for_http())
@@ -166,7 +172,7 @@ async fn root() -> StatusCode {
 async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     method: Method,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
-    State(AppState { store, sssss }): State<AppState<M, S>>,
+    State(AppState { store, sssss, .. }): State<AppState<M, S>>,
     Json(AcqRelIdentityRequest {
         duration,
         authorization,
@@ -269,9 +275,8 @@ struct AcqRelIdentityResponse {
 }
 
 async fn get_share<M: Middleware, S: Store>(
-    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetShareQuery { version }): Query<GetShareQuery>,
-    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
     State(AppState { store, .. }): State<AppState<M, S>>,
 ) -> Result<Json<ShareResponse>, Error> {
     let share = retry_times(
@@ -292,7 +297,7 @@ async fn get_share<M: Middleware, S: Store>(
     .ok_or_else(|| Error::NotFound("share".into()))?;
 
     Ok(Json(ShareResponse {
-        share: share.to_vec().into(),
+        share: share.into_vec().into(),
     }))
 }
 
@@ -309,37 +314,81 @@ struct ShareResponse {
 async fn put_key<M: Middleware, S: Store>(
     Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetKeyQuery { version }): Query<GetKeyQuery>,
-    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
     State(AppState { store, .. }): State<AppState<M, S>>,
+    Json(PutKeyRequest { key }): Json<PutKeyRequest>,
 ) -> Result<StatusCode, Error> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
+    let created = store
+        .put_key(
+            KeyId {
+                name,
+                identity: IdentityLocator {
+                    chain,
+                    registry,
+                    id: identity,
+                },
+                version,
+            },
+            key,
+        )
+        .await?;
+    Ok(if created {
+        StatusCode::CREATED
+    } else {
+        StatusCode::CONFLICT
+    })
 }
 
 async fn get_key<M: Middleware, S: Store>(
     Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
-    Query(GetShareQuery {
-        version: share_version,
-    }): Query<GetShareQuery>,
-    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
+    Query(GetKeyQuery { version }): Query<GetKeyQuery>,
     State(AppState { store, .. }): State<AppState<M, S>>,
 ) -> Result<Json<KeyResponse>, Error> {
-    Ok(Json(KeyResponse {
-        key: Default::default(),
-    }))
+    let key = store
+        .get_key(KeyId {
+            name,
+            identity: IdentityLocator {
+                chain,
+                registry,
+                id: identity,
+            },
+            version,
+        })
+        .await?;
+    match key {
+        Some(key) => Ok(Json(KeyResponse {
+            key: key.into_vec().into(),
+        })),
+        None => Err(Error::NotFound("key".into())),
+    }
 }
 
 async fn delete_key<M: Middleware, S: Store>(
     Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetKeyQuery { version }): Query<GetKeyQuery>,
-    TypedHeader(auth::Requester(requester)): TypedHeader<auth::Requester>,
     State(AppState { store, .. }): State<AppState<M, S>>,
 ) -> Result<StatusCode, Error> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
+    store
+        .delete_key(KeyId {
+            name,
+            identity: IdentityLocator {
+                chain,
+                registry,
+                id: identity,
+            },
+            version,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct GetKeyQuery {
     version: u64,
+}
+
+#[derive(Clone, Deserialize)]
+struct PutKeyRequest {
+    key: WrappedKey,
 }
 
 #[derive(Clone, Debug, Serialize)]
