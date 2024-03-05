@@ -10,23 +10,31 @@ use ethers::types::Address;
 
 use crate::types::*;
 
-const SHARE_SIZE: usize = 32;
-
 type Nonce = Vec<u8>;
 
 pub trait Store: Clone + Send + Sync + 'static {
-    fn create_share(
+    fn put_share(
         &self,
-        identity: IdentityLocator,
-    ) -> impl Future<Output = Result<ShareId, Error>> + Send;
+        id: ShareId,
+        share: SecretShare,
+    ) -> impl Future<Output = Result<bool, Error>> + Send;
 
     fn get_share(
         &self,
-        share: ShareId,
+        id: ShareId,
     ) -> impl Future<Output = Result<Option<SecretShare>, Error>> + Send;
 
-    #[cfg(test)]
-    fn destroy_share(&self, share: ShareId) -> impl Future<Output = Result<(), Error>> + Send;
+    fn delete_share(&self, id: ShareId) -> impl Future<Output = Result<(), Error>> + Send;
+
+    fn put_key(
+        &self,
+        id: KeyId,
+        key: WrappedKey,
+    ) -> impl Future<Output = Result<bool, Error>> + Send;
+
+    fn get_key(&self, id: KeyId) -> impl Future<Output = Result<Option<WrappedKey>, Error>> + Send;
+
+    fn delete_key(&self, id: KeyId) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn create_permit(
         &self,
@@ -99,34 +107,63 @@ pub enum DynStoreKind {
 }
 
 impl Store for DynStore {
-    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
+    async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.create_share(identity).await,
+            DynStoreKind::Memory(s) => s.put_share(id, share).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.create_share(identity).await,
+            DynStoreKind::Aws(s) => s.put_share(id, share).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.create_share(identity).await,
+            DynStoreKind::Local(s) => s.put_share(id, share).await,
         }
     }
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
+    async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.get_share(share).await,
+            DynStoreKind::Memory(s) => s.get_share(id).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.get_share(share).await,
+            DynStoreKind::Aws(s) => s.get_share(id).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.get_share(share).await,
+            DynStoreKind::Local(s) => s.get_share(id).await,
         }
     }
 
-    #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Error> {
+    async fn delete_share(&self, id: ShareId) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.destroy_share(share).await,
+            DynStoreKind::Memory(s) => s.delete_share(id).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.destroy_share(share).await,
+            DynStoreKind::Aws(s) => s.delete_share(id).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.destroy_share(share).await,
+            DynStoreKind::Local(s) => s.delete_share(id).await,
+        }
+    }
+
+    async fn put_key(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
+        match &self.inner {
+            DynStoreKind::Memory(s) => s.put_key(id, key).await,
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.put_key(id, key).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.put_key(id, key).await,
+        }
+    }
+
+    async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
+        match &self.inner {
+            DynStoreKind::Memory(s) => s.get_key(id).await,
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.get_key(id).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.get_key(id).await,
+        }
+    }
+
+    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
+        match &self.inner {
+            DynStoreKind::Memory(s) => s.delete_key(id).await,
+            #[cfg(feature = "aws")]
+            DynStoreKind::Aws(s) => s.delete_key(id).await,
+            #[cfg(feature = "local")]
+            DynStoreKind::Local(s) => s.delete_key(id).await,
         }
     }
 
@@ -313,8 +350,15 @@ mod tests {
             $crate::make_store_tests!(
                 $store,
                 roundtrip_share,
-                create_second_version,
+                create_second_share_version,
+                create_duplicate_share_version,
+                create_discontinuous_share_version,
                 create_second_share,
+                roundtrip_key,
+                create_second_key_version,
+                create_duplicate_key_version,
+                create_discontinuous_key_version,
+                create_second_key,
                 roundtrip_permit,
                 refresh_permit,
                 expired_permit,
@@ -338,27 +382,35 @@ mod tests {
     async fn with_share<'a, S: Store, Fut, T>(
         store: &'a S,
         identity: IdentityId,
+        version: ShareVersion,
         f: impl FnOnce(&'a S, ShareId) -> Fut,
-    ) -> T
+    ) -> Result<T, Error>
     where
         Fut: futures::Future<Output = T> + 'a,
     {
-        let share_id = store
-            .create_share(IdentityLocator {
+        let share_id = ShareId {
+            identity: IdentityLocator {
                 chain: 31337,
                 registry: Address::repeat_byte(1),
                 id: identity,
-            })
-            .await
-            .unwrap();
+            },
+            version,
+        };
+        let mut share = vec![0u8; 32];
+        rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut share);
+        let created = store.put_share(share_id, share.into()).await?;
+        ensure!(
+            created,
+            "share not created due to duplicate or non-contiguous version"
+        );
         let res = f(store, share_id).await;
-        store.destroy_share(share_id).await.unwrap();
-        res
+        store.delete_share(share_id).await?;
+        Ok(res)
     }
 
     pub async fn roundtrip_share(store: impl Store) {
         let identity = IdentityId::random();
-        with_share(&store, identity, |store, share_id| async move {
+        with_share(&store, identity, 1, |store, share_id| async move {
             ensure!(share_id.identity.chain == 31337, "unexpected share chain");
             ensure!(
                 share_id.identity.registry == Address::repeat_byte(1),
@@ -375,14 +427,15 @@ mod tests {
             Ok(())
         })
         .await
-        .unwrap();
+        .expect("test failed")
+        .expect("share creation failed");
     }
 
-    pub async fn create_second_version(store: impl Store) {
+    pub async fn create_second_share_version(store: impl Store) {
         let identity = IdentityId::random();
-        with_share(&store, identity, |store, share_id1| async move {
+        with_share(&store, identity, 1, |store, share_id1| async move {
             let share1_1 = store.get_share(share_id1).await?;
-            with_share(store, identity, |store, share_id2| async move {
+            with_share(store, identity, 2, |store, share_id2| async move {
                 ensure!(
                     share_id1.identity == share_id2.identity,
                     "share identity changed"
@@ -397,15 +450,49 @@ mod tests {
             .await
         })
         .await
-        .unwrap();
+        .expect("test failed")
+        .expect("second share creation failed")
+        .expect("first share creation failed");
+    }
+
+    pub async fn create_duplicate_share_version(store: impl Store) {
+        let identity = IdentityId::random();
+        with_share(&store, identity, 1, |store, _| async move {
+            ensure!(
+                with_share(store, identity, 1, |_, _| async move {})
+                    .await
+                    .is_err(),
+                "duplicate share version wrongly created"
+            );
+            Ok(())
+        })
+        .await
+        .expect("test failed")
+        .expect("first share creation failed");
+    }
+
+    pub async fn create_discontinuous_share_version(store: impl Store) {
+        let identity = IdentityId::random();
+        with_share(&store, identity, 1, |store, _| async move {
+            ensure!(
+                with_share(store, identity, 3, |_, _| async move {})
+                    .await
+                    .is_err(),
+                "discontinuous share version wrongly created"
+            );
+            Ok(())
+        })
+        .await
+        .expect("test failed")
+        .expect("first share creation failed");
     }
 
     pub async fn create_second_share(store: impl Store) {
         let identity1 = IdentityId::random();
         let identity2 = IdentityId::random();
-        with_share(&store, identity1, |store, share_id1| async move {
+        with_share(&store, identity1, 1, |store, share_id1| async move {
             let share1 = store.get_share(share_id1).await?;
-            with_share(store, identity2, |store, share_id2| async move {
+            with_share(store, identity2, 1, |store, share_id2| async move {
                 let share2 = store.get_share(share_id2).await?;
                 ensure!(share1 != share2, "wrong share returned");
                 Ok(())
@@ -413,7 +500,130 @@ mod tests {
             .await
         })
         .await
-        .unwrap();
+        .expect("test failed")
+        .expect("second share creation failed")
+        .expect("first share creation failed");
+    }
+
+    async fn with_key<'a, S: Store, Fut, T>(
+        store: &'a S,
+        identity: IdentityId,
+        version: KeyVersion,
+        f: impl FnOnce(&'a S, KeyId) -> Fut,
+    ) -> Result<T, Error>
+    where
+        Fut: futures::Future<Output = T> + 'a,
+    {
+        let key_id = KeyId {
+            name: "omni".to_string(),
+            identity: IdentityLocator {
+                chain: 31337,
+                registry: Address::repeat_byte(1),
+                id: identity,
+            },
+            version,
+        };
+        let mut key = vec![0u8; 32];
+        rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut key);
+        let created = store.put_key(key_id.clone(), key.into()).await?;
+        ensure!(
+            created,
+            "key not created due to duplicate or non-contiguous version"
+        );
+        let res = f(store, key_id.clone()).await;
+        store.delete_key(key_id).await?;
+        Ok(res)
+    }
+
+    pub async fn roundtrip_key(store: impl Store) {
+        let identity = IdentityId::random();
+        with_key(&store, identity, 1, |store, key_id| async move {
+            ensure!(key_id.identity.chain == 31337, "unexpected key chain");
+            ensure!(
+                key_id.identity.registry == Address::repeat_byte(1),
+                "unexpected key registry"
+            );
+            ensure!(key_id.identity.id == identity, "unexpected key identity");
+            ensure!(key_id.version == 1, "unexpected key version");
+            let key = store.get_key(key_id.clone()).await?;
+            let key2 = store.get_key(key_id).await?;
+            ensure!(key == key2, "retrieved keys mismatched");
+            Ok(())
+        })
+        .await
+        .expect("test failed")
+        .expect("key creation failed");
+    }
+
+    pub async fn create_second_key_version(store: impl Store) {
+        let identity = IdentityId::random();
+        with_key(&store, identity, 1, |store, key_id1| async move {
+            let key1_1 = store.get_key(key_id1.clone()).await?;
+            with_key(store, identity, 2, |store, key_id2| async move {
+                ensure!(key_id1.identity == key_id2.identity, "key identity changed");
+                ensure!(key_id2.version == 2, "key version did not increment");
+                let key1_2 = store.get_key(key_id1).await?;
+                let key2 = store.get_key(key_id2).await?;
+                ensure!(key1_1 == key1_2, "key changed");
+                ensure!(key1_1 != key2, "wrong key returned");
+                Ok(())
+            })
+            .await
+        })
+        .await
+        .expect("test failed")
+        .expect("second key creation failed")
+        .expect("first key creation failed");
+    }
+
+    pub async fn create_duplicate_key_version(store: impl Store) {
+        let identity = IdentityId::random();
+        with_key(&store, identity, 1, |store, _| async move {
+            ensure!(
+                with_key(store, identity, 1, |_, _| async move {})
+                    .await
+                    .is_err(),
+                "duplicate key version wrongly created"
+            );
+            Ok(())
+        })
+        .await
+        .expect("test failed")
+        .expect("first key creation failed");
+    }
+
+    pub async fn create_discontinuous_key_version(store: impl Store) {
+        let identity = IdentityId::random();
+        with_key(&store, identity, 1, |store, _| async move {
+            ensure!(
+                with_key(store, identity, 3, |_, _| async move {})
+                    .await
+                    .is_err(),
+                "discontinuous key version wrongly created"
+            );
+            Ok(())
+        })
+        .await
+        .expect("test failed")
+        .expect("first key creation failed");
+    }
+
+    pub async fn create_second_key(store: impl Store) {
+        let identity1 = IdentityId::random();
+        let identity2 = IdentityId::random();
+        with_key(&store, identity1, 1, |store, key_id1| async move {
+            let key1 = store.get_key(key_id1).await?;
+            with_key(store, identity2, 1, |store, key_id2| async move {
+                let key2 = store.get_key(key_id2).await?;
+                ensure!(key1 != key2, "wrong key returned");
+                Ok(())
+            })
+            .await
+        })
+        .await
+        .expect("test failed")
+        .expect("second key creation failed")
+        .expect("first key creation failed");
     }
 
     async fn with_permit<'a, S: Store, Fut, T>(
@@ -443,13 +653,16 @@ mod tests {
         Fut: futures::Future<Output = T> + 'a,
     {
         let permit = store
-            .create_permit(share, recipient, expiry, nonce)
+            .create_permit(share.identity, recipient, expiry, nonce)
             .await
             .unwrap();
         match permit {
             Some(p) => {
                 let res = f(store, p).await;
-                store.delete_permit(share, recipient).await.unwrap();
+                store
+                    .delete_permit(share.identity, recipient)
+                    .await
+                    .unwrap();
                 Some(res)
             }
             None => None,
@@ -477,15 +690,15 @@ mod tests {
             recipient,
             expiry,
             |store, permit| async move {
-                let read_permit = store.read_permit(share, recipient).await?;
+                let read_permit = store.read_permit(share.identity, recipient).await?;
                 ensure!(read_permit.is_some(), "permit not created");
                 ensure!(read_permit.unwrap() == permit, "permit mismatch");
                 Ok(())
             },
         )
         .await
-        .unwrap()
-        .unwrap();
+        .expect("test failed")
+        .expect("permit creation failed");
     }
 
     pub async fn expired_permit(store: impl Store) {
@@ -493,13 +706,13 @@ mod tests {
         let recipient = Address::random();
         let expiry = now() - 60;
         with_permit(&store, share, recipient, expiry, |store, _| async move {
-            let read_permit = store.read_permit(share, recipient).await?;
+            let read_permit = store.read_permit(share.identity, recipient).await?;
             ensure!(read_permit.is_none(), "permit not expired");
             Ok(())
         })
         .await
-        .unwrap()
-        .unwrap();
+        .expect("test failed")
+        .expect("permit creation failed");
     }
 
     pub async fn used_nonce_permit(store: impl Store) {
@@ -539,7 +752,7 @@ mod tests {
             expiry_soon,
             |store, _| async move {
                 with_permit(store, share, recipient, expiry_far, |store, _| async move {
-                    let read_permit = store.read_permit(share, recipient).await?;
+                    let read_permit = store.read_permit(share.identity, recipient).await?;
                     ensure!(read_permit.is_some(), "permit not created");
                     ensure!(
                         read_permit.unwrap().expiry == expiry_far,
@@ -551,9 +764,9 @@ mod tests {
             },
         )
         .await
-        .unwrap()
-        .unwrap()
-        .unwrap();
+        .expect("test failed")
+        .expect("second permit creation failed")
+        .expect("first permit creation failed");
     }
 
     pub async fn defresh_permit_fail(store: impl Store) {
@@ -574,8 +787,8 @@ mod tests {
             },
         )
         .await
-        .unwrap()
-        .unwrap();
+        .expect("test failed")
+        .expect("permit creation failed");
     }
 
     pub async fn delete_defresh_permit(store: impl Store) {
@@ -589,14 +802,14 @@ mod tests {
             recipient,
             expiry_far,
             |store, _| async move {
-                store.delete_permit(share, recipient).await?;
+                store.delete_permit(share.identity, recipient).await?;
                 let outcome = with_permit(
                     store,
                     share,
                     recipient,
                     expiry_soon,
                     |store, permit| async move {
-                        let read_permit = store.read_permit(share, recipient).await?;
+                        let read_permit = store.read_permit(share.identity, recipient).await?;
                         ensure!(read_permit.is_some(), "permit not re-created");
                         ensure!(read_permit.unwrap() == permit, "permit mismatch");
                         Ok(())
@@ -608,8 +821,8 @@ mod tests {
             },
         )
         .await
-        .unwrap()
-        .unwrap();
+        .expect("test failed")
+        .expect("permit creation failed");
     }
 
     pub async fn roundtrip_chain_state(store: impl Store) {

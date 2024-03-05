@@ -41,6 +41,30 @@ resource "aws_dynamodb_table" "shares" {
   deletion_protection_enabled = terraform.workspace != "dev"
 }
 
+resource "aws_dynamodb_table" "keys" {
+  name           = "escrin-keys-${terraform.workspace}"
+  read_capacity  = 2
+  write_capacity = 2
+  hash_key       = "id"
+  range_key      = "version"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "version"
+    type = "N"
+  }
+
+  point_in_time_recovery {
+    enabled = terraform.workspace != "dev"
+  }
+
+  deletion_protection_enabled = terraform.workspace != "dev"
+}
+
 resource "aws_dynamodb_table" "permits" {
   name           = "escrin-permits-${terraform.workspace}"
   read_capacity  = 2
@@ -154,6 +178,7 @@ resource "aws_iam_policy" "km_policy" {
       "Resource": [
         "${aws_kms_key.sek.arn}",
         "${aws_dynamodb_table.shares.arn}",
+        "${aws_dynamodb_table.keys.arn}",
         "${aws_dynamodb_table.permits.arn}",
         "${aws_dynamodb_table.nonces.arn}",
         "${aws_dynamodb_table.verifiers.arn}",

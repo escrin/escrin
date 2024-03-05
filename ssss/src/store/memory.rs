@@ -3,8 +3,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use rand::RngCore as _;
-
 use super::*;
 
 #[derive(Clone, Default)]
@@ -15,10 +13,12 @@ pub struct MemoryStore {
 type Grantee = (IdentityLocator, Address);
 type PermitterIdentityLocator = (PermitterLocator, IdentityId);
 type VerionedVerifierConfig = (Vec<u8>, EventIndex);
+type IdentityNamedItem = (IdentityLocator, String);
 
 #[derive(Default)]
 struct State {
-    shares: RwLock<HashMap<IdentityLocator, Vec<Option<Vec<u8>>>>>,
+    shares: RwLock<HashMap<IdentityLocator, Vec<Option<SecretShare>>>>,
+    keys: RwLock<HashMap<IdentityNamedItem, Vec<Option<WrappedKey>>>>,
     permits: RwLock<HashMap<Grantee, Permit>>,
     verifiers: RwLock<HashMap<PermitterIdentityLocator, VerionedVerifierConfig>>,
     chain: RwLock<HashMap<u64, ChainState>>,
@@ -26,34 +26,65 @@ struct State {
 }
 
 impl Store for MemoryStore {
-    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
+    async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
         let mut shares = self.state.shares.write().unwrap();
-        let mut share = vec![0u8; SHARE_SIZE];
-        rand::thread_rng().fill_bytes(&mut share);
-        let identity_shares = shares.entry(identity).or_default();
+        let identity_shares = shares.entry(id.identity).or_default();
+        if id.version as usize != identity_shares.len() + 1 {
+            return Ok(false);
+        }
         identity_shares.push(Some(share));
-        Ok(ShareId {
-            identity,
-            version: identity_shares.len() as u64,
+        Ok(true)
+    }
+
+    async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
+        Ok(match self.state.shares.read().unwrap().get(&id.identity) {
+            Some(versions) if versions.len() >= id.version as usize => {
+                versions[id.version as usize - 1].clone().map(Into::into)
+            }
+            _ => None,
         })
     }
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
+    async fn delete_share(&self, id: ShareId) -> Result<(), Error> {
+        if let Some(versions) = self.state.shares.write().unwrap().get_mut(&id.identity) {
+            if id.version < versions.len() as u64 {
+                versions[id.version as usize - 1] = None;
+            }
+        }
+        Ok(())
+    }
+
+    async fn put_key(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
+        let mut keys = self.state.keys.write().unwrap();
+        let identified_keys = keys.entry((id.identity, id.name)).or_default();
+        if id.version as usize != identified_keys.len() + 1 {
+            return Ok(false);
+        }
+        identified_keys.push(Some(key));
+        Ok(true)
+    }
+
+    async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
         Ok(
-            match self.state.shares.read().unwrap().get(&share.identity) {
-                Some(versions) if versions.len() >= share.version as usize => {
-                    versions[share.version as usize - 1].clone().map(Into::into)
+            match self.state.keys.read().unwrap().get(&(id.identity, id.name)) {
+                Some(versions) if versions.len() >= id.version as usize => {
+                    versions[id.version as usize - 1].clone().map(Into::into)
                 }
                 _ => None,
             },
         )
     }
 
-    #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Error> {
-        if let Some(versions) = self.state.shares.write().unwrap().get_mut(&share.identity) {
-            if versions.len() <= share.version as usize {
-                versions[share.version as usize - 1] = None;
+    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
+        if let Some(versions) = self
+            .state
+            .keys
+            .write()
+            .unwrap()
+            .get_mut(&(id.identity, id.name))
+        {
+            if versions.len() <= id.version as usize {
+                versions[id.version as usize - 1] = None;
             }
         }
         Ok(())

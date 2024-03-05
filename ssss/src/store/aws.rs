@@ -7,10 +7,8 @@ use aws_sdk_dynamodb::{
         Put, TransactWriteItem,
     },
 };
-use rand::RngCore as _;
 
 use super::*;
-use crate::types::ToKey as _;
 
 #[derive(Clone)]
 pub struct Client {
@@ -43,19 +41,20 @@ impl Client {
     }
 
     naming_fn!(shares_table, "escrin-shares");
+    naming_fn!(keys_table, "escrin-keys");
     naming_fn!(permits_table, "escrin-permits");
     naming_fn!(nonces_table, "escrin-nonces");
     naming_fn!(verifiers_table, "escrin-verifiers");
     naming_fn!(chain_state_table, "escrin-chain-state");
     naming_fn!(kms_key, "alias/escrin-sek");
 
-    async fn current_share_version(&self, identity: IdentityLocator) -> Result<Option<u64>, Error> {
+    async fn current_share_version(&self, id: ShareId) -> Result<Option<ShareVersion>, Error> {
         Ok(self
             .db_client
             .query()
             .table_name(self.shares_table())
             .key_condition_expression("id = :id")
-            .expression_attribute_values(":id", identity.into())
+            .expression_attribute_values(":id", id.identity.to_attribute_value())
             .projection_expression("version")
             .scan_index_forward(false)
             .limit(1)
@@ -64,68 +63,73 @@ impl Client {
             .map_err(aws_sdk_dynamodb::Error::from)?
             .items()
             .first()
-            .map(unpack_version))
+            .map(|v| unpack_u64("version", v)))
+    }
+
+    async fn current_key_version(&self, id: &KeyId) -> Result<Option<KeyVersion>, Error> {
+        Ok(self
+            .db_client
+            .query()
+            .table_name(self.keys_table())
+            .key_condition_expression("id = :id")
+            .expression_attribute_values(":id", id.to_attribute_value())
+            .projection_expression("version")
+            .scan_index_forward(false)
+            .limit(1)
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)?
+            .items()
+            .first()
+            .map(|v| unpack_u64("version", v)))
     }
 }
 
 impl Store for Client {
-    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
-        let version = self.current_share_version(identity).await?.unwrap_or(0) + 1;
-        let n_version = N(version.to_string());
-
-        let mut share = vec![0u8; SHARE_SIZE];
-        rand::thread_rng().fill_bytes(&mut share);
-
-        let share_id = ShareId { identity, version };
+    async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
+        let current_version = self.current_share_version(id).await?.unwrap_or_default();
+        if id.version != current_version + 1 {
+            return Ok(false);
+        }
 
         let enc_share = self
             .kms_client
             .encrypt()
             .key_id(self.kms_key())
-            .plaintext(Blob::new(share))
-            .encryption_context("share", share_id.to_key())
+            .plaintext(Blob::new(share.into_vec()))
+            .encryption_context("share", id.to_encryption_context())
             .send()
             .await
             .map_err(aws_sdk_kms::Error::from)?
             .ciphertext_blob
             .unwrap();
 
-        self.db_client
+        let res = self
+            .db_client
             .put_item()
             .table_name(self.shares_table())
-            .item("id", identity.into())
-            .item("version", n_version)
+            .item("id", id.to_attribute_value())
+            .item("version", N(id.version.to_string()))
             .item("share", B(enc_share))
             .condition_expression("attribute_not_exists(id) AND attribute_not_exists(version)")
             .send()
             .await
-            .map_err(aws_sdk_dynamodb::Error::from)?;
-
-        Ok(share_id)
+            .map_err(aws_sdk_dynamodb::Error::from);
+        match res {
+            Ok(_) => Ok(true),
+            Err(aws_sdk_dynamodb::Error::ConditionalCheckFailedException(_)) => Ok(false),
+            Err(e) => Err(e.into()),
+        }
     }
 
-    #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Error> {
-        self.db_client
-            .delete_item()
-            .table_name(self.shares_table())
-            .key("id", share.identity.into())
-            .key("version", N(share.version.to_string()))
-            .send()
-            .await
-            .map_err(aws_sdk_dynamodb::Error::from)
-            .unwrap();
-        Ok(())
-    }
-
-    async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
+    async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
         let maybe_enc_share = self
             .db_client
             .query()
             .table_name(self.shares_table())
             .key_condition_expression("id = :id AND version = :version")
-            .expression_attribute_values(":id", share.identity.into())
-            .expression_attribute_values(":version", N(share.version.to_string()))
+            .expression_attribute_values(":id", id.to_attribute_value())
+            .expression_attribute_values(":version", N(id.version.to_string()))
             .projection_expression("#s")
             .expression_attribute_names("#s", "share")
             .send()
@@ -135,7 +139,7 @@ impl Store for Client {
             .unwrap_or_default()
             .into_iter()
             .nth(0)
-            .map(|mut v| unpack_share(&mut v));
+            .map(|mut v| unpack_blob("share", &mut v));
 
         let enc_share = match maybe_enc_share {
             Some(s) => s,
@@ -147,7 +151,7 @@ impl Store for Client {
                 .decrypt()
                 .key_id(self.kms_key())
                 .ciphertext_blob(enc_share)
-                .encryption_context("share", share.to_key())
+                .encryption_context("share", id.to_encryption_context())
                 .send()
                 .await
                 .map_err(aws_sdk_kms::Error::from)?
@@ -156,6 +160,108 @@ impl Store for Client {
                 .into_inner()
                 .into(),
         ))
+    }
+
+    async fn delete_share(&self, id: ShareId) -> Result<(), Error> {
+        self.db_client
+            .delete_item()
+            .table_name(self.shares_table())
+            .key("id", id.to_attribute_value())
+            .key("version", N(id.version.to_string()))
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)
+            .unwrap();
+        Ok(())
+    }
+
+    async fn put_key(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
+        let current_version = self.current_key_version(&id).await?.unwrap_or_default();
+        if id.version != current_version + 1 {
+            return Ok(false);
+        }
+
+        let enc_key = self
+            .kms_client
+            .encrypt()
+            .key_id(self.kms_key())
+            .plaintext(Blob::new(key.into_vec()))
+            .encryption_context("key", id.to_encryption_context())
+            .send()
+            .await
+            .map_err(aws_sdk_kms::Error::from)?
+            .ciphertext_blob
+            .unwrap();
+
+        let res = self
+            .db_client
+            .put_item()
+            .table_name(self.keys_table())
+            .item("id", id.to_attribute_value())
+            .item("version", N(id.version.to_string()))
+            .item("key", B(enc_key))
+            .condition_expression("attribute_not_exists(id) AND attribute_not_exists(version)")
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from);
+        match res {
+            Ok(_) => Ok(true),
+            Err(aws_sdk_dynamodb::Error::ConditionalCheckFailedException(_)) => Ok(false),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
+        let maybe_enc_key = self
+            .db_client
+            .query()
+            .table_name(self.keys_table())
+            .key_condition_expression("id = :id AND version = :version")
+            .expression_attribute_values(":id", id.to_attribute_value())
+            .expression_attribute_values(":version", N(id.version.to_string()))
+            .projection_expression("#k")
+            .expression_attribute_names("#k", "key")
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)?
+            .items
+            .unwrap_or_default()
+            .into_iter()
+            .nth(0)
+            .map(|mut v| unpack_blob("key", &mut v));
+
+        let enc_key = match maybe_enc_key {
+            Some(k) => k,
+            None => return Ok(None),
+        };
+
+        Ok(Some(
+            self.kms_client
+                .decrypt()
+                .key_id(self.kms_key())
+                .ciphertext_blob(enc_key)
+                .encryption_context("key", id.to_encryption_context())
+                .send()
+                .await
+                .map_err(aws_sdk_kms::Error::from)?
+                .plaintext
+                .unwrap()
+                .into_inner()
+                .into(),
+        ))
+    }
+
+    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
+        self.db_client
+            .delete_item()
+            .table_name(self.keys_table())
+            .key("id", id.to_attribute_value())
+            .key("version", N(id.version.to_string()))
+            .send()
+            .await
+            .map_err(aws_sdk_dynamodb::Error::from)
+            .unwrap();
+        Ok(())
     }
 
     async fn create_permit(
@@ -204,7 +310,7 @@ impl Store for Client {
                     .put(
                         Put::builder()
                             .table_name(self.permits_table())
-                            .item("identity", identity.into())
+                            .item("identity", identity.to_attribute_value())
                             .item("expiry", n_exp.clone())
                             .item("recipient", address_to_value(&recipient))
                             .condition_expression(
@@ -243,7 +349,7 @@ impl Store for Client {
             .table_name(self.permits_table())
             .key_condition_expression("#i = :identity AND recipient = :recipient")
             .expression_attribute_names("#i", "identity")
-            .expression_attribute_values(":identity", identity.into())
+            .expression_attribute_values(":identity", identity.to_attribute_value())
             .expression_attribute_values(":recipient", address_to_value(&recipient))
             .projection_expression("expiry")
             .send()
@@ -265,7 +371,7 @@ impl Store for Client {
         self.db_client
             .delete_item()
             .table_name(self.permits_table())
-            .key("identity", identity.into())
+            .key("identity", identity.to_attribute_value())
             .key("recipient", address_to_value(&recipient))
             .send()
             .await
@@ -340,8 +446,8 @@ impl Store for Client {
             .table_name(self.verifiers_table())
             .key_condition_expression("permitter = :permitter AND #i = :identity")
             .expression_attribute_names("#i", "identity")
-            .expression_attribute_values(":permitter", permitter.into())
-            .expression_attribute_values(":identity", identity.into())
+            .expression_attribute_values(":permitter", permitter.to_attribute_value())
+            .expression_attribute_values(":identity", identity.to_attribute_value())
             .projection_expression("config")
             .send()
             .await
@@ -369,8 +475,8 @@ impl Store for Client {
             .db_client
             .put_item()
             .table_name(self.verifiers_table())
-            .item("permitter", permitter.into())
-            .item("identity", identity.into())
+            .item("permitter", permitter.to_attribute_value())
+            .item("identity", identity.to_attribute_value())
             .item("config", B(Blob::new(config)))
             .item("block", n_block.clone())
             .item("log_index", n_log_index.clone())
@@ -399,8 +505,8 @@ impl Store for Client {
         self.db_client
             .delete_item()
             .table_name(self.verifiers_table())
-            .key("permitter", permitter.into())
-            .key("identity", identity.into())
+            .key("permitter", permitter.to_attribute_value())
+            .key("identity", identity.to_attribute_value())
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?;
@@ -408,29 +514,7 @@ impl Store for Client {
     }
 }
 
-macro_rules! impl_into_attribute_value {
-    ($($ty:ident),+ $(,)?) => {
-        $(
-            impl From<$ty> for AttributeValue {
-                fn from(v: $ty) -> Self {
-                    S(v.to_key())
-                }
-            }
-        )+
-    }
-}
-impl_into_attribute_value!(IdentityLocator, PermitterLocator, IdentityId, ShareId);
-
-fn unpack_version(res: &HashMap<String, AttributeValue>) -> u64 {
-    res.get("version")
-        .expect("version key")
-        .as_n()
-        .expect("numeric version")
-        .parse::<u64>()
-        .expect("parseable numeric version")
-}
-
-fn unpack_u64(key: &str, res: &HashMap<String, AttributeValue>) -> u64 {
+fn unpack_u64(key: &'static str, res: &HashMap<String, AttributeValue>) -> u64 {
     res.get(key)
         .expect(key)
         .as_n()
@@ -439,15 +523,89 @@ fn unpack_u64(key: &str, res: &HashMap<String, AttributeValue>) -> u64 {
         .unwrap()
 }
 
-fn unpack_share(res: &mut HashMap<String, AttributeValue>) -> Blob {
-    match res.remove("share").expect("share present") {
+fn unpack_blob(key: &'static str, res: &mut HashMap<String, AttributeValue>) -> Blob {
+    match res
+        .remove(key)
+        .unwrap_or_else(|| panic!("{key} not present"))
+    {
         B(b) => b,
-        _ => panic!("share not blob"),
+        _ => panic!("{key} not blob"),
     }
 }
 
 fn address_to_value(addr: &Address) -> AttributeValue {
     S(format!("{addr:#x}"))
+}
+
+pub trait ToAttributeValue {
+    fn to_key(&self) -> String;
+
+    fn to_attribute_value(&self) -> AttributeValue {
+        S(self.to_key())
+    }
+}
+
+pub trait ToEncryptionContext {
+    fn to_encryption_context(&self) -> String;
+}
+
+impl ToAttributeValue for IdentityId {
+    fn to_key(&self) -> String {
+        format!("{:#x}", self.0)
+    }
+}
+
+impl ToAttributeValue for IdentityLocator {
+    fn to_key(&self) -> String {
+        let Self {
+            chain,
+            registry,
+            id: IdentityId(identity),
+        } = &self;
+        format!("{chain}-{registry:#x}-{identity:#x}")
+    }
+}
+
+impl ToAttributeValue for ShareId {
+    fn to_key(&self) -> String {
+        self.identity.to_key()
+    }
+}
+
+impl ToEncryptionContext for ShareId {
+    fn to_encryption_context(&self) -> String {
+        let Self { identity, version } = &self;
+        format!("{}-{version}", identity.to_key())
+    }
+}
+
+impl ToAttributeValue for KeyId {
+    fn to_key(&self) -> String {
+        let Self {
+            name,
+            identity,
+            version: _,
+        } = &self;
+        format!("{}-{name}", identity.to_key())
+    }
+}
+
+impl ToEncryptionContext for KeyId {
+    fn to_encryption_context(&self) -> String {
+        let Self {
+            name,
+            identity,
+            version,
+        } = &self;
+        format!("{}-{name}-{version}", identity.to_key())
+    }
+}
+
+impl ToAttributeValue for PermitterLocator {
+    fn to_key(&self) -> String {
+        let Self { chain, permitter } = &self;
+        format!("{chain}-{permitter:#x}")
+    }
 }
 
 #[cfg(test)]

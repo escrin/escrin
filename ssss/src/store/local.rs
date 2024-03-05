@@ -1,7 +1,5 @@
 #![allow(unused)]
 
-use rand::RngCore as _;
-
 use super::*;
 
 #[derive(Clone, Default)]
@@ -52,16 +50,27 @@ impl LocalStore {
 }
 
 impl Store for LocalStore {
-    async fn create_share(&self, identity: IdentityLocator) -> Result<ShareId, Error> {
+    async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
         todo!()
     }
 
-    async fn get_share(&self, share: ShareId) -> Result<Option<SecretShare>, Error> {
+    async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
         todo!()
     }
 
-    #[cfg(test)]
-    async fn destroy_share(&self, share: ShareId) -> Result<(), Error> {
+    async fn delete_share(&self, share: ShareId) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn put_key(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
+        todo!()
+    }
+
+    async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
+        todo!()
+    }
+
+    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
         todo!()
     }
 
