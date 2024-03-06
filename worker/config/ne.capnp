@@ -18,6 +18,7 @@ const config :Workerd.Config = (
 
 const runnerWorker :Workerd.Worker = (
   compatibilityDate = Base.runnerWorkerCompatDate,
+  compatibilityFlags = Base.runnerWorkerCompatFlags,
   modules =  Base.runnerWorkerModules,
   bindings = [ Base.workerdBinding, (name = "config", json = "{\"tpm\": true}") ],
 );

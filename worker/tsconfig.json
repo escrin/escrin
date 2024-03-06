@@ -1,6 +1,7 @@
 {
   "include": ["src", "test"],
   "compilerOptions": {
+    "baseUrl": ".",
     "esModuleInterop": true,
     "lib": ["es2022", "dom"],
     "module": "nodenext",
@@ -10,6 +11,11 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "types": ["@cloudflare/workers-types"]
+    "types": ["@cloudflare/workers-types"],
+    "paths": {
+      "@escrin/worker": ["src/index.ts"],
+      "@escrin/worker/*": ["src/*"],
+      "*": ["./*"]
+    }
   }
 }

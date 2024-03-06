@@ -6,6 +6,7 @@ const internetServiceName :Text = "internet";
 
 const runnerServiceName :Text = "@escrin/runner";
 const runnerWorkerCompatDate :Text = "2023-11-08";
+const runnerWorkerCompatFlags :List(Text) = ["service_binding_extra_handlers"];
 const runnerWorkerModules :List(Workerd.Worker.Module) =
   [ (name = "", esModule = embed "../dist/worker/runner.js") ];
 const workerdBinding :Workerd.Worker.Binding = (name = "workerd", service = "@workerd");
