@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["src/svc"],
+  "exclude": ["src/svc", "test"],
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,

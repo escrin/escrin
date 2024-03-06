@@ -2,7 +2,7 @@ import escrinWorker, * as escrin from '../src/index.js';
 
 export default escrinWorker({
   async tasks(rnr: escrin.Runner): Promise<void> {
-    const { document, context } = await rnr.getAttestation({
+    const { document } = await rnr.getAttestation({
       network: {
         chainId: 1337,
       },
@@ -12,6 +12,5 @@ export default escrinWorker({
       },
     });
     console.log(document);
-    console.log(context);
   },
 });
