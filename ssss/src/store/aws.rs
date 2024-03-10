@@ -7,7 +7,6 @@ use aws_sdk_dynamodb::{
         Put, TransactWriteItem,
     },
 };
-use ethers::types::U256;
 
 use super::*;
 
@@ -113,15 +112,7 @@ impl Store for Client {
             .item("version", N(id.version.to_string()))
             .item("index", N(ss.index.to_string()))
             .item("share", B(enc_share))
-            .item(
-                "commitment",
-                B({
-                    let mut commitment_xy = vec![0u8; 2 * 32];
-                    commitment_xy[0..32].copy_from_slice(&<[u8; 32]>::from(ss.commitment.0));
-                    commitment_xy[32..64].copy_from_slice(&<[u8; 32]>::from(ss.commitment.1));
-                    Blob::new(commitment_xy)
-                }),
-            )
+            .item("blinding", B(Blob::new(ss.blinding)))
             .condition_expression("attribute_not_exists(id) AND attribute_not_exists(version)")
             .send()
             .await
@@ -151,17 +142,11 @@ impl Store for Client {
             .map(|mut v| {
                 let index = unpack_u64("index", &v);
                 let enc_share = unpack_blob("share", &mut v);
-                let commitment_xy = unpack_blob("commitment", &mut v).into_inner();
-                assert!(commitment_xy.len() == 2 * 32);
-                let mut x = [0u8; 32];
-                let mut y = [0u8; 32];
-                x.copy_from_slice(&commitment_xy[0..32]);
-                y.copy_from_slice(&commitment_xy[32..64]);
-                let commitment = (U256::from(x), U256::from(y));
-                (index, enc_share, commitment)
+                let blinding = unpack_blob("blinding", &mut v).into_inner()[..].into();
+                (index, enc_share, blinding)
             });
 
-        let (index, enc_share, commitment) = match maybe_enc_ss {
+        let (index, enc_share, blinding) = match maybe_enc_ss {
             Some(s) => s,
             None => return Ok(None),
         };
@@ -182,7 +167,7 @@ impl Store for Client {
         Ok(Some(SecretShare {
             index,
             share: share.into(),
-            commitment,
+            blinding,
         }))
     }
 

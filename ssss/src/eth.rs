@@ -32,8 +32,7 @@ ethers::contract::abigen!(
 
         function setPolicy(bytes32 identity, bytes calldata config)
 
-        struct Commitment { uint256 x; uint256 y; }
-        function postShares(bytes32 identity, bytes[49] pk, bytes12 nonce, bytes[] shares, Commitment[] commitments)
+        function postShares(bytes32 identity, bytes[49] pk, bytes12 nonce, bytes[] shares, byte[] blinders)
     ]"
 );
 
@@ -219,19 +218,19 @@ impl<M: providers::Middleware> SsssPermitter<M> {
                 })
             }
             SsssPermitterContractEvents::SharesPostedFilter(_) => {
-                let (identity, pk, nonce, shares, commitments): (
+                let (identity, pk, nonce, shares, blindings): (
                     H256,
                     [u8; 49],
                     [u8; 12],
                     Vec<Bytes>,
-                    Vec<Commitment>,
+                    Vec<Bytes>,
                 ) = AbiDecode::decode(&input[4..]).unwrap();
                 EventKind::SharesPosted(SharesPosted {
                     identity: identity.into(),
                     pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
                     nonce: nonce.into(),
                     shares,
-                    commitments,
+                    blindings,
                 })
             }
         };
@@ -320,7 +319,7 @@ pub struct SharesPosted {
     pub nonce: aes_gcm_siv::Nonce,
     /// Encrypted secret shares. One of which belongs to this SSSS.
     pub shares: Vec<Bytes>,
-    pub commitments: Vec<Commitment>,
+    pub blindings: Vec<Bytes>,
 }
 
 #[derive(Debug, thiserror::Error)]

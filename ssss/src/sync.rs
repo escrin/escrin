@@ -112,25 +112,26 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                     pk,
                     nonce,
                     shares,
-                    commitments,
+                    blindings,
                 }) => {
                     let cipher = ssss_identity.derive_shared_cipher(pk);
                     let maybe_my_share = shares
                         .into_iter()
-                        .zip(commitments.into_iter())
+                        .zip(blindings.into_iter())
                         .enumerate()
-                        .find_map(|(i, (enc_share, commitment))| {
+                        .find_map(|(i, (enc_share, blinding))| {
                             let mut share = enc_share.to_vec();
                             cipher.decrypt_in_place(&nonce, &[], &mut share).ok()?;
-                            Some((i as u64, share, commitment))
+                            Some((i as u64, share, blinding.to_vec()))
                         });
-                    let (index, share, commitment) = match maybe_my_share {
+                    let (index, share, blinding) = match maybe_my_share {
                         Some(ss) => ss,
                         None => return,
                     };
                     let share = zeroize::Zeroizing::new(share);
                     retry(|| {
                         let share = share.clone();
+                        let blinding = blinding.clone();
                         async move {
                             let put_share = store
                                 .put_share(
@@ -145,7 +146,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                                     SecretShare {
                                         index,
                                         share,
-                                        commitment: (commitment.x, commitment.y),
+                                        blinding,
                                     },
                                 )
                                 .await?;

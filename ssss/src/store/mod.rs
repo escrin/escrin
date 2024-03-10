@@ -404,7 +404,7 @@ mod tests {
                 SecretShare {
                     index: 1,
                     share: share.into(),
-                    commitment: Default::default(),
+                    blinding: Default::default()
                 },
             )
             .await?;

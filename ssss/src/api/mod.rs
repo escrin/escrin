@@ -17,7 +17,7 @@ use axum::{
 use axum_extra::TypedHeader;
 use ethers::{
     middleware::Middleware,
-    types::{Address, Bytes, U256},
+    types::{Address, Bytes},
 };
 use futures::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
@@ -319,7 +319,7 @@ async fn get_share<M: Middleware, S: Store>(
     let SecretShare {
         index,
         share,
-        commitment,
+        blinding
     } = retry_times(
         || {
             store.get_share(ShareId {
@@ -359,7 +359,7 @@ async fn get_share<M: Middleware, S: Store>(
         ss: WrappedSecretShare {
             index,
             share,
-            commitment,
+            blinding: blinding.into()
         },
     }))
 }
@@ -380,7 +380,7 @@ struct ShareResponse {
 pub struct WrappedSecretShare {
     pub index: u64,
     pub share: Bytes,
-    pub commitment: (U256, U256),
+    pub blinding: Bytes,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]

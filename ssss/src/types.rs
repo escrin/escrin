@@ -1,6 +1,6 @@
 use ethers::{
     middleware::contract::{Eip712, EthAbiType},
-    types::{Address, H256, U256},
+    types::{Address, H256},
 };
 use serde::{Deserialize, Serialize};
 
@@ -85,7 +85,7 @@ pub struct ChainStateUpdate {
 pub struct SecretShare {
     pub index: u64,
     pub share: zeroize::Zeroizing<Vec<u8>>,
-    pub commitment: (U256, U256),
+    pub blinding: Vec<u8>,
 }
 
 #[derive(Clone, Deserialize, zeroize::Zeroize)]
