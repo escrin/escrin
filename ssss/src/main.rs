@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
             identity_key
         }
     };
-    let identity = identity::Identity::new(identity_key);
+    let identity = identity::Identity::persistent(identity_key);
     let identity_pub_jwk = identity.public_key().to_jwk();
 
     trace!("running sync tasks");

@@ -5,6 +5,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4},
 };
 
+use aes_gcm_siv::AeadInPlace as _;
 use axum::{
     extract::{Path, Query, Request, State},
     http::{header, uri::Authority, Method, StatusCode},
@@ -13,23 +14,27 @@ use axum::{
     routing::{any, delete, get, post, put},
     Json, Router,
 };
+use axum_extra::TypedHeader;
 use ethers::{
     middleware::Middleware,
-    types::{Address, Bytes},
+    types::{Address, Bytes, U256},
 };
 use futures::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
 use serde::{Deserialize, Serialize};
 use tower_http::cors;
 
-use crate::{eth::SsssPermitter, store::Store, types::*, utils::retry_times, verify};
+use crate::{
+    eth::SsssPermitter, identity::Identity, store::Store, types::*, utils::retry_times, verify,
+};
 
 #[derive(Clone)]
 struct AppState<M: Middleware, S> {
     store: S,
     sssss: HashMap<ChainId, SsssPermitter<M>>,
     host: Authority,
-    identity_jwk: JwkEcKey,
+    persistent_identity_jwk: JwkEcKey,
+    ephemeral_identity: Identity,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -88,7 +93,8 @@ pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
             store,
             sssss: sssss.map(|ssss| (ssss.chain, ssss)).collect(),
             host,
-            identity_jwk,
+            persistent_identity_jwk: identity_jwk,
+            ephemeral_identity: Identity::ephemeral(),
         }),
     )
     .await
@@ -149,6 +155,7 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                     header::AUTHORIZATION,
                     auth::SIGNATURE_HEADER_NAME.clone(),
                     auth::REQUESTER_HEADER_NAME.clone(),
+                    auth::REQUESTER_PUBKEY_HEADER_NAME.clone(),
                 ]),
         )
 }
@@ -176,14 +183,22 @@ async fn root() -> StatusCode {
 }
 
 async fn get_ssss_identity<M: Middleware + 'static, S: Store>(
-    State(AppState { identity_jwk, .. }): State<AppState<M, S>>,
+    State(AppState {
+        persistent_identity_jwk,
+        ephemeral_identity,
+        ..
+    }): State<AppState<M, S>>,
 ) -> Json<IdentityResponse> {
-    Json(IdentityResponse { jwk: identity_jwk })
+    Json(IdentityResponse {
+        persistent: persistent_identity_jwk,
+        ephemeral: ephemeral_identity.public_key().to_jwk(),
+    })
 }
 
 #[derive(Debug, Serialize)]
 struct IdentityResponse {
-    jwk: JwkEcKey,
+    persistent: JwkEcKey,
+    ephemeral: JwkEcKey,
 }
 
 async fn acqrel_identity<M: Middleware + 'static, S: Store>(
@@ -294,9 +309,18 @@ struct AcqRelIdentityResponse {
 async fn get_share<M: Middleware, S: Store>(
     Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetShareQuery { version }): Query<GetShareQuery>,
-    State(AppState { store, .. }): State<AppState<M, S>>,
+    requester_pk: Option<TypedHeader<auth::RequesterPublicKey>>,
+    State(AppState {
+        store,
+        ephemeral_identity,
+        ..
+    }): State<AppState<M, S>>,
 ) -> Result<Json<ShareResponse>, Error> {
-    let ss = retry_times(
+    let SecretShare {
+        index,
+        share,
+        commitment,
+    } = retry_times(
         || {
             store.get_share(ShareId {
                 identity: IdentityLocator {
@@ -313,7 +337,31 @@ async fn get_share<M: Middleware, S: Store>(
     .await?
     .ok_or_else(|| Error::NotFound("share".into()))?;
 
-    Ok(Json(ShareResponse { ss }))
+    let (format, share) = match requester_pk {
+        Some(pk) => {
+            let cipher = ephemeral_identity.derive_shared_cipher(*pk.0);
+            let mut nonce = aes_gcm_siv::Nonce::default();
+            rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
+            let mut enc_share = (*share).clone();
+            cipher
+                .encrypt_in_place(&nonce, &[], &mut enc_share)
+                .map_err(|e| Error::Unhandled(anyhow::anyhow!("encryption error: {e}")))?;
+            (
+                ShareResponseFormat::EncAes256GcmSiv { nonce },
+                enc_share.into(),
+            )
+        }
+        None => (ShareResponseFormat::Plain, (*share).clone().into()),
+    };
+
+    Ok(Json(ShareResponse {
+        format,
+        ss: WrappedSecretShare {
+            index,
+            share,
+            commitment,
+        },
+    }))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -323,7 +371,26 @@ struct GetShareQuery {
 
 #[derive(Clone, Debug, Serialize)]
 struct ShareResponse {
-    ss: SecretShare,
+    format: ShareResponseFormat,
+    ss: WrappedSecretShare,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct WrappedSecretShare {
+    pub index: u64,
+    pub share: Bytes,
+    pub commitment: (U256, U256),
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum ShareResponseFormat {
+    Plain,
+    EncAes256GcmSiv {
+        #[serde(with = "hex::serde")]
+        nonce: aes_gcm_siv::Nonce,
+    },
 }
 
 async fn put_key<M: Middleware, S: Store>(

@@ -6,9 +6,15 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn new(sk: p384::SecretKey) -> Self {
+    pub fn persistent(sk: p384::SecretKey) -> Self {
         let scalar = sk.to_nonzero_scalar();
         Self { sk: scalar }
+    }
+
+    pub fn ephemeral() -> Self {
+        Self {
+            sk: p384::NonZeroScalar::random(&mut rand::thread_rng()),
+        }
     }
 
     pub fn derive_shared_cipher(&self, opk: p384::PublicKey) -> Aes256GcmSiv {

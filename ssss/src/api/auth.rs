@@ -249,3 +249,44 @@ impl std::ops::Deref for Requester {
         &self.0
     }
 }
+
+pub struct RequesterPublicKey(pub p384::PublicKey);
+
+pub static REQUESTER_PUBKEY_HEADER_NAME: header::HeaderName =
+    header::HeaderName::from_static("requester-pk");
+
+impl headers::Header for RequesterPublicKey {
+    fn name() -> &'static header::HeaderName {
+        &REQUESTER_PUBKEY_HEADER_NAME
+    }
+
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        Self: Sized,
+        I: Iterator<Item = &'i header::HeaderValue>,
+    {
+        let pk_hex = values.next().ok_or_else(headers::Error::invalid)?;
+        let pk_bytes: Bytes = pk_hex
+            .to_str()
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .ok_or_else(headers::Error::invalid)?;
+        Ok(Self(
+            p384::PublicKey::from_sec1_bytes(&pk_bytes).map_err(|_| headers::Error::invalid())?,
+        ))
+    }
+
+    fn encode<E: Extend<header::HeaderValue>>(&self, values: &mut E) {
+        values.extend(std::iter::once(
+            header::HeaderValue::from_str(&hex::encode(self.0.to_sec1_bytes())).unwrap(),
+        ));
+    }
+}
+
+impl std::ops::Deref for RequesterPublicKey {
+    type Target = p384::PublicKey;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}

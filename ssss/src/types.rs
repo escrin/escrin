@@ -80,22 +80,12 @@ pub struct ChainStateUpdate {
     pub block: Option<u64>,
 }
 
-#[derive(Clone, Serialize)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Clone)]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct SecretShare {
     pub index: u64,
-    // TODO: encrypt then zeroize. there's no point of zeroizing before serde w/o encryption
-    #[serde(with = "hex::serde")]
     pub share: zeroize::Zeroizing<Vec<u8>>,
     pub commitment: (U256, U256),
-}
-
-impl std::fmt::Debug for SecretShare {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SecretShare")
-            .field("commitment", &self.commitment)
-            .finish_non_exhaustive()
-    }
 }
 
 #[derive(Clone, Deserialize, zeroize::Zeroize)]
