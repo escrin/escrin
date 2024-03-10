@@ -99,10 +99,11 @@ impl NitroEnclaveVerifier {
         )
         .unwrap();
 
-        if doc.timestamp > (now.as_secs() + 5) {
+        let doc_timestamp_s = doc.timestamp / 1000;
+        if doc_timestamp_s > (now.as_secs() + 5) {
             return Err(Error::Timing("attestation doc not yet valid".into()));
         }
-        if now.as_secs() - doc.timestamp >= max_age {
+        if now.as_secs() - doc_timestamp_s >= max_age {
             return Err(Error::Timing("attestation doc expired".into()));
         }
 
@@ -153,6 +154,7 @@ struct AttestationDocument {
     #[allow(unused)]
     module_id: serde::de::IgnoredAny,
     digest: String,
+    /// The timestamp at which the document was generated in milliseconds.
     timestamp: u64,
     pcrs: HashMap<usize, Pcr>,
     certificate: Vec<u8>,
