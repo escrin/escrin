@@ -3,22 +3,19 @@ use std::sync::{
     Arc,
 };
 
+use aes_gcm_siv::AeadInPlace as _;
 use ethers::middleware::Middleware;
 use futures::stream::StreamExt as _;
 use tokio::time::{sleep, Duration};
 use tracing::{error, trace, warn};
 
-use crate::{
-    eth,
-    store::Store,
-    types::{ChainId, ChainState, ChainStateUpdate, PermitterLocator},
-    utils::retry,
-};
+use crate::{eth, identity::Identity, store::Store, types::*, utils::retry};
 
 #[tracing::instrument(skip_all)]
 pub async fn run<M: Middleware + 'static>(
     store: impl Store + 'static,
     sssss: impl Iterator<Item = eth::SsssPermitter<M>>,
+    ssss_identity: Identity,
 ) -> Result<(), eth::Error<M>> {
     trace!("collating providers");
 
@@ -29,7 +26,7 @@ pub async fn run<M: Middleware + 'static>(
         tokio::spawn(async move {
             let ssss = &ssss;
             loop {
-                match sync_chain(chain, ssss, &store).await {
+                match sync_chain(chain, ssss, &store, &ssss_identity).await {
                     Ok(_) => warn!("sync task for chain {chain} unexpectedly exited"),
                     Err(e) => error!("sync task for chain {chain} exited with error: {e}"),
                 }
@@ -46,6 +43,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
     chain_id: ChainId,
     permitter: &eth::SsssPermitter<M>,
     store: &S,
+    ssss_identity: &Identity,
 ) -> Result<(), Error<M>> {
     let start_block = match store.get_chain_state(chain_id).await? {
         Some(ChainState { block }) => block,
@@ -108,6 +106,54 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                 }
                 eth::EventKind::ProcessedBlock => {
                     processed_block.store(event.index.block, Ordering::Release);
+                }
+                eth::EventKind::SharesPosted(eth::SharesPosted {
+                    identity,
+                    pk,
+                    nonce,
+                    shares,
+                    commitments,
+                }) => {
+                    let cipher = ssss_identity.derive_shared_cipher(pk);
+                    let maybe_my_share = shares
+                        .into_iter()
+                        .zip(commitments.into_iter())
+                        .enumerate()
+                        .find_map(|(i, (enc_share, commitment))| {
+                            let mut share = enc_share.to_vec();
+                            cipher.decrypt_in_place(&nonce, &[], &mut share).ok()?;
+                            Some((i as u64, share, commitment))
+                        });
+                    let (index, share, commitment) = match maybe_my_share {
+                        Some(ss) => ss,
+                        None => return,
+                    };
+                    let share = zeroize::Zeroizing::new(share);
+                    retry(|| {
+                        let share = share.clone();
+                        async move {
+                            let put_share = store
+                                .put_share(
+                                    ShareId {
+                                        identity: IdentityLocator {
+                                            chain: chain_id,
+                                            registry: permitter.registry().await?,
+                                            id: identity,
+                                        },
+                                        version: 1,
+                                    },
+                                    SecretShare {
+                                        index,
+                                        share,
+                                        commitment: (commitment.x, commitment.y),
+                                    },
+                                )
+                                .await?;
+                            anyhow::ensure!(put_share, "share not put");
+                            Ok(())
+                        }
+                    })
+                    .await;
                 }
             }
         })

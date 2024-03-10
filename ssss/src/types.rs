@@ -1,6 +1,6 @@
 use ethers::{
     middleware::contract::{Eip712, EthAbiType},
-    types::{Address, H256},
+    types::{Address, H256, U256},
 };
 use serde::{Deserialize, Serialize};
 
@@ -80,19 +80,21 @@ pub struct ChainStateUpdate {
     pub block: Option<u64>,
 }
 
-#[derive(Clone, zeroize::Zeroize)]
-#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
-pub struct SecretShare(Vec<u8>);
-
-impl SecretShare {
-    pub fn into_vec(self) -> Vec<u8> {
-        self.0
-    }
+#[derive(Clone, Serialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct SecretShare {
+    pub index: u64,
+    // TODO: encrypt then zeroize. there's no point of zeroizing before serde w/o encryption
+    #[serde(with = "hex::serde")]
+    pub share: zeroize::Zeroizing<Vec<u8>>,
+    pub commitment: (U256, U256),
 }
 
-impl From<Vec<u8>> for SecretShare {
-    fn from(bytes: Vec<u8>) -> Self {
-        Self(bytes)
+impl std::fmt::Debug for SecretShare {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecretShare")
+            .field("commitment", &self.commitment)
+            .finish_non_exhaustive()
     }
 }
 

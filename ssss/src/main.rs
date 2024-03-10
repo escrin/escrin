@@ -3,6 +3,7 @@
 
 mod api;
 mod cli;
+mod identity;
 mod sync;
 mod verify;
 
@@ -10,7 +11,11 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use ethers::middleware::MiddlewareBuilder as _;
-use ssss::{eth, store, types, utils};
+use ssss::{
+    eth,
+    store::{self, Store as _},
+    types, utils,
+};
 use tracing::{debug, trace};
 
 #[tokio::main]
@@ -64,11 +69,33 @@ async fn main() -> Result<()> {
     trace!("creating store");
     let store = store::create(args.store, args.env).await;
 
+    let identity_key_id = types::KeyId {
+        name: "ssss-identity".into(),
+        identity: types::IdentityLocator {
+            chain: 0,
+            registry: Default::default(),
+            id: types::IdentityId(Default::default()),
+        },
+        version: 1,
+    };
+    let identity_key = match store.get_key(identity_key_id.clone()).await? {
+        Some(k) => p384::SecretKey::from_slice(&k.into_vec())?,
+        None => {
+            let identity_key = p384::SecretKey::random(&mut rand::thread_rng());
+            store
+                .put_key(identity_key_id, identity_key.to_bytes().to_vec().into())
+                .await?;
+            identity_key
+        }
+    };
+    let identity = identity::Identity::new(identity_key);
+    let identity_pub_jwk = identity.public_key().to_jwk();
+
     trace!("running sync tasks");
-    sync::run(store.clone(), sssss.iter().cloned()).await?;
+    sync::run(store.clone(), sssss.iter().cloned(), identity).await?;
 
     trace!("starting API task");
-    let api_task = api::serve(store, sssss.into_iter(), args.host);
+    let api_task = api::serve(store, sssss.into_iter(), args.host, identity_pub_jwk);
 
     tokio::join!(api_task);
 

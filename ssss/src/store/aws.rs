@@ -7,6 +7,7 @@ use aws_sdk_dynamodb::{
         Put, TransactWriteItem,
     },
 };
+use ethers::types::U256;
 
 use super::*;
 
@@ -86,7 +87,7 @@ impl Client {
 }
 
 impl Store for Client {
-    async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
+    async fn put_share(&self, id: ShareId, ss: SecretShare) -> Result<bool, Error> {
         let current_version = self.current_share_version(id).await?.unwrap_or_default();
         if id.version != current_version + 1 {
             return Ok(false);
@@ -96,7 +97,7 @@ impl Store for Client {
             .kms_client
             .encrypt()
             .key_id(self.kms_key())
-            .plaintext(Blob::new(share.into_vec()))
+            .plaintext(Blob::new((*ss.share).clone()))
             .encryption_context("share", id.to_encryption_context())
             .send()
             .await
@@ -110,7 +111,17 @@ impl Store for Client {
             .table_name(self.shares_table())
             .item("id", id.to_attribute_value())
             .item("version", N(id.version.to_string()))
+            .item("index", N(ss.index.to_string()))
             .item("share", B(enc_share))
+            .item(
+                "commitment",
+                B({
+                    let mut commitment_xy = vec![0u8; 2 * 32];
+                    commitment_xy[0..32].copy_from_slice(&<[u8; 32]>::from(ss.commitment.0));
+                    commitment_xy[32..64].copy_from_slice(&<[u8; 32]>::from(ss.commitment.1));
+                    Blob::new(commitment_xy)
+                }),
+            )
             .condition_expression("attribute_not_exists(id) AND attribute_not_exists(version)")
             .send()
             .await
@@ -123,15 +134,13 @@ impl Store for Client {
     }
 
     async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
-        let maybe_enc_share = self
+        let maybe_enc_ss = self
             .db_client
             .query()
             .table_name(self.shares_table())
             .key_condition_expression("id = :id AND version = :version")
             .expression_attribute_values(":id", id.to_attribute_value())
             .expression_attribute_values(":version", N(id.version.to_string()))
-            .projection_expression("#s")
-            .expression_attribute_names("#s", "share")
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?
@@ -139,27 +148,42 @@ impl Store for Client {
             .unwrap_or_default()
             .into_iter()
             .nth(0)
-            .map(|mut v| unpack_blob("share", &mut v));
+            .map(|mut v| {
+                let index = unpack_u64("index", &v);
+                let enc_share = unpack_blob("share", &mut v);
+                let commitment_xy = unpack_blob("commitment", &mut v).into_inner();
+                assert!(commitment_xy.len() == 2 * 32);
+                let mut x = [0u8; 32];
+                let mut y = [0u8; 32];
+                x.copy_from_slice(&commitment_xy[0..32]);
+                y.copy_from_slice(&commitment_xy[32..64]);
+                let commitment = (U256::from(x), U256::from(y));
+                (index, enc_share, commitment)
+            });
 
-        let enc_share = match maybe_enc_share {
+        let (index, enc_share, commitment) = match maybe_enc_ss {
             Some(s) => s,
             None => return Ok(None),
         };
 
-        Ok(Some(
-            self.kms_client
-                .decrypt()
-                .key_id(self.kms_key())
-                .ciphertext_blob(enc_share)
-                .encryption_context("share", id.to_encryption_context())
-                .send()
-                .await
-                .map_err(aws_sdk_kms::Error::from)?
-                .plaintext
-                .unwrap()
-                .into_inner()
-                .into(),
-        ))
+        let share = self
+            .kms_client
+            .decrypt()
+            .key_id(self.kms_key())
+            .ciphertext_blob(enc_share)
+            .encryption_context("share", id.to_encryption_context())
+            .send()
+            .await
+            .map_err(aws_sdk_kms::Error::from)?
+            .plaintext
+            .unwrap()
+            .into_inner();
+
+        Ok(Some(SecretShare {
+            index,
+            share: share.into(),
+            commitment,
+        }))
     }
 
     async fn delete_share(&self, id: ShareId) -> Result<(), Error> {

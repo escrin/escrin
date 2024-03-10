@@ -24,12 +24,16 @@ ethers::contract::abigen!(
     SsssPermitterContract,
     r"[
         event PolicyChange()
-        event ApproverChange()
+        event SharesPosted()
 
         function creationBlock() view returns (uint256)
         function upstream() view returns (address)
+        function getIdentityRegistry() view returns (address)
 
-        function setPolicy(bytes32 identity, bytes calldata config) external
+        function setPolicy(bytes32 identity, bytes calldata config)
+
+        struct Commitment { uint256 x; uint256 y; }
+        function postShares(bytes32 identity, bytes[49] pk, bytes12 nonce, bytes[] shares, Commitment[] commitments)
     ]"
 );
 
@@ -74,8 +78,12 @@ impl<M: providers::Middleware> SsssPermitter<M> {
             return Ok(up.0);
         }
         let r = self.contract.upstream().call().await?;
-        *up = (r, Instant::now() + Duration::from_secs(60 * 60));
+        *up = (r, Instant::now() + Duration::from_secs(5 * 60));
         Ok(r)
+    }
+
+    pub async fn registry(&self) -> Result<Address, Error<M>> {
+        Ok(self.contract.get_identity_registry().call().await?)
     }
 
     pub async fn set_policy(
@@ -203,14 +211,29 @@ impl<M: providers::Middleware> SsssPermitter<M> {
         let Transaction { input, .. } =
             retry_if(|| self.provider.get_transaction(tx), |tx| tx).await;
         let kind = match event {
-            SsssPermitterContractEvents::PolicyChangeFilter(_) if input.len() > 4 => {
+            SsssPermitterContractEvents::PolicyChangeFilter(_) => {
                 let (identity, config): (H256, Bytes) = AbiDecode::decode(&input[4..]).unwrap();
                 EventKind::PolicyChange(PolicyChange {
                     identity: identity.into(),
                     config: config.to_vec(),
                 })
             }
-            _ => return None,
+            SsssPermitterContractEvents::SharesPostedFilter(_) => {
+                let (identity, pk, nonce, shares, commitments): (
+                    H256,
+                    [u8; 49],
+                    [u8; 12],
+                    Vec<Bytes>,
+                    Vec<Commitment>,
+                ) = AbiDecode::decode(&input[4..]).unwrap();
+                EventKind::SharesPosted(SharesPosted {
+                    identity: identity.into(),
+                    pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
+                    nonce: nonce.into(),
+                    shares,
+                    commitments,
+                })
+            }
         };
         Some(Event {
             kind,
@@ -280,6 +303,7 @@ pub struct Event {
 #[derive(Clone, Debug)]
 pub enum EventKind {
     PolicyChange(PolicyChange),
+    SharesPosted(SharesPosted),
     ProcessedBlock,
 }
 
@@ -287,6 +311,16 @@ pub enum EventKind {
 pub struct PolicyChange {
     pub identity: IdentityId,
     pub config: Vec<u8>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SharesPosted {
+    pub identity: IdentityId,
+    pub pk: p384::PublicKey,
+    pub nonce: aes_gcm_siv::Nonce,
+    /// Encrypted secret shares. One of which belongs to this SSSS.
+    pub shares: Vec<Bytes>,
+    pub commitments: Vec<Commitment>,
 }
 
 #[derive(Debug, thiserror::Error)]

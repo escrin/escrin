@@ -18,6 +18,7 @@ use ethers::{
     types::{Address, Bytes},
 };
 use futures::TryFutureExt as _;
+use p384::elliptic_curve::JwkEcKey;
 use serde::{Deserialize, Serialize};
 use tower_http::cors;
 
@@ -28,6 +29,7 @@ struct AppState<M: Middleware, S> {
     store: S,
     sssss: HashMap<ChainId, SsssPermitter<M>>,
     host: Authority,
+    identity_jwk: JwkEcKey,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -75,7 +77,9 @@ pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
     store: S,
     sssss: impl Iterator<Item = SsssPermitter<M>>,
     host: Authority,
+    identity_jwk: JwkEcKey,
 ) {
+    assert!(identity_jwk.is_public_key());
     let bind_addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), host.port_u16().unwrap_or(443));
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();
     axum::serve(
@@ -84,6 +88,7 @@ pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
             store,
             sssss: sssss.map(|ssss| (ssss.chain, ssss)).collect(),
             host,
+            identity_jwk,
         }),
     )
     .await
@@ -96,6 +101,7 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
         .nest(
             "/v1",
             Router::new()
+                .route("/identity", get(get_ssss_identity))
                 .nest(
                     "/permits/:chain/:registry/:identity",
                     Router::new()
@@ -167,6 +173,17 @@ fn support_only_omni(
 
 async fn root() -> StatusCode {
     StatusCode::NO_CONTENT
+}
+
+async fn get_ssss_identity<M: Middleware + 'static, S: Store>(
+    State(AppState { identity_jwk, .. }): State<AppState<M, S>>,
+) -> Json<IdentityResponse> {
+    Json(IdentityResponse { jwk: identity_jwk })
+}
+
+#[derive(Debug, Serialize)]
+struct IdentityResponse {
+    jwk: JwkEcKey,
 }
 
 async fn acqrel_identity<M: Middleware + 'static, S: Store>(
@@ -279,7 +296,7 @@ async fn get_share<M: Middleware, S: Store>(
     Query(GetShareQuery { version }): Query<GetShareQuery>,
     State(AppState { store, .. }): State<AppState<M, S>>,
 ) -> Result<Json<ShareResponse>, Error> {
-    let share = retry_times(
+    let ss = retry_times(
         || {
             store.get_share(ShareId {
                 identity: IdentityLocator {
@@ -296,9 +313,7 @@ async fn get_share<M: Middleware, S: Store>(
     .await?
     .ok_or_else(|| Error::NotFound("share".into()))?;
 
-    Ok(Json(ShareResponse {
-        share: share.into_vec().into(),
-    }))
+    Ok(Json(ShareResponse { ss }))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -308,7 +323,7 @@ struct GetShareQuery {
 
 #[derive(Clone, Debug, Serialize)]
 struct ShareResponse {
-    share: Bytes,
+    ss: SecretShare,
 }
 
 async fn put_key<M: Middleware, S: Store>(

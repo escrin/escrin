@@ -398,7 +398,16 @@ mod tests {
         };
         let mut share = vec![0u8; 32];
         rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut share);
-        let created = store.put_share(share_id, share.into()).await?;
+        let created = store
+            .put_share(
+                share_id,
+                SecretShare {
+                    index: 1,
+                    share: share.into(),
+                    commitment: Default::default(),
+                },
+            )
+            .await?;
         ensure!(
             created,
             "share not created due to duplicate or non-contiguous version"
