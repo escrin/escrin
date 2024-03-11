@@ -17,11 +17,11 @@ impl Identity {
         }
     }
 
-    pub fn derive_shared_cipher(&self, opk: p384::PublicKey) -> Aes256GcmSiv {
+    pub fn derive_shared_cipher(&self, opk: p384::PublicKey, hkdf_info: &[u8]) -> Aes256GcmSiv {
         let shared = p384::ecdh::diffie_hellman(self.sk, opk.as_affine());
         let hkdf = shared.extract::<sha2::Sha256>(Some(b"ssss_ecdh_aes-256-gcm-siv"));
         let mut aes_key = [0u8; 32];
-        hkdf.expand(&[], &mut aes_key).unwrap();
+        hkdf.expand(hkdf_info, &mut aes_key).unwrap();
         Aes256GcmSiv::new_from_slice(&aes_key).unwrap()
     }
 

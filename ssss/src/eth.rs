@@ -16,7 +16,7 @@ use tokio::sync::{Mutex, OnceCell};
 use tracing::{trace, warn};
 
 use crate::{
-    types::{ChainId, EventIndex, IdentityId},
+    types::*,
     utils::{retry, retry_if},
 };
 
@@ -24,7 +24,7 @@ ethers::contract::abigen!(
     SsssPermitterContract,
     r"[
         event PolicyChange()
-        event SharesPosted()
+        event SharesDealt()
 
         function creationBlock() view returns (uint256)
         function upstream() view returns (address)
@@ -32,7 +32,7 @@ ethers::contract::abigen!(
 
         function setPolicy(bytes32 identity, bytes calldata config)
 
-        function postShares(bytes32 identity, bytes[49] pk, bytes12 nonce, bytes[] shares, byte[] blinders)
+        function dealShares(bytes32 identity, bytes[49] pk, bytes12 nonce, bytes[] shares, byte[] blinders)
     ]"
 );
 
@@ -217,7 +217,7 @@ impl<M: providers::Middleware> SsssPermitter<M> {
                     config: config.to_vec(),
                 })
             }
-            SsssPermitterContractEvents::SharesPostedFilter(_) => {
+            SsssPermitterContractEvents::SharesDealtFilter(_) => {
                 let (identity, pk, nonce, shares, blindings): (
                     H256,
                     [u8; 49],
@@ -225,12 +225,14 @@ impl<M: providers::Middleware> SsssPermitter<M> {
                     Vec<Bytes>,
                     Vec<Bytes>,
                 ) = AbiDecode::decode(&input[4..]).unwrap();
-                EventKind::SharesPosted(SharesPosted {
+                EventKind::SharesDeailt(SharesDealt {
                     identity: identity.into(),
-                    pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
-                    nonce: nonce.into(),
-                    shares,
-                    blindings,
+                    scheme: SsScheme::PedersenVss {
+                        pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
+                        nonce: nonce.into(),
+                        shares,
+                        blindings,
+                    },
                 })
             }
         };
@@ -302,7 +304,7 @@ pub struct Event {
 #[derive(Clone, Debug)]
 pub enum EventKind {
     PolicyChange(PolicyChange),
-    SharesPosted(SharesPosted),
+    SharesDeailt(SharesDealt),
     ProcessedBlock,
 }
 
@@ -313,13 +315,20 @@ pub struct PolicyChange {
 }
 
 #[derive(Clone, Debug)]
-pub struct SharesPosted {
+pub struct SharesDealt {
     pub identity: IdentityId,
-    pub pk: p384::PublicKey,
-    pub nonce: aes_gcm_siv::Nonce,
-    /// Encrypted secret shares. One of which belongs to this SSSS.
-    pub shares: Vec<Bytes>,
-    pub blindings: Vec<Bytes>,
+    pub scheme: SsScheme,
+}
+
+#[derive(Clone, Debug)]
+pub enum SsScheme {
+    PedersenVss {
+        pk: p384::PublicKey,
+        nonce: aes_gcm_siv::Nonce,
+        /// Encrypted secret shares. One of which belongs to this SSSS.
+        shares: Vec<Bytes>,
+        blindings: Vec<Bytes>,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

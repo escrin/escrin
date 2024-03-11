@@ -107,22 +107,28 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                 eth::EventKind::ProcessedBlock => {
                     processed_block.store(event.index.block, Ordering::Release);
                 }
-                eth::EventKind::SharesPosted(eth::SharesPosted {
+                eth::EventKind::SharesDeailt(eth::SharesDealt {
                     identity,
-                    pk,
-                    nonce,
-                    shares,
-                    blindings,
+                    scheme:
+                        eth::SsScheme::PedersenVss {
+                            pk,
+                            nonce,
+                            shares,
+                            blindings,
+                        },
                 }) => {
-                    let cipher = ssss_identity.derive_shared_cipher(pk);
+                    let share_cipher = ssss_identity.derive_shared_cipher(pk, b"shares");
+                    let blinding_cipher = ssss_identity.derive_shared_cipher(pk, b"blind");
                     let maybe_my_share = shares
                         .into_iter()
                         .zip(blindings.into_iter())
                         .enumerate()
-                        .find_map(|(i, (enc_share, blinding))| {
+                        .find_map(|(i, (enc_share, enc_blinding))| {
                             let mut share = enc_share.to_vec();
-                            cipher.decrypt_in_place(&nonce, &[], &mut share).ok()?;
-                            Some((i as u64, share, blinding.to_vec()))
+                            let mut blinding = enc_blinding.to_vec();
+                            share_cipher.decrypt_in_place(&nonce, &[], &mut share).ok()?;
+                            blinding_cipher.decrypt_in_place(&nonce, &[], &mut blinding).ok()?;
+                            Some((i as u64, share, blinding))
                         });
                     let (index, share, blinding) = match maybe_my_share {
                         Some(ss) => ss,

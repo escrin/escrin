@@ -319,7 +319,7 @@ async fn get_share<M: Middleware, S: Store>(
     let SecretShare {
         index,
         share,
-        blinding
+        blinding,
     } = retry_times(
         || {
             store.get_share(ShareId {
@@ -339,7 +339,7 @@ async fn get_share<M: Middleware, S: Store>(
 
     let (format, share) = match requester_pk {
         Some(pk) => {
-            let cipher = ephemeral_identity.derive_shared_cipher(*pk.0);
+            let cipher = ephemeral_identity.derive_shared_cipher(*pk.0, &[]);
             let mut nonce = aes_gcm_siv::Nonce::default();
             rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
             let mut enc_share = (*share).clone();
@@ -359,7 +359,7 @@ async fn get_share<M: Middleware, S: Store>(
         ss: WrappedSecretShare {
             index,
             share,
-            blinding: blinding.into()
+            blinding: blinding.into(),
         },
     }))
 }
