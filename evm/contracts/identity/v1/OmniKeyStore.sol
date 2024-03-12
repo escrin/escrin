@@ -10,9 +10,9 @@ contract OmniKeyStore is IdentityRegistry, EIP712 {
     type Key is bytes32;
 
     /// The requested key has not been provisioned.
-    error KeyNotProvisioned();
+    error KeyNotProvisioned(); // cUmqUg==
     /// The requested key has already been provisioned.
-    error KeyAlreadyProvisioned();
+    error KeyAlreadyProvisioned(); // 6PXuXA==
 
     struct SignedKeyRequest {
         KeyRequest req;

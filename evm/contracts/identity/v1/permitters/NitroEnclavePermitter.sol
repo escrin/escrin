@@ -15,9 +15,9 @@ bool constant STRICT = false;
 abstract contract BaseNitroEnclavePermitter is Permitter {
     /// The presented attestation document has already been used to acquire an identity using this permitter.
     /// If you want a batch identity acquisition function, please file an issue and it will be made!
-    error DocAlreadyUsed();
+    error DocAlreadyUsed(); // HTMAwA==
     /// The attestation is not bound to the request.
-    error BindingMismatch();
+    error BindingMismatch(); // Q4xIcw==
 
     mapping(bytes32 => IdentityId) public burnt;
 
@@ -112,7 +112,7 @@ contract MultiNitroEnclavePermitter is BaseNitroEnclavePermitter {
 }
 
 library NE {
-    error ContractExpired();
+    error ContractExpired(); // B5DU4w==
 
     struct PcrSelector {
         /// A 16-bit flags field, defining which PCRs are included in the hash. Only valid PCRs may be specified.
@@ -386,8 +386,8 @@ library NE {
 }
 
 library X509 {
-    error CertExpired();
-    error CertNotActive();
+    error CertExpired(); // CPzuqg==
+    error CertNotActive(); // 1LHC+A==
 
     struct Cert {
         TbsMeta tbs;
@@ -613,7 +613,7 @@ library X509 {
 }
 
 library Sig {
-    error InvalidSignature();
+    error InvalidSignature(); // i6pXnw==
 
     function verifyP384(bytes memory pk, bytes memory message, bytes memory sig) internal view {
         if (block.chainid == 1337 || block.chainid == 31337) return;

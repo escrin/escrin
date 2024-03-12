@@ -5,7 +5,7 @@ import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
 
 contract UnstableSsssPermitter is Permitter {
     /// The SSSS permitter does not respond directly to acquire/release identity requests.
-    error Unsupported();
+    error Unsupported(); // kKLK8g==
 
     event PolicyChange();
     event ApproverChange();
