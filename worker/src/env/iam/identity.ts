@@ -100,7 +100,7 @@ async function acquireIdentitySapphire(
 ): Promise<void> {
   const {
     network: { chainId, rpcUrl },
-    identity: { registry, id: identityIdHex },
+    identity,
     permitter,
     permitTtl,
     recipient,
@@ -110,16 +110,15 @@ async function acquireIdentitySapphire(
   } = opts;
   const requester = recipient ?? allocateAccount(requesterService).address;
   let publicClient = getPublicClient(chainId, rpcUrl);
-  const identityId = hexToBigInt(identityIdHex);
 
   if (duration) {
     // If the permit key only needs to last a little while and it's already current, reuse it.
     const now = Math.ceil(Date.now() / 1000);
     const { expiry } = await publicClient.readContract({
-      address: registry,
+      address: identity.registry,
       abi: IdentityRegistryAbi,
       functionName: 'readPermit',
-      args: [requester, identityId],
+      args: [requester, identity.id],
     });
     if (now + duration < expiry) return;
   }
@@ -131,10 +130,10 @@ async function acquireIdentitySapphire(
     permitterAddress = permitter;
   } else {
     permitterAddress = await publicClient.readContract({
-      address: registry,
+      address: identity.registry,
       abi: IdentityRegistryAbi,
       functionName: 'getPermitter',
-      args: [identityId],
+      args: [identity.id],
     });
   }
   const permitDuration = permitTtl ? BigInt(permitTtl) : 60n * 60n;
@@ -142,7 +141,7 @@ async function acquireIdentitySapphire(
     address: permitterAddress,
     abi: PermitterAbi,
     functionName: 'acquireIdentity',
-    args: [identityId, requester, permitDuration, context ?? '0x', authorization ?? '0x'],
+    args: [identity.id, requester, permitDuration, context ?? '0x', authorization ?? '0x'],
   });
 
   let retriesRemaining = 3;

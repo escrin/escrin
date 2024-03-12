@@ -16,7 +16,7 @@ async function* findFiles(dir, ext) {
 }
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const srcdir = path.join(__dirname, 'src');
+const srcdir = path.join(__dirname, 'contracts');
 const outdir = path.join(__dirname, 'out');
 const abidir = path.join(__dirname, 'abi');
 

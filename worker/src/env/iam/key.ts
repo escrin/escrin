@@ -38,7 +38,7 @@ async function getSapphireOmniKey(
   }
 
   const keyRequest = {
-    identity: hexToBigInt(identity.id),
+    identity: identity.id,
     requester: requesterAccount.address,
     expiry: BigInt(Math.floor(Date.now() / 1000) + 2 * 60), // two minutes
   };
@@ -51,7 +51,7 @@ async function getSapphireOmniKey(
     },
     types: {
       KeyRequest: [
-        { name: 'identity', type: 'uint256' },
+        { name: 'identity', type: 'bytes32' },
         { name: 'requester', type: 'address' },
         { name: 'expiry', type: 'uint256' },
       ],
