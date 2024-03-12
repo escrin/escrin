@@ -22,4 +22,4 @@ FROM gcr.io/distroless/cc-debian12
 
 COPY --from=runner-builder /escrin/escrin-runner /escrin-runner
 
-ENTRYPOINT ["/escrin-runner", "serve", "--verbose"]
+ENTRYPOINT ["/escrin-runner", "serve", "--verbose", "--experimental"]
