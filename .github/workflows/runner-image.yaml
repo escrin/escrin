@@ -55,14 +55,14 @@ jobs:
           | tee escrin-runner.eif.json
 
       - name: Upload EIF
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: escrin-runner.eif
           path: escrin-runner.eif
           if-no-files-found: error
 
       - name: Upload measurements
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: escrin-runner.eif.json
           path: escrin-runner.eif.json
