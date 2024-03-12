@@ -21,9 +21,10 @@ export default new (class {
     }
 
     if (method === ('acquire-identity' satisfies types.AcquireIdentityRequest['method'])) {
-      if (!env.gasKey || !isHash(env.gasKey)) throw new ApiError(500, 'gas key not configured');
+      let gasKey = env.gasKey ?? (typeof params?.gasKey === 'string' ? params.gasKey : undefined);
+      if (!gasKey || !isHash(gasKey)) throw new ApiError(500, 'gas key not configured');
       return identity.handleAcquireIdentity(
-        env.gasKey,
+        gasKey,
         requester,
         types.parseAcquireIdentityParams(params),
       );

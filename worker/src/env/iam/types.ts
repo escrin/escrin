@@ -85,6 +85,9 @@ export type AcquireIdentityParams = {
   /** Set this to the duration of the permit-requiring critical section to hint to the runner that it can avoid renewing a permit. */
   duration?: number;
 
+  /** An override for the gas key used to pay for identity acquisition. */
+  gasKey?: Hex;
+
   /** @experimental */
   sssss?: SsssParams;
 };
