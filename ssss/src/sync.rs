@@ -117,8 +117,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                             blindings,
                         },
                 }) => {
-                    let share_cipher = ssss_identity.derive_shared_cipher(pk, b"shares");
-                    let blinding_cipher = ssss_identity.derive_shared_cipher(pk, b"blind");
+                    let cipher = ssss_identity.derive_shared_cipher(pk, b"shares");
                     let maybe_my_share = shares
                         .into_iter()
                         .zip(blindings.into_iter())
@@ -126,8 +125,15 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                         .find_map(|(i, (enc_share, enc_blinding))| {
                             let mut share = enc_share.to_vec();
                             let mut blinding = enc_blinding.to_vec();
-                            share_cipher.decrypt_in_place(&nonce, &[], &mut share).ok()?;
-                            blinding_cipher.decrypt_in_place(&nonce, &[], &mut blinding).ok()?;
+                            let mut nonce_bytes = [0u8; 12];
+                            nonce_bytes.copy_from_slice(&nonce[0..12]);
+                            cipher
+                                .decrypt_in_place(&nonce_bytes.into(), &[], &mut share)
+                                .ok()?;
+                            nonce_bytes.copy_from_slice(&nonce[12..24]);
+                            cipher
+                                .decrypt_in_place(&nonce_bytes.into(), &[], &mut blinding)
+                                .ok()?;
                             Some((i as u64, share, blinding))
                         });
                     let (index, share, blinding) = match maybe_my_share {

@@ -90,9 +90,30 @@ impl<M: providers::Middleware> SsssHub<M> {
         identity: IdentityId,
         config: Vec<u8>,
     ) -> Result<TxHash, Error<M>> {
-        let receipt = self
-            .contract
-            .set_policy(identity.0.into(), config.into())
+        self.send_tx(self.contract.set_policy(identity.0.into(), config.into()))
+            .await
+    }
+
+    pub async fn deal_shares_vss(
+        &self,
+        identity: IdentityId,
+        pk: impl Into<Bytes>,
+        nonce: [u8; 32],
+        shares: Vec<impl Into<Bytes>>,
+        blindings: Vec<impl Into<Bytes>>,
+    ) -> Result<TxHash, Error<M>> {
+        self.send_tx(self.contract.deal_shares(
+            identity.0.into(),
+            pk.into(),
+            nonce,
+            shares.into_iter().map(Into::into).collect(),
+            blindings.into_iter().map(Into::into).collect(),
+        ))
+        .await
+    }
+
+    async fn send_tx(&self, call: ContractCall<M, ()>) -> Result<TxHash, Error<M>> {
+        let receipt = call
             .send()
             .await?
             .interval(match self.chain {
@@ -220,8 +241,8 @@ impl<M: providers::Middleware> SsssHub<M> {
             SsssHubContractEvents::SharesDealtFilter(_) => {
                 let (identity, pk, nonce, shares, blindings): (
                     H256,
-                    [u8; 49],
-                    [u8; 12],
+                    Bytes,
+                    H256,
                     Vec<Bytes>,
                     Vec<Bytes>,
                 ) = AbiDecode::decode(&input[4..]).unwrap();
@@ -229,7 +250,7 @@ impl<M: providers::Middleware> SsssHub<M> {
                     identity: identity.into(),
                     scheme: SsScheme::PedersenVss {
                         pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
-                        nonce: nonce.into(),
+                        nonce,
                         shares,
                         blindings,
                     },
@@ -324,7 +345,7 @@ pub struct SharesDealt {
 pub enum SsScheme {
     PedersenVss {
         pk: p384::PublicKey,
-        nonce: aes_gcm_siv::Nonce,
+        nonce: H256,
         /// Encrypted secret shares. One of which belongs to this SSSS.
         shares: Vec<Bytes>,
         blindings: Vec<Bytes>,

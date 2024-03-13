@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![feature(anonymous_lifetime_in_impl_trait, lazy_cell, stmt_expr_attributes)]
+#![feature(lazy_cell)]
 
 mod api;
 mod cli;
