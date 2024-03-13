@@ -24,14 +24,12 @@ use p384::elliptic_curve::JwkEcKey;
 use serde::{Deserialize, Serialize};
 use tower_http::cors;
 
-use crate::{
-    eth::SsssPermitter, identity::Identity, store::Store, types::*, utils::retry_times, verify,
-};
+use crate::{eth::SsssHub, identity::Identity, store::Store, types::*, utils::retry_times, verify};
 
 #[derive(Clone)]
 struct AppState<M: Middleware, S> {
     store: S,
-    sssss: HashMap<ChainId, SsssPermitter<M>>,
+    sssss: HashMap<ChainId, SsssHub<M>>,
     host: Authority,
     persistent_identity_jwk: JwkEcKey,
     ephemeral_identity: Identity,
@@ -80,7 +78,7 @@ struct ErrorResponse {
 
 pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
     store: S,
-    sssss: impl Iterator<Item = SsssPermitter<M>>,
+    sssss: impl Iterator<Item = SsssHub<M>>,
     host: Authority,
     identity_jwk: JwkEcKey,
 ) {

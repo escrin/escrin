@@ -14,7 +14,7 @@ use crate::{eth, identity::Identity, store::Store, types::*, utils::retry};
 #[tracing::instrument(skip_all)]
 pub async fn run<M: Middleware + 'static>(
     store: impl Store + 'static,
-    sssss: impl Iterator<Item = eth::SsssPermitter<M>>,
+    sssss: impl Iterator<Item = eth::SsssHub<M>>,
     ssss_identity: Identity,
 ) -> Result<(), eth::Error<M>> {
     trace!("collating providers");
@@ -41,7 +41,7 @@ pub async fn run<M: Middleware + 'static>(
 #[tracing::instrument(skip_all)]
 async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
     chain_id: ChainId,
-    permitter: &eth::SsssPermitter<M>,
+    permitter: &eth::SsssHub<M>,
     store: &S,
     ssss_identity: &Identity,
 ) -> Result<(), Error<M>> {

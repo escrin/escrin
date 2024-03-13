@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
         .into_iter()
         .filter_map(|(chain, provider)| {
             let permitter = permitters.get(&chain)?;
-            Some(eth::SsssPermitter::new(
+            Some(eth::SsssHub::new(
                 chain,
                 *permitter,
                 provider.with_signer(signer.clone()),

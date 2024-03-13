@@ -6,7 +6,7 @@ use std::{
 
 use ethers::{
     abi::AbiDecode,
-    contract::EthLogDecode as _,
+    contract::{ContractCall, EthLogDecode as _},
     providers::{self, JsonRpcClient as _},
     types::{Address, Bytes, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U64},
 };
@@ -21,7 +21,7 @@ use crate::{
 };
 
 ethers::contract::abigen!(
-    SsssPermitterContract,
+    SsssHubContract,
     r"[
         event PolicyChange()
         event SharesDealt()
@@ -32,28 +32,28 @@ ethers::contract::abigen!(
 
         function setPolicy(bytes32 identity, bytes calldata config)
 
-        function dealShares(bytes32 identity, bytes[49] pk, bytes12 nonce, bytes[] shares, byte[] blinders)
+        function dealShares(bytes32 identity, bytes pk, bytes32 nonce, bytes[] shares, bytes[] blindings)
     ]"
 );
 
 #[derive(Clone)]
-pub struct SsssPermitter<M> {
+pub struct SsssHub<M> {
     pub chain: u64,
     pub address: Address,
-    contract: SsssPermitterContract<M>,
+    contract: SsssHubContract<M>,
     provider: Arc<M>,
 
     creation_block: Arc<OnceCell<u64>>,
     upstream: Arc<Mutex<(Address, Instant)>>,
 }
 
-impl<M: providers::Middleware> SsssPermitter<M> {
+impl<M: providers::Middleware> SsssHub<M> {
     pub fn new(chain: u64, address: Address, provider: M) -> Self {
         let provider = Arc::new(provider);
         Self {
             chain,
             address,
-            contract: SsssPermitterContract::new(address, provider.clone()),
+            contract: SsssHubContract::new(address, provider.clone()),
             provider,
             creation_block: Default::default(),
             upstream: Arc::new(Mutex::new((Address::zero(), Instant::now()))),
@@ -200,7 +200,7 @@ impl<M: providers::Middleware> SsssPermitter<M> {
             _ => return None,
         };
         let raw_log = (log.topics, log.data.to_vec()).into();
-        let event = match SsssPermitterContractEvents::decode_log(&raw_log) {
+        let event = match SsssHubContractEvents::decode_log(&raw_log) {
             Ok(event) => event,
             Err(e) => {
                 warn!("failed to decode log: {e}");
@@ -210,14 +210,14 @@ impl<M: providers::Middleware> SsssPermitter<M> {
         let Transaction { input, .. } =
             retry_if(|| self.provider.get_transaction(tx), |tx| tx).await;
         let kind = match event {
-            SsssPermitterContractEvents::PolicyChangeFilter(_) => {
+            SsssHubContractEvents::PolicyChangeFilter(_) => {
                 let (identity, config): (H256, Bytes) = AbiDecode::decode(&input[4..]).unwrap();
                 EventKind::PolicyChange(PolicyChange {
                     identity: identity.into(),
                     config: config.to_vec(),
                 })
             }
-            SsssPermitterContractEvents::SharesDealtFilter(_) => {
+            SsssHubContractEvents::SharesDealtFilter(_) => {
                 let (identity, pk, nonce, shares, blindings): (
                     H256,
                     [u8; 49],
