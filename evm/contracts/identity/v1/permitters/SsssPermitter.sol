@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import {IIdentityRegistry, IdentityId, Permitter} from "./Permitter.sol";
 
-contract UnstableSsssPermitter is Permitter {
+contract ExperimentalSsssPermitter is Permitter {
     /// The SSSS permitter does not respond directly to acquire/release identity requests.
     error Unsupported(); // kKLK8g==
 
@@ -20,6 +20,10 @@ contract UnstableSsssPermitter is Permitter {
         (address registrant,) = IIdentityRegistry(_getIdentityRegistry()).getRegistrant(identity);
         if (msg.sender != registrant) revert Unauthorized();
         emit PolicyChange();
+    }
+
+    function getIdentityRegistry() external view returns (IIdentityRegistry) {
+        return _getIdentityRegistry();
     }
 
     function _acquireIdentity(IdentityId, address, uint64, bytes calldata, bytes calldata)

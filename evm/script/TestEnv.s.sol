@@ -4,9 +4,7 @@ pragma solidity ^0.8.18;
 import "forge-std/Script.sol";
 
 import {IdentityId, IdentityRegistry} from "../contracts/identity/v1/IdentityRegistry.sol";
-import {
-    Permitter, UnstableSsssPermitter
-} from "../contracts/identity/v1/permitters/SsssPermitter.sol";
+import {ExperimentalSsssHub} from "../contracts/identity/v1/SsssHub.sol";
 
 contract Setup is Script {
     modifier broadcasted() {
@@ -17,7 +15,7 @@ contract Setup is Script {
 
     function run() external broadcasted {
         IdentityRegistry registry = new IdentityRegistry();
-        UnstableSsssPermitter ssss = new UnstableSsssPermitter(address(registry));
+        ExperimentalSsssHub ssss = new ExperimentalSsssHub(address(registry));
         registry.createIdentity(address(ssss), "");
     }
 }
