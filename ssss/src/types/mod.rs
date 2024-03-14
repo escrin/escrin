@@ -1,3 +1,5 @@
+pub mod api;
+
 use ethers::{
     middleware::contract::{Eip712, EthAbiType},
     types::{Address, H256},
@@ -87,7 +89,7 @@ pub struct SecretShare {
     pub share: zeroize::Zeroizing<Vec<u8>>,
 }
 
-#[derive(Clone, Deserialize, zeroize::Zeroize)]
+#[derive(Clone, Serialize, Deserialize, zeroize::Zeroize)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct WrappedKey(Vec<u8>);
 

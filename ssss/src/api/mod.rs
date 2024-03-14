@@ -15,17 +15,19 @@ use axum::{
     Json, Router,
 };
 use axum_extra::TypedHeader;
-use ethers::{
-    middleware::Middleware,
-    types::{Address, Bytes},
-};
+use ethers::{middleware::Middleware, types::Address};
 use futures::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
-use serde::{Deserialize, Serialize};
 use ssss::identity::Identity;
 use tower_http::cors;
 
-use crate::{eth::SsssHub, store::Store, types::*, utils::retry_times, verify};
+use crate::{
+    eth::SsssHub,
+    store::Store,
+    types::{api::*, *},
+    utils::retry_times,
+    verify,
+};
 
 #[derive(Clone)]
 struct AppState<M: Middleware, S> {
@@ -70,11 +72,6 @@ impl IntoResponse for Error {
         )
             .into_response()
     }
-}
-
-#[derive(Serialize)]
-struct ErrorResponse {
-    error: String,
 }
 
 pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
@@ -198,12 +195,6 @@ async fn get_ssss_identity<M: Middleware + 'static, S: Store>(
     })
 }
 
-#[derive(Debug, Serialize)]
-struct IdentityResponse {
-    persistent: JwkEcKey,
-    ephemeral: JwkEcKey,
-}
-
 async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     method: Method,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
@@ -294,22 +285,6 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
-struct AcqRelIdentityRequest {
-    #[serde(default)]
-    duration: u64,
-    authorization: Bytes,
-    context: Bytes,
-    permitter: Address,
-    recipient: Address,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct AcqRelIdentityResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    permit: Option<Permit>,
-}
-
 async fn get_share<M: Middleware, S: Store>(
     Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetShareQuery { version }): Query<GetShareQuery>,
@@ -347,7 +322,9 @@ async fn get_share<M: Middleware, S: Store>(
                 .encrypt_in_place(&nonce, &[], &mut enc_share)
                 .map_err(|e| Error::Unhandled(anyhow::anyhow!("encryption error: {e}")))?;
             (
-                ShareResponseFormat::EncAes256GcmSiv { nonce },
+                ShareResponseFormat::EncAes256GcmSiv {
+                    nonce: nonce.into(),
+                },
                 enc_share.into(),
             )
         }
@@ -358,34 +335,6 @@ async fn get_share<M: Middleware, S: Store>(
         format,
         ss: WrappedSecretShare { index, share },
     }))
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct GetShareQuery {
-    version: u64,
-}
-
-#[derive(Clone, Debug, Serialize)]
-struct ShareResponse {
-    format: ShareResponseFormat,
-    ss: WrappedSecretShare,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct WrappedSecretShare {
-    pub index: u64,
-    pub share: Bytes,
-}
-
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "kebab-case")]
-enum ShareResponseFormat {
-    Plain,
-    EncAes256GcmSiv {
-        #[serde(with = "hex::serde")]
-        nonce: aes_gcm_siv::Nonce,
-    },
 }
 
 async fn put_key<M: Middleware, S: Store>(
@@ -456,19 +405,4 @@ async fn delete_key<M: Middleware, S: Store>(
         })
         .await?;
     Ok(StatusCode::NO_CONTENT)
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct GetKeyQuery {
-    version: u64,
-}
-
-#[derive(Clone, Deserialize)]
-struct PutKeyRequest {
-    key: WrappedKey,
-}
-
-#[derive(Clone, Debug, Serialize)]
-struct KeyResponse {
-    key: Bytes,
 }

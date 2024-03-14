@@ -101,11 +101,7 @@ async fn main() -> Result<()> {
             let ssss_identities =
                 futures::future::try_join_all(sssss.iter().map(|maybe_ssss_url| async {
                     let url: url::Url = maybe_ssss_url.parse()?;
-                    #[derive(serde::Deserialize)]
-                    struct SsssIdentity {
-                        persistent: elliptic_curve::JwkEcKey,
-                    }
-                    let ssss_identity: SsssIdentity =
+                    let ssss_identity: ssss::types::api::IdentityResponse =
                         reqwest::get(url.join("/v1/identity").unwrap())
                             .await?
                             .error_for_status()?
