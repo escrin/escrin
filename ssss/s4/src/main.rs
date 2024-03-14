@@ -9,7 +9,7 @@ use ethers::{
 };
 use eyre::{Result, WrapErr as _};
 use rand::RngCore as _;
-use ssss::{eth::SsssHub, types::ChainId, identity};
+use ssss::{eth::SsssHub, identity, types::ChainId};
 use tracing::{debug, warn};
 
 #[tokio::main]
@@ -87,6 +87,7 @@ async fn main() -> Result<()> {
         }
         cli::Command::Deal {
             secret,
+            version,
             sssss,
             threshold,
             args:
@@ -170,8 +171,8 @@ async fn main() -> Result<()> {
             my_identity.public_key();
 
             for (i, ssss_identity) in ssss_identities.into_iter().enumerate() {
-                let cipher = my_identity
-                    .derive_shared_cipher(ssss_identity, identity::SHARES_DOMAIN_SEP);
+                let cipher =
+                    my_identity.derive_shared_cipher(ssss_identity, identity::SHARES_DOMAIN_SEP);
                 cipher
                     .encrypt_in_place(&shares_nonce, &[], &mut shares[i])
                     .unwrap();
@@ -179,6 +180,7 @@ async fn main() -> Result<()> {
 
             ssss.deal_shares_sss(
                 identity.into(),
+                version,
                 my_identity.public_key().to_sec1_bytes().into_vec(),
                 nonce,
                 shares.into_iter().map(Bytes::from).collect(),

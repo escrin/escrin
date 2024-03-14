@@ -8,7 +8,7 @@ use ethers::{
     abi::AbiDecode,
     contract::{ContractCall, EthLogDecode as _},
     providers::{self, JsonRpcClient as _},
-    types::{Address, Bytes, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U64},
+    types::{Address, Bytes, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U256, U64},
 };
 use futures::{future::BoxFuture, FutureExt, Stream, StreamExt as _, TryStreamExt as _};
 use smallvec::{smallvec, SmallVec};
@@ -32,7 +32,7 @@ ethers::contract::abigen!(
 
         function setPolicy(bytes32 identity, bytes calldata config)
 
-        function dealShares(bytes32 identity, bytes pk, bytes32 nonce, bytes[] shares)
+        function dealShares(bytes32 identity, uint64 version, bytes pk, bytes32 nonce, bytes[] shares)
     ]"
 );
 
@@ -97,12 +97,14 @@ impl<M: providers::Middleware> SsssHub<M> {
     pub async fn deal_shares_sss(
         &self,
         identity: IdentityId,
+        version: u64,
         pk: impl Into<Bytes>,
         nonce: [u8; 32],
         shares: Vec<impl Into<Bytes>>,
     ) -> Result<TxHash, Error<M>> {
         self.send_tx(self.contract.deal_shares(
             identity.0.into(),
+            version.into(),
             pk.into(),
             nonce,
             shares.into_iter().map(Into::into).collect(),
@@ -237,14 +239,11 @@ impl<M: providers::Middleware> SsssHub<M> {
                 })
             }
             SsssHubContractEvents::SharesDealtFilter(_) => {
-                let (identity, pk, nonce, shares): (
-                    H256,
-                    Bytes,
-                    H256,
-                    Vec<Bytes>,
-                ) = AbiDecode::decode(&input[4..]).unwrap();
+                let (identity, version, pk, nonce, shares): (H256, U256, Bytes, H256, Vec<Bytes>) =
+                    AbiDecode::decode(&input[4..]).unwrap();
                 EventKind::SharesDealt(SharesDealt {
                     identity: identity.into(),
+                    version: version.low_u64(),
                     scheme: SsScheme::Shamir {
                         pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
                         nonce,
@@ -334,6 +333,7 @@ pub struct PolicyChange {
 #[derive(Clone, Debug)]
 pub struct SharesDealt {
     pub identity: IdentityId,
+    pub version: u64,
     pub scheme: SsScheme,
 }
 

@@ -1,5 +1,8 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{
+        btree_map::{self, BTreeMap},
+        HashMap, HashSet,
+    },
     sync::{Arc, RwLock},
 };
 
@@ -17,8 +20,8 @@ type IdentityNamedItem = (IdentityLocator, String);
 
 #[derive(Default)]
 struct State {
-    shares: RwLock<HashMap<IdentityLocator, Vec<Option<SecretShare>>>>,
-    keys: RwLock<HashMap<IdentityNamedItem, Vec<Option<WrappedKey>>>>,
+    shares: RwLock<HashMap<IdentityLocator, BTreeMap<u64, Option<SecretShare>>>>,
+    keys: RwLock<HashMap<IdentityNamedItem, BTreeMap<u64, Option<WrappedKey>>>>,
     permits: RwLock<HashMap<Grantee, Permit>>,
     verifiers: RwLock<HashMap<PermitterIdentityLocator, VerionedVerifierConfig>>,
     chain: RwLock<HashMap<u64, ChainState>>,
@@ -28,27 +31,33 @@ struct State {
 impl Store for MemoryStore {
     async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
         let mut shares = self.state.shares.write().unwrap();
-        let identity_shares = shares.entry(id.identity).or_default();
-        if id.version as usize != identity_shares.len() + 1 {
+        let versions = shares.entry(id.identity).or_default();
+        let current_version = versions
+            .last_key_value()
+            .map(|(k, _)| *k)
+            .unwrap_or_default();
+        if id.version != current_version + 1 {
             return Ok(false);
         }
-        identity_shares.push(Some(share));
+        versions.insert(id.version, Some(share));
         Ok(true)
     }
 
     async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
-        Ok(match self.state.shares.read().unwrap().get(&id.identity) {
-            Some(versions) if versions.len() >= id.version as usize => {
-                versions[id.version as usize - 1].clone().map(Into::into)
-            }
-            _ => None,
-        })
+        Ok(self
+            .state
+            .shares
+            .read()
+            .unwrap()
+            .get(&id.identity)
+            .and_then(|versions| versions.get(&id.version).cloned())
+            .flatten())
     }
 
     async fn delete_share(&self, id: ShareId) -> Result<(), Error> {
         if let Some(versions) = self.state.shares.write().unwrap().get_mut(&id.identity) {
-            if id.version < versions.len() as u64 {
-                versions[id.version as usize - 1] = None;
+            if let btree_map::Entry::Occupied(mut oe) = versions.entry(id.version) {
+                oe.insert(None);
             }
         }
         Ok(())
@@ -56,23 +65,27 @@ impl Store for MemoryStore {
 
     async fn put_key(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
         let mut keys = self.state.keys.write().unwrap();
-        let identified_keys = keys.entry((id.identity, id.name)).or_default();
-        if id.version as usize != identified_keys.len() + 1 {
+        let versions = keys.entry((id.identity, id.name)).or_default();
+        let current_version = versions
+            .last_key_value()
+            .map(|(k, _)| *k)
+            .unwrap_or_default();
+        if id.version != current_version + 1 {
             return Ok(false);
         }
-        identified_keys.push(Some(key));
+        versions.insert(id.version, Some(key));
         Ok(true)
     }
 
     async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
-        Ok(
-            match self.state.keys.read().unwrap().get(&(id.identity, id.name)) {
-                Some(versions) if versions.len() >= id.version as usize => {
-                    versions[id.version as usize - 1].clone().map(Into::into)
-                }
-                _ => None,
-            },
-        )
+        Ok(self
+            .state
+            .keys
+            .read()
+            .unwrap()
+            .get(&(id.identity, id.name))
+            .and_then(|versions| versions.get(&id.version).cloned())
+            .flatten())
     }
 
     async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
@@ -83,8 +96,8 @@ impl Store for MemoryStore {
             .unwrap()
             .get_mut(&(id.identity, id.name))
         {
-            if versions.len() <= id.version as usize {
-                versions[id.version as usize - 1] = None;
+            if let btree_map::Entry::Occupied(mut oe) = versions.entry(id.version) {
+                oe.insert(None);
             }
         }
         Ok(())

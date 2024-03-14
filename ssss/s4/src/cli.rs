@@ -62,6 +62,10 @@ pub enum Command {
         /// The secret to deal. A random one is generated if not provided.
         secret: Option<Bytes>,
 
+        /// The version of the secret to deal. SSSSs only accept only new versions.
+        #[arg(long)]
+        version: u64,
+
         #[arg(long = "ssss", action = Append, default_values = ["http://127.0.0.1:1075"])]
         sssss: Vec<String>,
 

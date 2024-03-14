@@ -6,7 +6,7 @@ use std::sync::{
 use aes_gcm_siv::AeadInPlace as _;
 use ethers::middleware::Middleware;
 use futures::stream::StreamExt as _;
-use ssss::identity::{Identity, self};
+use ssss::identity::{self, Identity};
 use tokio::time::{sleep, Duration};
 use tracing::{error, trace, warn};
 
@@ -109,15 +109,12 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                     processed_block.store(event.index.block, Ordering::Release);
                 }
                 eth::EventKind::SharesDealt(eth::SharesDealt {
-                    identity,
-                    scheme:
-                        eth::SsScheme::Shamir {
-                            pk,
-                            nonce,
-                            shares,
-                        },
+                    identity: identity_id,
+                    version,
+                    scheme: eth::SsScheme::Shamir { pk, nonce, shares },
                 }) => {
-                    let cipher = ssss_identity.derive_shared_cipher(pk, identity::SHARES_DOMAIN_SEP);
+                    let cipher =
+                        ssss_identity.derive_shared_cipher(pk, identity::SHARES_DOMAIN_SEP);
                     let shares_nonce = {
                         let mut n = [0u8; 12];
                         n.copy_from_slice(&nonce[0..12]);
@@ -133,30 +130,28 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                         });
                     let (index, share) = match maybe_my_share {
                         Some(ss) => ss,
-                        None => return,
+                        None => return, // TODO: track all secret versions (not just own) to prevent rollbacks on new shareholder set
                     };
                     retry(|| {
                         let share = share.clone();
                         async move {
+                            let identity = IdentityLocator {
+                                chain: chain_id,
+                                registry: permitter.registry().await?,
+                                id: identity_id,
+                            };
                             let put_share = store
                                 .put_share(
-                                    ShareId {
-                                        identity: IdentityLocator {
-                                            chain: chain_id,
-                                            registry: permitter.registry().await?,
-                                            id: identity,
-                                        },
-                                        version: 1,
-                                    },
-                                    SecretShare {
-                                        index,
-                                        share,
-                                    },
+                                    ShareId { identity, version },
+                                    SecretShare { index, share },
                                 )
                                 .await?;
-                            trace!("put share");
-                            anyhow::ensure!(put_share, "share not put");
-                            Ok(())
+                            if put_share {
+                                trace!(identity=?identity, version=version, "put share");
+                            } else {
+                                warn!(identity=?identity, version=version, "share not put");
+                            }
+                            Ok::<_, anyhow::Error>(())
                         }
                     })
                     .await;

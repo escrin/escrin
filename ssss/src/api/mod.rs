@@ -22,8 +22,8 @@ use ethers::{
 use futures::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
 use serde::{Deserialize, Serialize};
-use tower_http::cors;
 use ssss::identity::Identity;
+use tower_http::cors;
 
 use crate::{eth::SsssHub, store::Store, types::*, utils::retry_times, verify};
 
@@ -315,10 +315,7 @@ async fn get_share<M: Middleware, S: Store>(
         ..
     }): State<AppState<M, S>>,
 ) -> Result<Json<ShareResponse>, Error> {
-    let SecretShare {
-        index,
-        share,
-    } = retry_times(
+    let SecretShare { index, share } = retry_times(
         || {
             store.get_share(ShareId {
                 identity: IdentityLocator {
@@ -354,10 +351,7 @@ async fn get_share<M: Middleware, S: Store>(
 
     Ok(Json(ShareResponse {
         format,
-        ss: WrappedSecretShare {
-            index,
-            share,
-        },
+        ss: WrappedSecretShare { index, share },
     }))
 }
 
