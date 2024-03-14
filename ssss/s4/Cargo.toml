@@ -12,6 +12,7 @@ elliptic-curve = { version = "0.13.8", features = ["jwk"] }
 ethers = { version = "2.0.11", features = ["ws"] }
 eyre = "0.6.12"
 futures = { version = "0.3.30", default-features = false, features = ["std"] }
+headers = "0.4.0"
 p384 = { version = "0.13.0", default-features = false, features = ["std", "ecdh"] }
 rand = "0.8.5"
 reqwest = { version = "0.11.26", default-features = false, features = ["rustls-tls"] }

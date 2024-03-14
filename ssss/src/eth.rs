@@ -104,7 +104,7 @@ impl<M: providers::Middleware> SsssHub<M> {
     ) -> Result<TxHash, Error<M>> {
         self.send_tx(self.contract.deal_shares(
             identity.0.into(),
-            version.into(),
+            version,
             pk.into(),
             nonce,
             shares.into_iter().map(Into::into).collect(),

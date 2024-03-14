@@ -14,11 +14,11 @@ use axum::{
     routing::{any, delete, get, post, put},
     Json, Router,
 };
-use axum_extra::TypedHeader;
+use axum_extra::{headers::Header as _, TypedHeader};
 use ethers::{middleware::Middleware, types::Address};
 use futures::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
-use ssss::identity::Identity;
+use ssss::identity::{Identity, self};
 use tower_http::cors;
 
 use crate::{
@@ -153,9 +153,9 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                 .allow_headers([
                     header::CONTENT_TYPE,
                     header::AUTHORIZATION,
-                    auth::SIGNATURE_HEADER_NAME.clone(),
-                    auth::REQUESTER_HEADER_NAME.clone(),
-                    auth::REQUESTER_PUBKEY_HEADER_NAME.clone(),
+                    SignatureHeader::name().clone(),
+                    RequesterHeader::name().clone(),
+                    RequesterPublicKeyHeader::name().clone(),
                 ]),
         )
 }
@@ -199,7 +199,7 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     method: Method,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
     State(AppState { store, sssss, .. }): State<AppState<M, S>>,
-    relayer: Option<TypedHeader<auth::Requester>>,
+    relayer: Option<TypedHeader<RequesterHeader>>,
     Json(AcqRelIdentityRequest {
         duration,
         authorization,
@@ -288,7 +288,7 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
 async fn get_share<M: Middleware, S: Store>(
     Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetShareQuery { version }): Query<GetShareQuery>,
-    requester_pk: Option<TypedHeader<auth::RequesterPublicKey>>,
+    requester_pk: Option<TypedHeader<RequesterPublicKeyHeader>>,
     State(AppState {
         store,
         ephemeral_identity,
@@ -314,7 +314,7 @@ async fn get_share<M: Middleware, S: Store>(
 
     let (format, share) = match requester_pk {
         Some(pk) => {
-            let cipher = ephemeral_identity.derive_shared_cipher(*pk.0, &[]);
+            let cipher = ephemeral_identity.derive_shared_cipher(*pk.0, identity::GET_SHARE_DOMAIN_SEP);
             let mut nonce = aes_gcm_siv::Nonce::default();
             rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
             let mut enc_share = (*share).clone();
@@ -325,10 +325,10 @@ async fn get_share<M: Middleware, S: Store>(
                 ShareResponseFormat::EncAes256GcmSiv {
                     nonce: nonce.into(),
                 },
-                enc_share.into(),
+                enc_share,
             )
         }
-        None => (ShareResponseFormat::Plain, (*share).clone().into()),
+        None => (ShareResponseFormat::Plain, (*share).clone()),
     };
 
     Ok(Json(ShareResponse {

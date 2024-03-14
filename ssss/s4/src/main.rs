@@ -5,11 +5,16 @@ use ethers::{
     middleware::MiddlewareBuilder,
     providers::{Http, Middleware, Provider},
     signers::Signer as _,
-    types::{transaction::eip712::Eip712 as _, Bytes},
+    types::Bytes,
 };
 use eyre::{Result, WrapErr as _};
 use rand::RngCore as _;
-use ssss::{eth::SsssHub, identity, types::ChainId};
+use s4::SsssClient;
+use ssss::{
+    eth::SsssHub,
+    identity,
+    types::{api::*, *},
+};
 use tracing::{debug, warn};
 
 #[tokio::main]
@@ -33,7 +38,7 @@ async fn main() -> Result<()> {
             policy_path,
             args:
                 cli::WritePermitterArgs {
-                    private_key,
+                    wallet,
                     gateway,
                     permitter,
                     identity,
@@ -60,30 +65,10 @@ async fn main() -> Result<()> {
             )?;
 
             let (chain, provider) = get_provider(&gateway).await?;
-            let provider = provider.with_signer(private_key.with_chain_id(chain));
-            let ssss = SsssHub::new(chain, permitter, provider);
+            let provider = provider.with_signer(wallet.private_key.with_chain_id(chain));
+            let ssss = SsssHub::new(chain, *permitter, provider);
 
-            ssss.set_policy(identity.into(), cpolicy).await?;
-        }
-        cli::Command::SignOmniKeyRequest {
-            ssss,
-            chain,
-            registry,
-            identity,
-            share_version,
-            private_key,
-        } => {
-            let req = ssss::types::SsssRequest {
-                method: "GET".into(),
-                uri: format!(
-                    "{ssss}/v1/shares/omni/{chain}/{registry}/{identity}?version={share_version}"
-                ),
-                body: Default::default(),
-            };
-            let req_hash = req.encode_eip712()?;
-            let sig = private_key.sign_hash(req_hash.into())?;
-            eprintln!("{:x}", ethers::types::Bytes::from(&req_hash));
-            println!("0x{sig}");
+            ssss.set_policy((*identity).into(), cpolicy).await?;
         }
         cli::Command::Deal {
             secret,
@@ -95,25 +80,24 @@ async fn main() -> Result<()> {
                     gateway,
                     permitter,
                     identity,
-                    private_key,
+                    wallet,
                 },
         } => {
             let ssss_identities =
                 futures::future::try_join_all(sssss.iter().map(|maybe_ssss_url| async {
-                    let url: url::Url = maybe_ssss_url.parse()?;
-                    let ssss_identity: ssss::types::api::IdentityResponse =
-                        reqwest::get(url.join("/v1/identity").unwrap())
+                    Ok::<_, eyre::Error>(
+                        SsssClient::new(maybe_ssss_url.parse()?)
+                            .get_ssss_identity()
                             .await?
-                            .error_for_status()?
-                            .json()
-                            .await?;
-                    Ok::<_, eyre::Error>(ssss_identity.persistent.to_public_key()?)
+                            .persistent
+                            .to_public_key()?,
+                    )
                 }))
                 .await?;
 
             let (chain, provider) = get_provider(&gateway).await?;
-            let provider = provider.with_signer(private_key.with_chain_id(chain));
-            let ssss = SsssHub::new(chain, permitter, provider);
+            let provider = provider.with_signer(wallet.private_key.with_chain_id(chain));
+            let ssss = SsssHub::new(chain, *permitter, provider);
 
             let mut rng = rand::thread_rng();
 
@@ -140,10 +124,10 @@ async fn main() -> Result<()> {
                 };
                 vec![secret]
             } else {
-                let threshold = if threshold > 1.0 {
-                    threshold as usize
+                let threshold = if *threshold > 1.0 {
+                    *threshold as usize
                 } else {
-                    (threshold * (limit as f64)).ceil() as usize
+                    (*threshold * (limit as f64)).ceil() as usize
                 };
                 let secret = match secret {
                     Some(s) => p384::Scalar::from_slice(&s)?,
@@ -167,21 +151,67 @@ async fn main() -> Result<()> {
             my_identity.public_key();
 
             for (i, ssss_identity) in ssss_identities.into_iter().enumerate() {
-                let cipher =
-                    my_identity.derive_shared_cipher(ssss_identity, identity::SHARES_DOMAIN_SEP);
+                let cipher = my_identity
+                    .derive_shared_cipher(ssss_identity, identity::DEAL_SHARES_DOMAIN_SEP);
                 cipher
                     .encrypt_in_place(&shares_nonce, &[], &mut shares[i])
                     .unwrap();
             }
 
             ssss.deal_shares_sss(
-                identity.into(),
-                version,
+                (*identity).into(),
+                *version,
                 my_identity.public_key().to_sec1_bytes().into_vec(),
                 nonce,
                 shares.into_iter().map(Bytes::from).collect(),
             )
             .await?;
+        }
+        cli::Command::Reconstruct {
+            il,
+            version,
+            sssss,
+            wallet,
+        } => {
+            let wallet = &*wallet;
+            let shares = futures::future::try_join_all(sssss.iter().map(|url_str| async move {
+                let url: url::Url = url_str.parse()?;
+                SsssClient::new(url)
+                    .get_share("omni", il.into(), *version, wallet, None)
+                    .await
+            }))
+            .await?;
+
+            vsss_rs::combine_shares::<p384::Scalar, u8, Vec<u8>>(
+                &shares.into_iter().map(|s| s.1).collect::<Vec<_>>(),
+            )
+            .map_err(|_| eyre::eyre!("failed to reconstruct shares"))?;
+
+            todo!()
+        }
+        cli::Command::AcquireIdentity {
+            ssss,
+            il,
+            wallet,
+            duration,
+            authorization,
+            context,
+            permitter,
+            recipient,
+        } => {
+            SsssClient::new(ssss.parse()?)
+                .acquire_identity(
+                    il.into(),
+                    &AcqRelIdentityRequest {
+                        duration,
+                        authorization,
+                        context,
+                        permitter: (*permitter),
+                        recipient,
+                    },
+                    wallet.as_deref(),
+                )
+                .await?;
         }
     }
 
@@ -197,13 +227,3 @@ async fn get_provider(gateway: &str) -> Result<(ChainId, Provider<Http>)> {
         .as_u64();
     Ok((chain, provider))
 }
-
-// async fn get_ssss_caller(gateway: &str, addr: Address, signer: LocalWallet) -> Result<SsssPermitter<Provider<Http>>> {
-//     let provider = Provider::<Http>::try_from(gateway).wrap_err("failed to connect to gateway")?;
-//     let chain = provider
-//         .get_chainid()
-//         .await
-//         .wrap_err("failed to get chainid from gateway")?
-//         .as_u64();
-//     Ok(SsssPermitter::new(chain, addr, provider))
-// }

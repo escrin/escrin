@@ -114,7 +114,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                     scheme: eth::SsScheme::Shamir { pk, nonce, shares },
                 }) => {
                     let cipher =
-                        ssss_identity.derive_shared_cipher(pk, identity::SHARES_DOMAIN_SEP);
+                        ssss_identity.derive_shared_cipher(pk, identity::DEAL_SHARES_DOMAIN_SEP);
                     let shares_nonce = {
                         let mut n = [0u8; 12];
                         n.copy_from_slice(&nonce[0..12]);

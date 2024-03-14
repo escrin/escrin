@@ -30,30 +30,31 @@ pub enum Command {
         #[arg(value_hint = ValueHint::FilePath)]
         policy_path: Option<String>,
     },
-    SignOmniKeyRequest {
-        #[arg(long, default_value_t = 31337)]
-        chain: u64,
+    AcquireIdentity {
+        #[command(flatten)]
+        ssss: Ssss,
 
-        #[arg(long, default_value = "127.0.0.1:1075")]
-        ssss: String,
+        #[command(flatten)]
+        il: IdentityLocatorArgs,
 
-        #[arg(long, default_value = "0x5FbDB2315678afecb367f032d93F642f64180aa3")]
-        registry: Address,
+        /// Signes the request using this wallet as the relayer.
+        #[command(flatten)]
+        wallet: Option<Wallet>,
 
-        #[arg(
-            long,
-            default_value = "0xb725694d2cfafceaf7dbbf2b29ce7f8879ba0c23451f19aee5db8722812e3409"
-        )]
-        identity: H256,
+        #[arg(short, long, default_value_t = 24 * 60 * 60)]
+        duration: u64,
 
-        #[arg(long, default_value_t = 1)]
-        share_version: u64,
+        #[arg(short, long, required = false)]
+        authorization: Bytes,
 
-        #[arg(
-            long,
-            default_value = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-        )]
-        private_key: ethers::signers::LocalWallet,
+        #[arg(short, long, required = false)]
+        context: Bytes,
+
+        #[command(flatten)]
+        permitter: Permitter,
+
+        #[arg(short, long, required = true)]
+        recipient: Address,
     },
     Deal {
         #[command(flatten)]
@@ -62,18 +63,109 @@ pub enum Command {
         /// The secret to deal. A random one is generated if not provided.
         secret: Option<Bytes>,
 
-        /// The version of the secret to deal. SSSSs only accept only new versions.
-        #[arg(long)]
-        version: u64,
+        #[command(flatten)]
+        version: ShareVersion,
 
-        #[arg(long = "ssss", action = Append, default_values = ["http://127.0.0.1:1075"])]
-        sssss: Vec<String>,
+        #[command(flatten)]
+        sssss: Sssss,
 
-        /// The threshold of SSSSs that must return correct shares for the secret to be reconstructed.
-        /// If between 0 and 1, represents a percentage. Greater than 1 represents an absolute number.
-        #[arg(short, long, default_value_t = 2.0/3.0)]
-        threshold: f64,
+        #[command(flatten)]
+        threshold: Threshold,
     },
+    Reconstruct {
+        #[command(flatten)]
+        il: IdentityLocatorArgs,
+
+        #[command(flatten)]
+        version: ShareVersion,
+
+        #[command(flatten)]
+        sssss: Sssss,
+
+        #[command(flatten)]
+        wallet: Wallet,
+    },
+}
+
+#[derive(Clone, Debug, clap::Args)]
+pub struct Ssss {
+    /// The SSSS URL.
+    #[arg(short, long)]
+    pub ssss: String,
+}
+
+#[derive(Clone, Copy, Debug, clap::Args)]
+pub struct ShareVersion {
+    /// The version of the secret to deal. SSSSs only accept only new versions.
+    #[arg(short, long)]
+    pub version: u64,
+}
+
+#[derive(Clone, Debug, clap::Args)]
+pub struct Threshold {
+    /// The threshold of SSSSs that must return correct shares for the secret to be reconstructed.
+    /// If between 0 and 1, represents a percentage. Greater than 1 represents an absolute number.
+    #[arg(short, long, default_value_t = 0.67)]
+    pub threshold: f64,
+}
+
+#[derive(Clone, Debug, clap::Args)]
+pub struct Wallet {
+    #[arg(
+        short = 'k',
+        long,
+        default_value = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    )]
+    pub private_key: ethers::signers::LocalWallet,
+}
+
+#[derive(Clone, Copy, Debug, clap::Args)]
+pub struct IdentityId {
+    #[arg(
+        short,
+        long,
+        default_value = "0xb725694d2cfafceaf7dbbf2b29ce7f8879ba0c23451f19aee5db8722812e3409"
+    )]
+    pub identity: H256,
+}
+
+#[derive(Clone, Debug, clap::Args)]
+pub struct Permitter {
+    /// The address of the SsssPermitter (or SsssHub).
+    #[arg(
+        short,
+        long,
+        default_value = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    )]
+    pub permitter: Address,
+}
+
+#[derive(Clone, Copy, Debug, clap::Args)]
+pub struct IdentityLocatorArgs {
+    #[arg(long, default_value_t = 31337)]
+    pub chain: u64,
+
+    #[arg(long, default_value = "0x5FbDB2315678afecb367f032d93F642f64180aa3")]
+    pub registry: Address,
+
+    #[command(flatten)]
+    pub identity: IdentityId,
+}
+
+impl From<IdentityLocatorArgs> for ssss::types::IdentityLocator {
+    fn from(il: IdentityLocatorArgs) -> Self {
+        Self {
+            chain: il.chain,
+            registry: il.registry,
+            id: (*il.identity).into()
+        }
+    }
+}
+
+#[derive(Clone, Debug, clap::Args)]
+pub struct Sssss {
+    #[arg(short, long = "ssss", action = Append, default_values = ["http://127.0.0.1:1075"])]
+    pub sssss: Vec<String>,
 }
 
 #[derive(Clone, Debug, clap::Args)]
@@ -82,19 +174,36 @@ pub struct WritePermitterArgs {
     #[arg(short, long, default_value = "http://127.0.0.1:8545", value_hint = ValueHint::Url)]
     pub gateway: String,
 
-    /// The address of the SsssPermitter.
-    #[arg(long, default_value = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512")]
-    pub permitter: Address,
+    #[command(flatten)]
+    pub permitter: Permitter,
 
-    #[arg(
-        long,
-        default_value = "0xb725694d2cfafceaf7dbbf2b29ce7f8879ba0c23451f19aee5db8722812e3409"
-    )]
-    pub identity: H256,
+    #[command(flatten)]
+    pub identity: IdentityId,
 
-    #[arg(
-        long,
-        default_value = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-    )]
-    pub private_key: ethers::signers::LocalWallet,
+    #[command(flatten)]
+    pub wallet: Wallet,
+}
+
+macro_rules! impl_deref_for_args {
+    ($( $ty:ty { $prop:ident: $target:ty }),+ $(,)? ) => {
+        $(
+            impl std::ops::Deref for $ty {
+                type Target=$target;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.$prop
+                }
+            }
+        )+
+    };
+}
+
+impl_deref_for_args! {
+    Permitter { permitter: Address },
+    Ssss { ssss: String },
+    Sssss { sssss: Vec<String> },
+    Wallet { private_key: ethers::signers::LocalWallet },
+    IdentityId { identity: H256 },
+    Threshold { threshold: f64 },
+    ShareVersion { version: u64 },
 }
