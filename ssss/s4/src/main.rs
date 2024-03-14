@@ -15,7 +15,7 @@ use ssss::{
     identity,
     types::{api::*, *},
 };
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -36,6 +36,7 @@ async fn main() -> Result<()> {
     match args.command {
         cli::Command::SetPolicy {
             policy_path,
+            verifier,
             args:
                 cli::WritePermitterArgs {
                     wallet,
@@ -52,13 +53,23 @@ async fn main() -> Result<()> {
             let policy: serde_json::Value = serde_json::from_reader(input)?;
             let mut policy_bytes = Vec::new();
             ciborium::into_writer(&policy, &mut policy_bytes)?;
-            let mut cpolicy = Vec::with_capacity(policy_bytes.len());
+
+            let mut preamble_bytes = Vec::with_capacity(policy_bytes.len() + 100);
+            ciborium::into_writer(
+                &PolicyPreamble {
+                    verifier: verifier.to_string(),
+                    policy: policy_bytes,
+                },
+                &mut preamble_bytes,
+            )?;
+
+            let mut cpolicy = Vec::with_capacity(preamble_bytes.len());
             brotli::BrotliCompress(
-                &mut policy_bytes.as_slice(),
+                &mut preamble_bytes.as_slice(),
                 &mut cpolicy,
                 &brotli::enc::backward_references::BrotliEncoderParams {
                     quality: 11,
-                    size_hint: policy_bytes.len(),
+                    size_hint: preamble_bytes.len(),
                     magic_number: true,
                     ..Default::default()
                 },
@@ -182,12 +193,12 @@ async fn main() -> Result<()> {
             }))
             .await?;
 
-            vsss_rs::combine_shares::<p384::Scalar, u8, Vec<u8>>(
+            let secret = vsss_rs::combine_shares::<p384::Scalar, u8, Vec<u8>>(
                 &shares.into_iter().map(|s| s.1).collect::<Vec<_>>(),
             )
             .map_err(|_| eyre::eyre!("failed to reconstruct shares"))?;
 
-            todo!()
+            println!("{:x}", Bytes::from(secret.to_bytes().to_vec()))
         }
         cli::Command::AcquireIdentity {
             ssss,
@@ -199,7 +210,7 @@ async fn main() -> Result<()> {
             permitter,
             recipient,
         } => {
-            SsssClient::new(ssss.parse()?)
+            let permit_created = SsssClient::new(ssss.parse()?)
                 .acquire_identity(
                     il.into(),
                     &AcqRelIdentityRequest {
@@ -212,6 +223,9 @@ async fn main() -> Result<()> {
                     wallet.as_deref(),
                 )
                 .await?;
+            if permit_created {
+                info!("SSSS optimistically created permit");
+            }
         }
     }
 

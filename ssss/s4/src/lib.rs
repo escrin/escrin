@@ -7,6 +7,7 @@ use ethers::{
 use eyre::Result;
 use futures::TryFutureExt as _;
 use headers::Header as _;
+use reqwest::StatusCode;
 use ssss::types::{api::*, *};
 
 #[derive(Clone, Debug)]
@@ -32,13 +33,14 @@ impl SsssClient {
             .await?)
     }
 
+    /// Returns whether the SSSS optimistically granted the permit.
     pub async fn acquire_identity(
         &self,
         il: IdentityLocator,
         params: &AcqRelIdentityRequest,
         signer: Option<&LocalWallet>,
-    ) -> Result<()> {
-        self.acqrel_identity(il, params, signer, true).await
+    ) -> Result<bool> {
+        Ok(self.acqrel_identity(il, params, signer, true).await? == StatusCode::CREATED)
     }
 
     pub async fn release_identity(
@@ -47,7 +49,8 @@ impl SsssClient {
         params: &AcqRelIdentityRequest,
         signer: Option<&LocalWallet>,
     ) -> Result<()> {
-        self.acqrel_identity(il, params, signer, false).await
+        self.acqrel_identity(il, params, signer, false).await?;
+        Ok(())
     }
 
     async fn acqrel_identity(
@@ -60,10 +63,9 @@ impl SsssClient {
         params: &AcqRelIdentityRequest,
         signer: Option<&LocalWallet>,
         acquire: bool,
-    ) -> Result<()> {
-        let url = self
-            .url
-            .join(&format!("/v1/shares/omni/{chain}/{registry}/{identity}"))?;
+    ) -> Result<StatusCode> {
+        let paq = format!("/v1/permits/{chain}/{registry:x}/{identity:x}");
+        let url = self.url.join(&paq)?;
         let body = serde_json::to_vec(&params)?;
         let method = if acquire {
             reqwest::Method::POST
@@ -72,24 +74,32 @@ impl SsssClient {
         };
 
         let req = self.client.request(method.clone(), url.clone());
-        match signer {
+        let res = match signer {
             Some(signer) => Self::attach_escrin1_sig(
                 req,
                 SsssRequest {
                     method: method.to_string(),
-                    uri: url.to_string(),
+                    host: url.authority().to_string(),
+                    path_and_query: paq,
                     body: keccak256(&body).into(),
                 },
                 signer,
             )?,
             None => req,
         }
+        .header("content-type", "application/json")
         .body(body)
         .send()
-        .await?
-        .error_for_status()?;
+        .await?;
 
-        Ok(())
+        if !res.status().is_success() {
+            let res_text = res.text().await?;
+            let ErrorResponse { error } =
+                serde_json::from_str(&res_text).unwrap_or(ErrorResponse { error: res_text });
+            return Err(eyre::eyre!("failed to acquire identity: {error}"));
+        }
+
+        Ok(res.status())
     }
 
     pub async fn get_share(
@@ -104,9 +114,8 @@ impl SsssClient {
         signer: &LocalWallet,
         sk: Option<&p384::SecretKey>,
     ) -> Result<(u64, Vec<u8>)> {
-        let url = self.url.join(&format!(
-            "/v1/shares/{name}/{chain}/{registry}/{identity}?version={version}"
-        ))?;
+        let paq = format!("/v1/shares/{name}/{chain}/{registry:x}/{identity:x}?version={version}");
+        let url = self.url.join(&paq)?;
 
         let sk: std::borrow::Cow<p384::SecretKey> = match sk {
             Some(sk) => std::borrow::Cow::Borrowed(sk),
@@ -117,7 +126,8 @@ impl SsssClient {
             self.client.get(url.clone()),
             SsssRequest {
                 method: "GET".into(),
-                uri: url.to_string(),
+                host: url.authority().to_string(),
+                path_and_query: paq,
                 body: Default::default(),
             },
             signer,
@@ -130,6 +140,16 @@ impl SsssClient {
         .map_err(eyre::Error::from);
 
         let (shares_res, ssss_identity) = tokio::try_join!(shares_req, self.get_ssss_identity())?;
+
+        if !shares_res.status().is_success() {
+            let res_text = shares_res.text().await?;
+            let ErrorResponse { error } =
+                serde_json::from_str(&res_text).unwrap_or(ErrorResponse { error: res_text });
+            return Err(eyre::eyre!(
+                "failed to get shares from {}: {error}",
+                self.url
+            ));
+        }
 
         let res: ShareResponse = shares_res.error_for_status()?.json().await?;
 

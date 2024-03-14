@@ -26,6 +26,9 @@ pub enum Command {
         #[command(flatten)]
         args: WritePermitterArgs,
 
+        #[arg(short, long, value_enum, required = true)]
+        verifier: PolicyVerifier,
+
         /// The file from which to read the JSON policy document or stdin if not specified.
         #[arg(value_hint = ValueHint::FilePath)]
         policy_path: Option<String>,
@@ -44,10 +47,10 @@ pub enum Command {
         #[arg(short, long, default_value_t = 24 * 60 * 60)]
         duration: u64,
 
-        #[arg(short, long, required = false)]
+        #[arg(short, long, default_value = "0x")]
         authorization: Bytes,
 
-        #[arg(short, long, required = false)]
+        #[arg(short, long, default_value = "0x")]
         context: Bytes,
 
         #[command(flatten)]
@@ -90,7 +93,7 @@ pub enum Command {
 #[derive(Clone, Debug, clap::Args)]
 pub struct Ssss {
     /// The SSSS URL.
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "http://127.0.0.1:1075")]
     pub ssss: String,
 }
 
@@ -157,7 +160,7 @@ impl From<IdentityLocatorArgs> for ssss::types::IdentityLocator {
         Self {
             chain: il.chain,
             registry: il.registry,
-            id: (*il.identity).into()
+            id: (*il.identity).into(),
         }
     }
 }
@@ -182,6 +185,22 @@ pub struct WritePermitterArgs {
 
     #[command(flatten)]
     pub wallet: Wallet,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+#[value(rename_all = "lowercase")]
+pub enum PolicyVerifier {
+    Mock,
+    Nitro,
+}
+
+impl std::fmt::Display for PolicyVerifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Self::Mock => "mock",
+            Self::Nitro => "nitro"
+        })
+    }
 }
 
 macro_rules! impl_deref_for_args {

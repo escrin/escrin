@@ -30,7 +30,7 @@ impl Verifier for NitroEnclaveVerifier {
         _context: &[u8],
         relayer: Option<Address>,
     ) -> Result<Verification, Error> {
-        let policy: Policy = ciborium::from_reader(policy_bytes)
+        let policy: Policy = ciborium::de::from_reader_with_recursion_limit(policy_bytes, 10)
             .map_err(|e| Error::PolicyDecode(anyhow::Error::from(e)))?;
 
         if policy.version != 1 {
@@ -91,11 +91,12 @@ impl NitroEnclaveVerifier {
         let sign1 = <coset::CoseSign1 as coset::CborSerializable>::from_slice(doc_bytes)
             .map_err(|e| Error::AttestationDecode(anyhow::Error::from(e)))?;
 
-        let doc: AttestationDocument = ciborium::from_reader(
+        let doc: AttestationDocument = ciborium::de::from_reader_with_recursion_limit(
             sign1
                 .payload
                 .as_deref()
                 .ok_or_else(|| Error::AttestationDecode(anyhow!("missing Sign1 payload")))?,
+            5,
         )
         .unwrap();
 

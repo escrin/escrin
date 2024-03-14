@@ -24,10 +24,10 @@ async fn main() -> Result<()> {
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_env_filter(match args.verbosity {
-            0 => "ssss=warn",
-            1 => "ssss=info",
-            2 => "ssss=debug",
-            _ => "ssss=trace",
+            0 => "ssss=warn,tower_http=warn",
+            1 => "ssss=info,tower_http=info",
+            2 => "ssss=debug,tower_http=debug",
+            _ => "ssss=trace,tower_http=trace",
         })
         .with_target(true);
     if cfg!(not(debug_assertions)) {

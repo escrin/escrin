@@ -120,6 +120,13 @@ pub struct EventIndex {
 )]
 pub struct SsssRequest {
     pub method: String,
-    pub uri: String,
+    pub host: String,
+    pub path_and_query: String,
     pub body: H256,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PolicyPreamble {
+    pub verifier: String,
+    pub policy: Vec<u8>
 }

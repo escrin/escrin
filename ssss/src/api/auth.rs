@@ -5,7 +5,10 @@ use std::{
 
 use axum::{
     extract::{OriginalUri, Path, Request, State},
-    http::{Method, Uri},
+    http::{
+        uri::{Authority, PathAndQuery, Uri},
+        Method,
+    },
     middleware::Next,
     response::Response,
 };
@@ -21,6 +24,7 @@ use crate::{
     utils::retry_times,
 };
 
+#[tracing::instrument(level = "info", skip_all)]
 pub async fn permitted_requester<S: Store>(
     Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     TypedHeader(RequesterHeader(requester)): TypedHeader<RequesterHeader>,
@@ -40,22 +44,24 @@ pub async fn permitted_requester<S: Store>(
     Ok(next.run(req).await)
 }
 
+#[tracing::instrument(level = "info", skip_all)]
 pub async fn escrin1(
     method: Method,
     OriginalUri(uri): OriginalUri,
-    TypedHeader(SignatureHeader(sig)): TypedHeader<SignatureHeader>,
+    sig: Option<TypedHeader<SignatureHeader>>,
     requester: Option<TypedHeader<RequesterHeader>>,
-    State(host): State<axum::http::uri::Authority>,
+    State(host): State<Authority>,
     req: Request,
     next: Next,
 ) -> Result<Response, Error> {
-    let requester = match requester {
-        Some(TypedHeader(RequesterHeader(requester))) => requester,
-        None => return Ok(next.run(req).await),
+    let Some(TypedHeader(RequesterHeader(requester))) = requester else {
+        return Ok(next.run(req).await);
     };
-    if uri.authority() != Some(&host) {
-        return Err(Error::Forbidden("incorrect audience".into()));
-    }
+    let Some(TypedHeader(SignatureHeader(sig))) = sig else {
+        return Err(Error::Unauthorized(
+            "Header of type `signature` was missing".into(),
+        ));
+    };
     Ok(next
         .run(match method {
             Method::OPTIONS => req,
@@ -63,6 +69,7 @@ pub async fn escrin1(
                 axum::body::Body::new(SignatureChecker {
                     inner: b,
                     hasher: Some(Keccak::v256()),
+                    host,
                     method,
                     uri,
                     sig,
@@ -70,7 +77,16 @@ pub async fn escrin1(
                 })
             }),
             Method::GET | Method::DELETE => {
-                verify_sig(method, uri, sig, requester, None)?;
+                verify_sig(
+                    method,
+                    host,
+                    uri.path_and_query()
+                        .cloned()
+                        .unwrap_or_else(|| PathAndQuery::from_static("")),
+                    sig,
+                    requester,
+                    None,
+                )?;
                 req
             }
             m => return Err(Error::BadRequest(format!("unsupported method: {m}"))),
@@ -80,7 +96,8 @@ pub async fn escrin1(
 
 fn verify_sig(
     method: Method,
-    uri: Uri,
+    host: Authority,
+    path_and_query: PathAndQuery,
     sig: Signature,
     requester: Address,
     body: Option<H256>,
@@ -88,7 +105,8 @@ fn verify_sig(
     let req721_hash = H256(
         SsssRequest {
             method: method.to_string(),
-            uri: uri.to_string(),
+            host: host.to_string(),
+            path_and_query: path_and_query.to_string(),
             body: body.unwrap_or_default(),
         }
         .encode_eip712()
@@ -112,6 +130,7 @@ pin_project! {
         inner: B,
         hasher: Option<Keccak>,
         method: Method,
+        host: Authority,
         uri: Uri,
         sig: Signature,
         requester: Address
@@ -143,7 +162,11 @@ where
 
                 match verify_sig(
                     this.method.clone(),
-                    this.uri.clone(),
+                    this.host.clone(),
+                    this.uri
+                        .path_and_query()
+                        .cloned()
+                        .unwrap_or_else(|| PathAndQuery::from_static("")),
                     *this.sig,
                     *this.requester,
                     Some(body_hash.into()),

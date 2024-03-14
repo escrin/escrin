@@ -2,7 +2,7 @@ mod nitro;
 
 use ethers::types::Address;
 
-use crate::types::IdentityLocator;
+use crate::types::{IdentityLocator, PolicyPreamble};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RequestKind {
@@ -60,12 +60,16 @@ pub async fn verify(
     ctx: &[u8],
     relayer: Option<Address>,
 ) -> Result<Verification, Error> {
-    let (verifier_sel, _): (String, Vec<u8>) =
-        ethers::abi::AbiDecode::decode(ctx).map_err(|e| Error::UnknownVerifier(e.to_string()))?;
-    match verifier_sel.as_str() {
+    let PolicyPreamble {
+        verifier,
+        policy: policy_bytes,
+    } = ciborium::de::from_reader_with_recursion_limit(policy_bytes, 3)
+        .map_err(|e| Error::PolicyDecode(e.into()))?;
+
+    match verifier.as_str() {
         "nitro" => {
             nitro::NitroEnclaveVerifier
-                .verify(policy_bytes, req, identity, recipient, auth, ctx, relayer)
+                .verify(&policy_bytes, req, identity, recipient, auth, ctx, relayer)
                 .await
         }
         #[cfg(debug_assertions)]

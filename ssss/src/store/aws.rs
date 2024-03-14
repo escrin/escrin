@@ -124,7 +124,7 @@ impl Store for Client {
     }
 
     async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
-        let maybe_enc_ss = self
+        let Some((index, enc_share)) = self
             .db_client
             .query()
             .table_name(self.shares_table())
@@ -142,11 +142,9 @@ impl Store for Client {
                 let index = unpack_u64("index", &v);
                 let enc_share = unpack_blob("share", &mut v);
                 (index, enc_share)
-            });
-
-        let (index, enc_share) = match maybe_enc_ss {
-            Some(s) => s,
-            None => return Ok(None),
+            })
+        else {
+            return Ok(None);
         };
 
         let share = self
@@ -218,7 +216,7 @@ impl Store for Client {
     }
 
     async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
-        let maybe_enc_key = self
+        let Some(enc_key) = self
             .db_client
             .query()
             .table_name(self.keys_table())
@@ -234,11 +232,9 @@ impl Store for Client {
             .unwrap_or_default()
             .into_iter()
             .nth(0)
-            .map(|mut v| unpack_blob("key", &mut v));
-
-        let enc_key = match maybe_enc_key {
-            Some(k) => k,
-            None => return Ok(None),
+            .map(|mut v| unpack_blob("key", &mut v))
+        else {
+            return Ok(None);
         };
 
         Ok(Some(
@@ -404,10 +400,7 @@ impl Store for Client {
 
     async fn update_chain_state(&self, chain: u64, update: ChainStateUpdate) -> Result<(), Error> {
         let ChainStateUpdate { block } = update;
-        let new_block = match block {
-            Some(block) => block,
-            None => return Ok(()),
-        };
+        let Some(new_block) = block else { return Ok(()) };
 
         let n_block = N(new_block.to_string());
         let res = self

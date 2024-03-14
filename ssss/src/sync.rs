@@ -94,6 +94,14 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                         warn!("failed to decompress config");
                         return;
                     }
+                    if ciborium::de::from_reader_with_recursion_limit::<PolicyPreamble, _>(
+                        config.as_slice(),
+                        10,
+                    )
+                    .is_err()
+                    {
+                        return;
+                    }
                     retry(|| {
                         store.update_verifier(
                             PermitterLocator::new(chain_id, permitter.address),
@@ -120,17 +128,16 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                         n.copy_from_slice(&nonce[0..12]);
                         n.into()
                     };
-                    let maybe_my_share =
+                    let Some((index, share)) =
                         shares.into_iter().enumerate().find_map(|(i, enc_share)| {
                             let mut share = enc_share.to_vec();
                             cipher
                                 .decrypt_in_place(&shares_nonce, &[], &mut share)
                                 .ok()?;
                             Some((i as u64, zeroize::Zeroizing::new(share)))
-                        });
-                    let (index, share) = match maybe_my_share {
-                        Some(ss) => ss,
-                        None => return, // TODO: track all secret versions (not just own) to prevent rollbacks on new shareholder set
+                        })
+                    else {
+                        return; // TODO: track all secret versions (not just own) to prevent rollbacks on new shareholder set
                     };
                     retry(|| {
                         let share = share.clone();
