@@ -111,7 +111,11 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
                     "/permits/:chain/:registry/:identity",
                     Router::new()
                         .route("/", post(acqrel_identity))
-                        .route("/", delete(acqrel_identity)),
+                        .route("/", delete(acqrel_identity))
+                        .layer(axum::middleware::from_fn_with_state(
+                            state.host.clone(),
+                            auth::escrin1,
+                        )),
                 )
                 .route(
                     "/shares/:name/:chain/:registry/:identity",
@@ -204,6 +208,7 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     method: Method,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
     State(AppState { store, sssss, .. }): State<AppState<M, S>>,
+    relayer: Option<TypedHeader<auth::Requester>>,
     Json(AcqRelIdentityRequest {
         duration,
         authorization,
@@ -240,7 +245,7 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
         recipient,
         &authorization,
         &context,
-        Default::default(), // TODO: request signing
+        relayer.map(|r| r.0 .0),
     )
     .await
     .map_err(|e| Error::Unauthorized(e.to_string()))?;

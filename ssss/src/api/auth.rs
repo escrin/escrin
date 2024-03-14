@@ -40,11 +40,15 @@ pub async fn escrin1(
     method: Method,
     OriginalUri(uri): OriginalUri,
     TypedHeader(SignatureHeader(sig)): TypedHeader<SignatureHeader>,
-    TypedHeader(Requester(requester)): TypedHeader<Requester>,
+    requester: Option<TypedHeader<Requester>>,
     State(host): State<axum::http::uri::Authority>,
     req: Request,
     next: Next,
 ) -> Result<Response, Error> {
+    let requester = match requester {
+        Some(TypedHeader(Requester(requester))) => requester,
+        None => return Ok(next.run(req).await),
+    };
     if uri.authority() != Some(&host) {
         return Err(Error::Forbidden("incorrect audience".into()));
     }
