@@ -23,8 +23,9 @@ use futures::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
 use serde::{Deserialize, Serialize};
 use tower_http::cors;
+use ssss::identity::Identity;
 
-use crate::{eth::SsssHub, identity::Identity, store::Store, types::*, utils::retry_times, verify};
+use crate::{eth::SsssHub, store::Store, types::*, utils::retry_times, verify};
 
 #[derive(Clone)]
 struct AppState<M: Middleware, S> {
@@ -317,7 +318,6 @@ async fn get_share<M: Middleware, S: Store>(
     let SecretShare {
         index,
         share,
-        blinding,
     } = retry_times(
         || {
             store.get_share(ShareId {
@@ -357,7 +357,6 @@ async fn get_share<M: Middleware, S: Store>(
         ss: WrappedSecretShare {
             index,
             share,
-            blinding: blinding.into(),
         },
     }))
 }
@@ -378,7 +377,6 @@ struct ShareResponse {
 pub struct WrappedSecretShare {
     pub index: u64,
     pub share: Bytes,
-    pub blinding: Bytes,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]

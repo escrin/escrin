@@ -6,10 +6,11 @@ use std::sync::{
 use aes_gcm_siv::AeadInPlace as _;
 use ethers::middleware::Middleware;
 use futures::stream::StreamExt as _;
+use ssss::identity::{Identity, self};
 use tokio::time::{sleep, Duration};
 use tracing::{error, trace, warn};
 
-use crate::{eth, identity::Identity, store::Store, types::*, utils::retry};
+use crate::{eth, store::Store, types::*, utils::retry};
 
 #[tracing::instrument(skip_all)]
 pub async fn run<M: Middleware + 'static>(
@@ -107,43 +108,35 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                 eth::EventKind::ProcessedBlock => {
                     processed_block.store(event.index.block, Ordering::Release);
                 }
-                eth::EventKind::SharesDeailt(eth::SharesDealt {
+                eth::EventKind::SharesDealt(eth::SharesDealt {
                     identity,
                     scheme:
-                        eth::SsScheme::PedersenVss {
+                        eth::SsScheme::Shamir {
                             pk,
                             nonce,
                             shares,
-                            blindings,
                         },
                 }) => {
-                    let cipher = ssss_identity.derive_shared_cipher(pk, b"shares");
-                    let maybe_my_share = shares
-                        .into_iter()
-                        .zip(blindings.into_iter())
-                        .enumerate()
-                        .find_map(|(i, (enc_share, enc_blinding))| {
+                    let cipher = ssss_identity.derive_shared_cipher(pk, identity::SHARES_DOMAIN_SEP);
+                    let shares_nonce = {
+                        let mut n = [0u8; 12];
+                        n.copy_from_slice(&nonce[0..12]);
+                        n.into()
+                    };
+                    let maybe_my_share =
+                        shares.into_iter().enumerate().find_map(|(i, enc_share)| {
                             let mut share = enc_share.to_vec();
-                            let mut blinding = enc_blinding.to_vec();
-                            let mut nonce_bytes = [0u8; 12];
-                            nonce_bytes.copy_from_slice(&nonce[0..12]);
                             cipher
-                                .decrypt_in_place(&nonce_bytes.into(), &[], &mut share)
+                                .decrypt_in_place(&shares_nonce, &[], &mut share)
                                 .ok()?;
-                            nonce_bytes.copy_from_slice(&nonce[12..24]);
-                            cipher
-                                .decrypt_in_place(&nonce_bytes.into(), &[], &mut blinding)
-                                .ok()?;
-                            Some((i as u64, share, blinding))
+                            Some((i as u64, zeroize::Zeroizing::new(share)))
                         });
-                    let (index, share, blinding) = match maybe_my_share {
+                    let (index, share) = match maybe_my_share {
                         Some(ss) => ss,
                         None => return,
                     };
-                    let share = zeroize::Zeroizing::new(share);
                     retry(|| {
                         let share = share.clone();
-                        let blinding = blinding.clone();
                         async move {
                             let put_share = store
                                 .put_share(
@@ -158,10 +151,10 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                                     SecretShare {
                                         index,
                                         share,
-                                        blinding,
                                     },
                                 )
                                 .await?;
+                            trace!("put share");
                             anyhow::ensure!(put_share, "share not put");
                             Ok(())
                         }

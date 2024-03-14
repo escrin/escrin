@@ -5,6 +5,8 @@ pub struct Identity {
     sk: p384::NonZeroScalar,
 }
 
+pub static SHARES_DOMAIN_SEP: &[u8] = b"shares";
+
 impl Identity {
     pub fn persistent(sk: p384::SecretKey) -> Self {
         let scalar = sk.to_nonzero_scalar();

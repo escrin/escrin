@@ -112,7 +112,6 @@ impl Store for Client {
             .item("version", N(id.version.to_string()))
             .item("index", N(ss.index.to_string()))
             .item("share", B(enc_share))
-            .item("blinding", B(Blob::new(ss.blinding)))
             .condition_expression("attribute_not_exists(id) AND attribute_not_exists(version)")
             .send()
             .await
@@ -142,11 +141,10 @@ impl Store for Client {
             .map(|mut v| {
                 let index = unpack_u64("index", &v);
                 let enc_share = unpack_blob("share", &mut v);
-                let blinding = unpack_blob("blinding", &mut v).into_inner()[..].into();
-                (index, enc_share, blinding)
+                (index, enc_share)
             });
 
-        let (index, enc_share, blinding) = match maybe_enc_ss {
+        let (index, enc_share) = match maybe_enc_ss {
             Some(s) => s,
             None => return Ok(None),
         };
@@ -167,7 +165,6 @@ impl Store for Client {
         Ok(Some(SecretShare {
             index,
             share: share.into(),
-            blinding,
         }))
     }
 

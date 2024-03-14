@@ -85,7 +85,6 @@ pub struct ChainStateUpdate {
 pub struct SecretShare {
     pub index: u64,
     pub share: zeroize::Zeroizing<Vec<u8>>,
-    pub blinding: Vec<u8>,
 }
 
 #[derive(Clone, Deserialize, zeroize::Zeroize)]

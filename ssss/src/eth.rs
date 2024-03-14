@@ -32,7 +32,7 @@ ethers::contract::abigen!(
 
         function setPolicy(bytes32 identity, bytes calldata config)
 
-        function dealShares(bytes32 identity, bytes pk, bytes32 nonce, bytes[] shares, bytes[] blindings)
+        function dealShares(bytes32 identity, bytes pk, bytes32 nonce, bytes[] shares)
     ]"
 );
 
@@ -94,20 +94,18 @@ impl<M: providers::Middleware> SsssHub<M> {
             .await
     }
 
-    pub async fn deal_shares_vss(
+    pub async fn deal_shares_sss(
         &self,
         identity: IdentityId,
         pk: impl Into<Bytes>,
         nonce: [u8; 32],
         shares: Vec<impl Into<Bytes>>,
-        blindings: Vec<impl Into<Bytes>>,
     ) -> Result<TxHash, Error<M>> {
         self.send_tx(self.contract.deal_shares(
             identity.0.into(),
             pk.into(),
             nonce,
             shares.into_iter().map(Into::into).collect(),
-            blindings.into_iter().map(Into::into).collect(),
         ))
         .await
     }
@@ -239,20 +237,18 @@ impl<M: providers::Middleware> SsssHub<M> {
                 })
             }
             SsssHubContractEvents::SharesDealtFilter(_) => {
-                let (identity, pk, nonce, shares, blindings): (
+                let (identity, pk, nonce, shares): (
                     H256,
                     Bytes,
                     H256,
                     Vec<Bytes>,
-                    Vec<Bytes>,
                 ) = AbiDecode::decode(&input[4..]).unwrap();
-                EventKind::SharesDeailt(SharesDealt {
+                EventKind::SharesDealt(SharesDealt {
                     identity: identity.into(),
-                    scheme: SsScheme::PedersenVss {
+                    scheme: SsScheme::Shamir {
                         pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
                         nonce,
                         shares,
-                        blindings,
                     },
                 })
             }
@@ -325,7 +321,7 @@ pub struct Event {
 #[derive(Clone, Debug)]
 pub enum EventKind {
     PolicyChange(PolicyChange),
-    SharesDeailt(SharesDealt),
+    SharesDealt(SharesDealt),
     ProcessedBlock,
 }
 
@@ -343,12 +339,11 @@ pub struct SharesDealt {
 
 #[derive(Clone, Debug)]
 pub enum SsScheme {
-    PedersenVss {
+    Shamir {
         pk: p384::PublicKey,
         nonce: H256,
         /// Encrypted secret shares. One of which belongs to this SSSS.
         shares: Vec<Bytes>,
-        blindings: Vec<Bytes>,
     },
 }
 
