@@ -17,7 +17,7 @@ contract ExperimentalSsssPermitter is Permitter {
     }
 
     function setPolicy(IdentityId identity, bytes calldata /* config */ ) external {
-        (address registrant,) = IIdentityRegistry(_getIdentityRegistry()).getRegistrant(identity);
+        (address registrant,) = _getIdentityRegistry().getRegistrant(identity);
         if (msg.sender != registrant) revert Unauthorized();
         emit PolicyChange();
     }

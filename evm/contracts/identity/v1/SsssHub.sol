@@ -11,13 +11,14 @@ contract ExperimentalSsssHub is ExperimentalSsssPermitter {
 
     function dealShares(
         IdentityId identity,
-        uint64 version,
-        bytes calldata /* pk */,
-        bytes32 /* nonce */,
+        uint64, /* version */
+        bytes calldata, /* pk */
+        bytes32, /* nonce */
         bytes[] calldata /* shares */
     ) external {
-        (address registrant,) = IIdentityRegistry(_getIdentityRegistry()).getRegistrant(identity);
-        if (msg.sender != registrant) revert Unauthorized();
+        IIdentityRegistry.Permit memory permit =
+            _getIdentityRegistry().readPermit(msg.sender, identity);
+        if (permit.expiry <= block.timestamp) revert Unauthorized();
         emit SharesDealt();
     }
 }

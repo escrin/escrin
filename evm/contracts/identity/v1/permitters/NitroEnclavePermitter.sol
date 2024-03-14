@@ -10,7 +10,7 @@ import {
 import {IdentityId, IIdentityRegistry, Permitter} from "./Permitter.sol";
 
 // Whether to strictly validate attestation doc exons in return for paying up to 30k more gas.
-bool constant STRICT = false;
+bool constant STRICT = true;
 
 abstract contract BaseNitroEnclavePermitter is Permitter {
     /// The presented attestation document has already been used to acquire an identity using this permitter.
@@ -58,7 +58,7 @@ abstract contract BaseNitroEnclavePermitter is Permitter {
         bytes32 expectedBinding = keccak256(
             abi.encode(block.chainid, _getIdentityRegistry(), identity, requester, !release)
         );
-        if (userdata.binding != expectedBinding) revert Unauthorized();
+        if (userdata.binding != expectedBinding) revert BindingMismatch();
         burnt[userdata.nonce] = identity;
     }
 
