@@ -18,6 +18,9 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
 
+env:
+  SSSS_IMAGE: ghcr.io/escrin/ssss
+
 jobs:
   lint:
     defaults:
@@ -51,24 +54,33 @@ jobs:
       - name: Run cargo test
         run: cargo test --all -- --skip store::aws
 
-  pack:
-    defaults:
-      run:
-        working-directory: ./ssss
+  build:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
         platform:
-          - runner: ubuntu-latest
+          - tag: linux/amd64
             target: x86_64-unknown-linux-musl
-            tag: amd64
-          # - runner: macos-latest-large
-          #   target: aarch64-unknown-linux-musl
-          #   tag: arm64
-    runs-on: ${{ matrix.platform.runner }}
+          - tag: linux/arm64
+            target: aarch64-unknown-linux-musl
     steps:
-      - name: Checkout code
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform.tag }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.SSSS_IMAGE }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -80,15 +92,65 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v5
         with:
-          context: "{{defaultContext}}:ssss"
+          context: '{{defaultContext}}:ssss'
           build-args: |
             TARGET=${{ matrix.platform.target }}
-          tags: |
-            ghcr.io/escrin/ssss:${{ github.sha }}-${{ matrix.platform.tag }}
-            ghcr.io/escrin/ssss:latest-${{ matrix.platform.tag }}
-          push: true
-          cache-from: type=registry,ref=ghcr.io/escrin/ssss:latest-${{ matrix.platform.tag }}
-          cache-to: type=inline
+          platforms: ${{ matrix.platform.tag }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: |
+            type=image,name=${{ env.SSSS_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.SSSS_IMAGE }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.SSSS_IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.SSSS_IMAGE }}:${{ steps.meta.outputs.version }}
