@@ -180,8 +180,16 @@ library NE {
             bytes2(uint16(payload.length)),
             payload
         );
-        bytes memory sigDer =
-            abi.encodePacked(bytes5(0x3065023100), sig[0:48], bytes2(0x0230), sig[48:96]);
+        bytes memory xTag = _getDerUintHdr(uint8(sig[0]), 48);
+        bytes memory yTag = _getDerUintHdr(uint8(sig[48]), 48);
+        bytes memory sigDer = abi.encodePacked(
+            bytes1(0x30), // SEQUENCE
+            bytes1(uint8(96 + xTag.length + yTag.length)), // seq len
+            xTag,
+            sig[0:48],
+            yTag,
+            sig[48:96]
+        );
         Sig.verifyP384(pk, coseSign1, sigDer);
     }
 
@@ -382,6 +390,24 @@ library NE {
             return (input[3:3 + len], len + 3);
         }
         revert("expected userdata bytes");
+    }
+
+    function _getDerUintHdr(uint8 leadingByte, uint8 len)
+        internal
+        pure
+        returns (bytes memory tag)
+    {
+        // If the integer is negative, add a zero byte to make it positive.
+        if (leadingByte < 0x80) {
+            tag = new bytes(2);
+            tag[0] = 0x02;
+            tag[1] = bytes1(len);
+        } else {
+            tag = new bytes(3);
+            tag[0] = 0x02;
+            tag[1] = bytes1(len + 1);
+            tag[2] = 0x00;
+        }
     }
 }
 
