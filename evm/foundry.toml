@@ -19,6 +19,5 @@ sapphire-mainnet = "https://sapphire.oasis.io"
 line_length = 100
 
 [profile.release]
-solc_version = "0.8.23"
 optimizer = true
 optimizer_runs = 1_000_000_000

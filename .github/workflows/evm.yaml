@@ -1,0 +1,45 @@
+name: evm
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'evm/**'
+      - '.github/workflows/evm.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'evm/**'
+      - '.github/workflows/evm.yaml'
+
+env:
+  FOUNDRY_PROFILE: release
+
+jobs:
+  evm:
+    defaults:
+      run:
+        working-directory: ./evm
+    strategy:
+      fail-fast: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Check formatting
+        run: forge fmt --check
+
+      - name: Run Forge build
+        run: forge build --sizes
+
+      - name: Run Forge tests
+        run: forge test -vvv
