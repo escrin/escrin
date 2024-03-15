@@ -196,10 +196,14 @@ pub enum PolicyVerifier {
 
 impl std::fmt::Display for PolicyVerifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Self::Mock => "mock",
-            Self::Nitro => "nitro"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Mock => "mock",
+                Self::Nitro => "nitro",
+            }
+        )
     }
 }
 

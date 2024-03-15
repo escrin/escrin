@@ -128,5 +128,5 @@ pub struct SsssRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PolicyPreamble {
     pub verifier: String,
-    pub policy: Vec<u8>
+    pub policy: Vec<u8>,
 }

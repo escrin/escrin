@@ -400,7 +400,9 @@ impl Store for Client {
 
     async fn update_chain_state(&self, chain: u64, update: ChainStateUpdate) -> Result<(), Error> {
         let ChainStateUpdate { block } = update;
-        let Some(new_block) = block else { return Ok(()) };
+        let Some(new_block) = block else {
+            return Ok(());
+        };
 
         let n_block = N(new_block.to_string());
         let res = self

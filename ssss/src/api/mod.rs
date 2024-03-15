@@ -18,7 +18,7 @@ use axum_extra::{headers::Header as _, TypedHeader};
 use ethers::{middleware::Middleware, types::Address};
 use futures::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
-use ssss::identity::{Identity, self};
+use ssss::identity::{self, Identity};
 use tower_http::cors;
 
 use crate::{
@@ -314,7 +314,8 @@ async fn get_share<M: Middleware, S: Store>(
 
     let (format, share) = match requester_pk {
         Some(pk) => {
-            let cipher = ephemeral_identity.derive_shared_cipher(*pk.0, identity::GET_SHARE_DOMAIN_SEP);
+            let cipher =
+                ephemeral_identity.derive_shared_cipher(*pk.0, identity::GET_SHARE_DOMAIN_SEP);
             let mut nonce = aes_gcm_siv::Nonce::default();
             rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
             let mut enc_share = (*share).clone();
