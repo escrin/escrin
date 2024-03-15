@@ -277,13 +277,13 @@ mod tests {
 
     #[test]
     fn test_verify_attestation() {
-        let attestaion_doc = std::fs::read(
+        let attestation_doc = std::fs::read(
             std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
                 .join("../evm/test/identity/v1/permitters/att_doc_sample.bin"),
         )
         .unwrap();
         NitroEnclaveVerifier::verify_attestation_document(
-            &attestaion_doc,
+            &attestation_doc,
             u64::max_value(),
             UnixTime::since_unix_epoch(std::time::Duration::from_secs(1703101376)),
         )
