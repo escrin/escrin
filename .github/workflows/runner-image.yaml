@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'pnpm-lock.yaml'
+      - 'evm/abi/**'
+      - 'worker/**'
+      - '.github/workflows/runner-image.yaml'
 
 jobs:
   docker-build-and-push:
