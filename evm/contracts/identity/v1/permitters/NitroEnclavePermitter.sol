@@ -431,27 +431,26 @@ library X509 {
         view
         returns (bytes32 serial, bytes32 subjectHash, bytes calldata pk)
     {
-        bytes32 iss;
         bytes calldata tbs;
         bytes calldata sig;
-        (serial, iss, subjectHash, tbs, pk, sig) = parse(cert);
+        (serial, subjectHash, tbs, pk, sig) = parseForIss(cert, issuerHash);
 
-        require(iss == issuerHash, "wrong issuer");
         Sig.verifyP384(issuerPk, tbs, sig);
     }
 
-    function parse(bytes calldata cert)
+    function parseForIss(bytes calldata cert, bytes32 expectedIssuerHash)
         internal
         view
         returns (
             bytes32 serial,
-            bytes32 iss,
             bytes32 sub,
             bytes calldata tbs,
             bytes calldata pk,
             bytes calldata sig
         )
     {
+        bytes32 iss;
+
         if (STRICT) {
             // SEQUENCE(var(2)) - 30_82
             require(bytes2(cert[0:2]) == bytes2(0x30_82), "not cert");
@@ -481,6 +480,8 @@ library X509 {
         }
         cursor += 3;
         sig = cert[cursor:];
+
+        require(iss == expectedIssuerHash, "wrong issuer");
     }
 
     function _parseTbs(bytes calldata tbs)
