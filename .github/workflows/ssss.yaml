@@ -1,0 +1,48 @@
+name: Test, build, and push SSSS & s4
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ssss/**'
+      - '.github/workflows/ssss.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ssss/**'
+      - '.github/workflows/ssss.yaml'
+
+jobs:
+  lint:
+    defaults:
+      run:
+        working-directory: ./ssss
+    strategy:
+      fail-fast: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: rustup component add rustfmt clippy
+
+      - name: Run rustfmt
+        run: cargo fmt --check
+
+      - name: Run cargo clippy
+        run: cargo clippy --all --profile test -- -D clippy::dbg_macro
+
+  test:
+    defaults:
+      run:
+        working-directory: ./ssss
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run cargo test
+        run: cargo test --all -- --skip store::aws
