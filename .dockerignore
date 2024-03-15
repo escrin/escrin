@@ -13,3 +13,10 @@
 !worker/tsconfig*.json
 !worker/workerd_config.capnp
 !worker/config
+
+!ssss/src/
+!ssss/Cargo.toml
+!ssss/Cargo.lock
+!ssss/rust-toolchain.toml
+!ssss/s4/src
+!ssss/s4/Cargo.toml
