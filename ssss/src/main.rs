@@ -1,5 +1,4 @@
 #![forbid(unsafe_code)]
-#![feature(lazy_cell)]
 
 mod api;
 mod cli;

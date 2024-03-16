@@ -3909,6 +3909,7 @@ dependencies = [
  "futures",
  "hex",
  "http-body 1.0.0",
+ "once_cell",
  "p384",
  "paste",
  "pin-project-lite",

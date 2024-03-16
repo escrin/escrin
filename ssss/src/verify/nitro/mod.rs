@@ -1,10 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::LazyLock,
-};
+use std::collections::{HashMap, HashSet};
 
 use anyhow::anyhow;
 use ethers::{abi::AbiEncode as _, types::H256};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use webpki::types::{CertificateDer, UnixTime};
@@ -12,9 +10,9 @@ use webpki::types::{CertificateDer, UnixTime};
 use super::*;
 
 static CA_CERT_DER: &[u8] = include_bytes!("./root.der");
-static CA_CERT: LazyLock<CertificateDer<'static>> = LazyLock::new(|| CA_CERT_DER.into());
-static ANCHORS: LazyLock<Vec<webpki::types::TrustAnchor<'static>>> =
-    LazyLock::new(|| vec![webpki::anchor_from_trusted_cert(&CA_CERT).unwrap()]);
+static CA_CERT: Lazy<CertificateDer<'static>> = Lazy::new(|| CA_CERT_DER.into());
+static ANCHORS: Lazy<Vec<webpki::types::TrustAnchor<'static>>> =
+    Lazy::new(|| vec![webpki::anchor_from_trusted_cert(&CA_CERT).unwrap()]);
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct NitroEnclaveVerifier;

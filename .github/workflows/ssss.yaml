@@ -34,13 +34,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install tools
-        run: rustup component add rustfmt clippy
+        run: rustup +nightly component add rustfmt clippy
 
       - name: Run rustfmt
-        run: cargo fmt --check
+        run: rustup run +nightly cargo fmt --check
 
       - name: Run cargo clippy
-        run: cargo clippy --all --profile test -- -D clippy::dbg_macro
+        run: rustup run +nightly cargo clippy --all --profile test -- -D clippy::dbg_macro
 
   test:
     defaults:
