@@ -6,6 +6,7 @@
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";  # Ensure nixpkgs is available
     rust-overlay.url = "github:oxalica/rust-overlay";
     crate2nix.url = "github:nix-community/crate2nix";
 
@@ -67,7 +68,6 @@
           };
         in
         rec {
-
           checks = {
             rustnix = cargoNix.workspaceMembers.ssss.build.override {
               runTests = true;
@@ -77,13 +77,14 @@
           packages = {
             rustnix = cargoNix.workspaceMembers.ssss.build;
             default = packages.rustnix;
-
             inherit (pkgs) rust-toolchain;
 
             rust-toolchain-versions = pkgs.writeScriptBin "rust-toolchain-versions" ''
               ${pkgs.rust-toolchain}/bin/cargo --version
               ${pkgs.rust-toolchain}/bin/rustc --version
             '';
+
+            terraform = pkgs.terraform;
           };
         };
     };
