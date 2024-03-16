@@ -155,57 +155,61 @@ resource "aws_dynamodb_table" "verifiers" {
   deletion_protection_enabled = terraform.workspace != "dev"
 }
 
+data "aws_iam_policy_document" "km_policy_doc" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:ReEncrypt",
+      "kms:Decrypt",
+    ]
+    resources = [
+      "${aws_kms_key.sek.arn}",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:ConditionCheckItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:Query",
+    ]
+    resources = [
+      "${aws_dynamodb_table.shares.arn}",
+      "${aws_dynamodb_table.keys.arn}",
+      "${aws_dynamodb_table.permits.arn}",
+      "${aws_dynamodb_table.nonces.arn}",
+      "${aws_dynamodb_table.verifiers.arn}",
+      "${aws_dynamodb_table.chain_state.arn}",
+    ]
+  }
+}
+
 resource "aws_iam_policy" "km_policy" {
   name        = "km_policy"
   description = "Escrin KM access policy"
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "kms:Encrypt",
-        "kms:ReEncrypt",
-        "kms:Decrypt",
-        "dynamodb:ConditionCheckItem",
-        "dynamodb:DeleteItem",
-        "dynamodb:GetItem",
-        "dynamodb:PutItem",
-        "dynamodb:Query"
-      ],
-      "Resource": [
-        "${aws_kms_key.sek.arn}",
-        "${aws_dynamodb_table.shares.arn}",
-        "${aws_dynamodb_table.keys.arn}",
-        "${aws_dynamodb_table.permits.arn}",
-        "${aws_dynamodb_table.nonces.arn}",
-        "${aws_dynamodb_table.verifiers.arn}",
-        "${aws_dynamodb_table.chain_state.arn}"
-      ]
-    }
-  ]
+  policy      = data.aws_iam_policy_document.km_policy_doc.json
 }
-EOF
+
+data "aws_iam_policy_document" "ec2_assume_role_policy" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
 }
 
 resource "aws_iam_role" "ec2_role" {
   name               = "EC2Role"
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
 }
 
 resource "aws_iam_role_policy_attachment" "attach_ec2_policy" {
