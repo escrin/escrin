@@ -17,12 +17,6 @@
     };
   };
 
-  nixConfig = {
-    extra-trusted-public-keys = "eigenvalue.cachix.org-1:ykerQDDa55PGxU25CETy9wF6uVDpadGGXYrFNJA3TUs=";
-    extra-substituters = "https://eigenvalue.cachix.org";
-    allow-import-from-derivation = true;
-  };
-
   outputs =
     inputs @ { self
     , nixpkgs
@@ -49,25 +43,27 @@
             name = "rustnix";
             src = ./.;
           };
+          darwinFrameworks = attrs:
+            let
+              isDarwin = lib.hasSuffix "darwin" system;
+            in {
+              buildInputs = if isDarwin then [
+                pkgs.darwin.apple_sdk.frameworks.Foundation
+                pkgs.darwin.apple_sdk.frameworks.Security
+                pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+              ] else [];
+            };
           cargoNix = generatedCargoNix.override {
             defaultCrateOverrides = pkgs.defaultCrateOverrides // {
               scale-info = attrs: {
                 CARGO = "${pkgs.rust-toolchain}/bin/cargo";
               };
-              ssss = attrs:
-                let
-                  isDarwin = lib.hasSuffix "darwin" system;
-                in {
-                  buildInputs = if isDarwin then [
-                    pkgs.darwin.apple_sdk.frameworks.Security
-                    pkgs.darwin.apple_sdk.frameworks.Foundation
-                  ] else [];
-              };
+              ssss = darwinFrameworks;
+              s4 = darwinFrameworks;
             };
           };
         in
         rec {
-
           checks = {
             rustnix = cargoNix.workspaceMembers.ssss.build.override {
               runTests = true;
@@ -75,7 +71,7 @@
           };
 
           packages = {
-            rustnix = cargoNix.workspaceMembers.ssss.build;
+            rustnix = cargoNix.allWorkspaceMembers;
             default = packages.rustnix;
 
             inherit (pkgs) rust-toolchain;
