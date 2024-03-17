@@ -54,7 +54,7 @@ export default defineConfig({
         },
         link: 'https://escrin.org/telegram',
       },
-      { icon: 'twitter', link: 'https://twitter.com/EnshrineCC' },
+      { icon: 'x', link: 'https://escrin.org/twitter' },
     ],
 
     algolia: {
