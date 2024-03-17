@@ -7,15 +7,18 @@ on:
     paths:
       - 'ssss/**'
       - '.github/workflows/ssss.yaml'
-  # pull_request:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'ssss/**'
-  #     - '.github/workflows/ssss.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'ssss/**'
+      - '.github/workflows/ssss.yaml'
+  create:
+    tags:
+      - 'ssss/v*.*.*'
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: workflow-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -56,7 +59,11 @@ jobs:
       - name: Run cargo test
         run: cargo test --all -- --skip store::aws
 
-  build:
+  package:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - lint
+      - test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -99,12 +106,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: '{{defaultContext}}:ssss'
-          build-args: |
-            TARGET=${{ matrix.platform.target }}
           platforms: ${{ matrix.platform.tag }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: |
             type=image,name=${{ env.SSSS_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.SSSS_IMAGE }}
+          cache-to: type=inline
 
       - name: Export digest
         run: |
@@ -121,9 +128,10 @@ jobs:
           retention-days: 1
 
   merge:
-    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     needs:
-      - build
+      - package
+    runs-on: ubuntu-latest
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -140,12 +148,15 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.SSSS_IMAGE }}
+          tags: |
+            type=match,pattern=ssss/v(.*),group=1
 
-      - name: Login to Docker Hub
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
