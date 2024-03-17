@@ -11,7 +11,7 @@ These are instructions to use Terraform to get the necessary cloud resources for
 
 Terraform needs your AWS credentials to install resources on your behalf. [Here](https://www.msp360.com/resources/blog/how-to-find-your-aws-access-key-id-and-secret-access-key/#:~:text=1%20Go%20to%20Amazon%20Web,and%20Secret%20Access%20Key%20option.) is a good tutorial on how to get your Access Key ID & Secret Access Key.
 
-Then run:
+Then in your command line run:
 
 ```bash
 aws configure
