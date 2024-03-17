@@ -76,8 +76,23 @@
         in
         rec {
           checks = {
-            rustnix = cargoNix.workspaceMembers.ssss.build.override {
-              runTests = true;
+            rustnix = pkgs.symlinkJoin {
+              name = "all-workspace-members-test";
+              paths =
+                let
+                  members = builtins.attrValues cargoNix.workspaceMembers;
+                  neAttestationDoc = builtins.path {
+                    path = ../evm/test/identity/v1/permitters/att_doc_sample.bin;
+                    name = "att_doc_sample.bin";
+                  };
+                in
+                builtins.map
+                  (m: m.build.override {
+                    runTests = true;
+                    testCrateFlags = [ "--skip" "aws" "--skip" "azure" "--skip" "gcp" ];
+                    testPreRun = "export NIX_NE_ATT_DOC=\"${neAttestationDoc}\"";
+                  })
+                  members;
             };
           };
 

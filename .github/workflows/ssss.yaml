@@ -75,6 +75,9 @@ jobs:
             system: aarch64-darwin
     name: build (${{ matrix.platform.name }})
     runs-on: ${{ matrix.platform.runner }}
+    needs:
+      - lint
+      - test
     permissions:
       id-token: "write"
       contents: "read"

@@ -275,11 +275,13 @@ mod tests {
 
     #[test]
     fn test_verify_attestation() {
-        let attestation_doc = std::fs::read(
-            std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("../evm/test/identity/v1/permitters/att_doc_sample.bin"),
-        )
-        .unwrap();
+        let attestation_doc_path = std::env::var("NIX_NE_ATT_DOC")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| {
+                std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
+                    .join("../evm/test/identity/v1/permitters/att_doc_sample.bin")
+            });
+        let attestation_doc = std::fs::read(attestation_doc_path).unwrap();
         NitroEnclaveVerifier::verify_attestation_document(
             &attestation_doc,
             u64::max_value(),
