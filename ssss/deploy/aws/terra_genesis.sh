@@ -33,4 +33,4 @@ terraform plan -out out.tfstate
 terraform apply out.tfstate
 rm out.tfstate
 
-echo "Successfully set up the backend and deployed the resources using the AWS profile '$aws_profile' and region '$aws_region'."
+echo "Finished deploying the resources using the AWS profile '$aws_profile' and region '$aws_region'."

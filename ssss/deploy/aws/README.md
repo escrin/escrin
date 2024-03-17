@@ -123,6 +123,6 @@ And check whether the state files are present in your bucket:
 aws s3 ls s3://<your-globally-unique-bucket-name>
 ```
 
-## How to remove or patch previously installed resources
+## How to remove, patch or otherwise deal with, previously installed resources
 
 - Coming soon
