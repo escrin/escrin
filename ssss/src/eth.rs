@@ -140,7 +140,8 @@ impl<M: providers::Middleware> SsssHub<M> {
                     kind: EventKind::ProcessedBlock,
                     index: Default::default(),
                     tx: Default::default(),
-                }]).boxed();
+                }])
+                .boxed();
                 if Some(block) == stop_block {
                     break;
                 }
