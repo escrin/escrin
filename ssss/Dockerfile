@@ -16,7 +16,7 @@ RUN apk add --no-cache musl-dev==1.2.4_git20230717-r4
 COPY ./ ./
 RUN cargo build --locked --release -p ssss
 
-FROM gcr.io/distroless/static-debian12 AS ssss
+FROM gcr.io/distroless/static-debian12@sha256:6dcc833df2a475be1a3d7fc951de90ac91a2cb0be237c7578b88722e48f2e56f AS ssss
 
 COPY --from=builder /code/target/release/ssss /usr/local/bin/ssss
 
