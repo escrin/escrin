@@ -6,7 +6,7 @@ echo "This process will set up a backend to house your Terraform state, and then
 
 # Prompt and export environment variables
 read -p "Enter your AWS profile name: " aws_profile
-read -p "Enter your AWS region: " aws_region
+read -p "Enter your AWS region code: " aws_region
 export AWS_PROFILE=$aws_profile
 export AWS_REGION=$aws_region
 
