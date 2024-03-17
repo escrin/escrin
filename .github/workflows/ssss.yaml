@@ -59,6 +59,41 @@ jobs:
       - name: Run cargo test
         run: cargo test --all -- --skip store::aws
 
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            name: linux-amd64
+            system: x86_64-linux
+          - runner: macos-13
+            name: darwin-amd64
+            system: x86_64-darwin
+          - runner: macos-14
+            name: darwin-arm64
+            system: aarch64-darwin
+    name: build (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.runner }}
+    permissions:
+      id-token: "write"
+      contents: "read"
+    defaults:
+      run:
+        working-directory: ./ssss
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
+      - name: Run `nix build`
+        run: nix build . --system ${{ matrix.platform.system }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ssss-${{ matrix.platform.name }}
+          path: ssss/result/bin/*
+          if-no-files-found: error
+
   package:
     if: startsWith(github.ref, 'refs/tags/')
     needs:
@@ -70,9 +105,7 @@ jobs:
       matrix:
         platform:
           - tag: linux/amd64
-            target: x86_64-unknown-linux-musl
           - tag: linux/arm64
-            target: aarch64-unknown-linux-musl
     steps:
       - name: Prepare
         run: |
