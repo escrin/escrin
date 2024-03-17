@@ -1,4 +1,4 @@
-FROM rust:1-bookworm AS builder
+FROM rust:1.76.0-alpine@sha256:e594a9705c4514c0e0b5ed2409f7ec34f20af09a33d242524281247b74196c43 AS builder
 
 WORKDIR /code
 
@@ -11,20 +11,14 @@ COPY ./Cargo.lock ./Cargo.lock
 COPY ./s4/Cargo.toml ./s4
 RUN cargo metadata
 
-RUN export DEBIAN_FRONTEND=noninteractive && \
-    apt-get -yy update && \
-    apt-get -yy install build-essential musl-tools
-
-ARG TARGET
-RUN rustup target add $TARGET
+RUN apk add --no-cache musl-dev==1.2.4_git20230717-r4
 
 COPY ./ ./
-RUN cargo build --locked --release -p ssss --target $TARGET
+RUN cargo build --locked --release -p ssss
 
 FROM gcr.io/distroless/static-debian12 AS ssss
 
-ARG TARGET
-COPY --from=builder /code/target/$TARGET/release/ssss /usr/local/bin/ssss
+COPY --from=builder /code/target/release/ssss /usr/local/bin/ssss
 
 EXPOSE 1075
 
