@@ -68,6 +68,7 @@ apply() {
 	ensure_aws_region
 
 	ensure_tfstate
+
 	ensure_workspace
 	ensure_infra
 }
@@ -129,7 +130,8 @@ destroy() {
 		if [ "$2" != "--yes-i-really-really-mean-it" ]; then
 			die "You must confirm with --yes-i-really-really-mean-it"
 		fi
-		die "Sorry, this is not implemented yet!"
+		destroy_infra
+		destroy_tfstate
 		;;
 	*)
 		die "You must confirm with '--yes-i-really-mean-it' or '--all --yes-i-really-really-mean-it'"
@@ -141,6 +143,11 @@ destroy_infra() {
 	ensure_workspace
 	cd "$script_dir"
 	log_do "🧨 Destroying infra" tf apply -destroy -auto-approve -json
+}
+
+destroy_tfstate() {
+	cd "$script_dir/tf_state"
+	log_do "🌋 Destroying infra state" tf apply -destroy -auto-approve -json
 }
 
 case "${1:-}" in

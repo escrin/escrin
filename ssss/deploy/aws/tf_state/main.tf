@@ -4,10 +4,6 @@ variable "bucket_name" {
 
 resource "aws_s3_bucket" "tf_state" {
   bucket = var.bucket_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "aws_s3_bucket_versioning" "tf_state_versioning" {
@@ -56,10 +52,6 @@ resource "aws_dynamodb_table" "tf_locks" {
   attribute {
     name = "LockID"
     type = "S"
-  }
-
-  lifecycle {
-    prevent_destroy = true
   }
 
   deletion_protection_enabled = true

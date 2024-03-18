@@ -142,4 +142,13 @@ aws s3 ls s3://<your-globally-unique-bucket-name>
 
 ## How to remove, patch or otherwise deal with, previously installed resources
 
-- Coming soon
+To upgrade the infrastructure, pull the latest terraform modules and run `terraform apply` in the
+main directory (the `tf_state` will likely never need to change).
+
+To destroy the infrastructure, run the following commands
+
+```sh
+terraform destroy
+cd tf_state
+terraform destroy
+```
