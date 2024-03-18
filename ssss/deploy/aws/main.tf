@@ -20,11 +20,10 @@ resource "aws_kms_alias" "sek" {
 }
 
 resource "aws_dynamodb_table" "shares" {
-  name           = "escrin-shares-${terraform.workspace}"
-  read_capacity  = 2
-  write_capacity = 2
-  hash_key       = "id"
-  range_key      = "version"
+  name         = "escrin-shares-${terraform.workspace}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+  range_key    = "version"
 
   attribute {
     name = "id"
@@ -48,11 +47,10 @@ resource "aws_dynamodb_table" "shares" {
 }
 
 resource "aws_dynamodb_table" "keys" {
-  name           = "escrin-keys-${terraform.workspace}"
-  read_capacity  = 2
-  write_capacity = 2
-  hash_key       = "id"
-  range_key      = "version"
+  name         = "escrin-keys-${terraform.workspace}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+  range_key    = "version"
 
   attribute {
     name = "id"
@@ -76,11 +74,10 @@ resource "aws_dynamodb_table" "keys" {
 }
 
 resource "aws_dynamodb_table" "permits" {
-  name           = "escrin-permits-${terraform.workspace}"
-  read_capacity  = 2
-  write_capacity = 2
-  hash_key       = "identity"
-  range_key      = "recipient"
+  name         = "escrin-permits-${terraform.workspace}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "identity"
+  range_key    = "recipient"
 
   attribute {
     name = "identity"
@@ -109,10 +106,9 @@ resource "aws_dynamodb_table" "permits" {
 }
 
 resource "aws_dynamodb_table" "nonces" {
-  name           = "escrin-nonces-${terraform.workspace}"
-  read_capacity  = 2
-  write_capacity = 2
-  hash_key       = "nonce"
+  name         = "escrin-nonces-${terraform.workspace}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "nonce"
 
   attribute {
     name = "nonce"
@@ -136,10 +132,9 @@ resource "aws_dynamodb_table" "nonces" {
 }
 
 resource "aws_dynamodb_table" "chain_state" {
-  name           = "escrin-chain-state-${terraform.workspace}"
-  read_capacity  = 1
-  write_capacity = 1
-  hash_key       = "chain"
+  name         = "escrin-chain-state-${terraform.workspace}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "chain"
 
   attribute {
     name = "chain"
@@ -154,11 +149,10 @@ resource "aws_dynamodb_table" "chain_state" {
 }
 
 resource "aws_dynamodb_table" "verifiers" {
-  name           = "escrin-verifiers-${terraform.workspace}"
-  read_capacity  = 2
-  write_capacity = 2
-  hash_key       = "permitter"
-  range_key      = "identity"
+  name         = "escrin-verifiers-${terraform.workspace}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "permitter"
+  range_key    = "identity"
 
   attribute {
     name = "permitter"
