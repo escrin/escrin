@@ -6,3 +6,5 @@
 !rust-toolchain.toml
 !s4/src
 !s4/Cargo.toml
+!nix/
+!flake.*
