@@ -47,7 +47,7 @@ fi
 
 ensure_aws_creds() {
 	if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_DEFAULT_PROFILE:-}" ]; then
-		printf "Enter your AWS profile name: (e.g., \"%s\")" "$(whoami)"
+		printf 'Enter your AWS profile name: (e.g., "%s")' "$(whoami)"
 		read -r aws_profile
 		export AWS_PROFILE="$aws_profile"
 	fi
@@ -135,7 +135,7 @@ destroy() {
 		die "Sorry, this is not implemented yet!"
 		;;
 	*)
-		die "You must confirm with \`--yes-i-really-mean-it\` or \`--all --yes-i-really-really-mean-it\`"
+		die "You must confirm with '--yes-i-really-mean-it' or '--all --yes-i-really-really-mean-it'"
 		;;
 	esac
 }
