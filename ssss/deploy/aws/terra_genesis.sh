@@ -37,10 +37,6 @@ else
 	die "Error: terraform or tofu must be installed to run this script."
 fi
 
-if ! command -v jq >/dev/null; then
-	die "Error: jq must be installed to run this script."
-fi
-
 script_dir=$(
 	cd "$(dirname "$0")"
 	pwd
@@ -65,12 +61,17 @@ ensure_aws_region() {
 	fi
 }
 
+ensure_workspace() {
+	cd "$script_dir"
+	log_do "Setting workspace" tf workspace select -or-create prod
+}
+
 apply() {
 	ensure_aws_creds
 	ensure_aws_region
 
 	ensure_tfstate
-
+	ensure_workspace
 	ensure_infra
 }
 
@@ -83,8 +84,7 @@ ensure_tfstate() {
 	# Check for an existing state file
 	if [ -f "terraform.tfstate" ]; then
 		# Check for an existing state bucket (and assume the locks table was created properly)
-		existing_bucket=$(tf show -json |
-			jq -r '(.values.root_module.resources // []).[] | select(.address == "aws_s3_bucket.tf_state").values.bucket')
+		existing_bucket=$(tf state show aws_s3_bucket.tf_state | grep " bucket " | cut -d\" -f2)
 		if [ -n "$existing_bucket" ]; then
 			state_bucket="$existing_bucket"
 			return 0
@@ -141,6 +141,7 @@ destroy() {
 }
 
 destroy_infra() {
+	ensure_workspace
 	cd "$script_dir"
 	log_do "🧨 Destroying infra" tf apply -destroy -auto-approve -json
 }
