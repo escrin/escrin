@@ -52,7 +52,7 @@ We need to install both a backend for our Terraform state file (read more about
 as well as the resources needed for the SSSS. To install this in one go:
 
 ```sh
-sh terra_genesis.sh create
+./s4-infra.sh create
 ```
 
 This script will ask you for the above mentioned profile name, region, and bucket name.
@@ -62,11 +62,11 @@ If you want more control over your terraform processes use the
 
 If this script ran successfully, head over to [verify installation](#verify-installation).
 
-To tear the environment down, run one of these two commands:
+To tear the environment down, run these
 
 ```sh
-sh terra_genesis.sh destroy --yes-i-really-mean-it
-sh terra_genesis.sh destroy --all --yes-i-really-really-mean-it
+./s4-infra.sh unlock
+./s4-infra.sh destroy # optionally pass --all to destroy everything
 ```
 
 ## Two-step install
@@ -97,6 +97,7 @@ terraform apply out.tfstate
 # You will be prompted for an S3 bucket name. Use the same bucket name for the
 # backend that was set in the previous Create Backend State step.
 terraform init
+terraform workspace switch -or-create prod # dev for development
 terraform plan -out out.tfstate
 terraform apply out.tfstate
 ```
@@ -145,7 +146,7 @@ aws s3 ls s3://<your-globally-unique-bucket-name>
 To upgrade the infrastructure, pull the latest terraform modules and run `terraform apply` in the
 main directory (the `tf_state` will likely never need to change).
 
-To destroy the infrastructure, run the following commands
+To destroy the infrastructure, unset `prevent_destroy = true` then run
 
 ```sh
 terraform destroy
