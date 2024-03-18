@@ -136,6 +136,7 @@ aws_kms_key.sek
 And check whether the state files are present in your bucket:
 
 ```sh
+# <your-globally-unique-bucket-name> is `escrin.tfstate.${domain}` if created using the script
 aws s3 ls s3://<your-globally-unique-bucket-name>
 ```
 

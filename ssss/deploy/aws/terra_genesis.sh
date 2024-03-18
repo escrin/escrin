@@ -37,10 +37,7 @@ else
 	die "Error: terraform or tofu must be installed to run this script."
 fi
 
-script_dir=$(
-	cd "$(dirname "$0")"
-	pwd
-)
+script_dir=$(cd "$(dirname "$0")" && pwd)
 if [ ! -f "$script_dir/main.tf" ] || [ ! -f "$script_dir/tf_state/main.tf" ]; then
 	die "Error: unknown context. Please ensure that you run this script from the escrin/escrin repo."
 fi
@@ -95,7 +92,7 @@ ensure_tfstate() {
 
 	printf "What is the domain name of your SSSS (e.g., ssss.escrin.org)? "
 	read -r ssss_domain
-	state_bucket="${ssss_domain}-escrin.tfstate-${ssss_domain}"
+	state_bucket="escrin.tfstate.${ssss_domain}"
 
 	# First attempt to import the state bucket in case it was created but the local state file was lost.
 	if log_do "🔎 Detecting state bucket" tf import -var "bucket_name=$state_bucket" aws_s3_bucket.tf_state "$state_bucket"; then
