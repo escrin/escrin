@@ -122,19 +122,15 @@ ensure_infra() {
 
 destroy() {
 	case "$1" in
-	"--yes-i-really-mean-it")
-		destroy_infra
+	"--help")
+		die "${0} destroy [--all]\n Call \`${0} unlock\` first"
 		;;
-
 	"--all")
-		if [ "$2" != "--yes-i-really-really-mean-it" ]; then
-			die "You must confirm with --yes-i-really-really-mean-it"
-		fi
 		destroy_infra
 		destroy_tfstate
 		;;
 	*)
-		die "You must confirm with '--yes-i-really-mean-it' or '--all --yes-i-really-really-mean-it'"
+		destroy_infra
 		;;
 	esac
 }
@@ -158,7 +154,13 @@ case "${1:-}" in
 	shift
 	destroy "${1:-}" "${2:-}"
 	;;
+"unlock")
+	sed -i '' -e 's/prevent_destroy = true/prevent_destroy = false/' ./*.tf ./*/*.tf
+	;;
+"lock")
+	sed -i '' -e 's/prevent_destroy = false/prevent_destroy = true/' ./*.tf ./*/*.tf
+	;;
 *)
-	die "Invalid command. The available commands are: apply, destroy"
+	die "${0} (apply|destroy|unlock|lock)"
 	;;
 esac
