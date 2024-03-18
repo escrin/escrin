@@ -36,7 +36,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install tools
+      - name: Lint deployment scripts
+        run: |
+          go install mvdan.cc/sh/v3/cmd/shfmt@latest
+          shellcheck deploy/**/*.sh
+          $(go env GOPATH)/bin/shfmt -s -d deploy/**/*.sh
+          terraform fmt -recursive -check -diff
+
+      - name: Install Rust
         run: |
           rustup default nightly
           rustup component add rustfmt clippy

@@ -8,6 +8,10 @@ terraform {
 resource "aws_kms_key" "sek" {
   description             = "Escrin secret share encryption key (${terraform.workspace})"
   deletion_window_in_days = 7
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_kms_alias" "sek" {
@@ -37,6 +41,10 @@ resource "aws_dynamodb_table" "shares" {
   }
 
   deletion_protection_enabled = terraform.workspace != "dev"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "keys" {
@@ -61,6 +69,10 @@ resource "aws_dynamodb_table" "keys" {
   }
 
   deletion_protection_enabled = terraform.workspace != "dev"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "permits" {
@@ -90,6 +102,10 @@ resource "aws_dynamodb_table" "permits" {
   }
 
   deletion_protection_enabled = terraform.workspace != "dev"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "nonces" {
@@ -113,6 +129,10 @@ resource "aws_dynamodb_table" "nonces" {
   }
 
   deletion_protection_enabled = terraform.workspace != "dev"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "chain_state" {
@@ -127,6 +147,10 @@ resource "aws_dynamodb_table" "chain_state" {
   }
 
   deletion_protection_enabled = terraform.workspace != "dev"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "verifiers" {
@@ -151,6 +175,10 @@ resource "aws_dynamodb_table" "verifiers" {
   }
 
   deletion_protection_enabled = terraform.workspace != "dev"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 data "aws_iam_policy_document" "km_policy_doc" {

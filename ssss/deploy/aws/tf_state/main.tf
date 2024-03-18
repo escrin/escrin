@@ -58,9 +58,9 @@ resource "aws_dynamodb_table" "tf_locks" {
     type = "S"
   }
 
+  deletion_protection_enabled = true
+
   lifecycle {
     prevent_destroy = true
   }
-
-  deletion_protection_enabled = true
 }
