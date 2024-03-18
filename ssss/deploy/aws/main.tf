@@ -209,7 +209,7 @@ data "aws_iam_policy_document" "km_policy_doc" {
 }
 
 resource "aws_iam_policy" "km_policy" {
-  name        = "km_policy"
+  name        = "escrin_km_policy_${terraform.workspace}"
   description = "Escrin KM access policy"
   policy      = data.aws_iam_policy_document.km_policy_doc.json
 }
@@ -228,7 +228,7 @@ data "aws_iam_policy_document" "ec2_assume_role_policy" {
 }
 
 resource "aws_iam_role" "ec2_role" {
-  name               = "EC2Role"
+  name               = "escrin_ec2_role_${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
 }
 

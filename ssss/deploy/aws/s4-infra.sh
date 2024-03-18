@@ -23,7 +23,12 @@ die() {
 log_do() {
 	log "%s..." "$1"
 	shift
-	if ! "$@" >/dev/null; then
+	out="/dev/null"
+	if [ -n "${VERBOSE:-}" ]; then
+		out="/dev/stderr"
+	fi
+	if ! "$@" >"$out"; then
+		log "❌\n"
 		exit 1
 	fi
 	log "✅\n"
@@ -60,7 +65,10 @@ ensure_aws_region() {
 
 ensure_workspace() {
 	cd "$script_dir"
-	log_do "Setting workspace" tf workspace select -or-create prod
+	current_workspace="$(tf workspace show)"
+	if [ "$current_workspace" != "dev" ] && [ "$current_workspace" != "prod" ]; then
+		log_do "Switching to production workspace" tf workspace select -or-create prod
+	fi
 }
 
 apply() {
@@ -146,19 +154,75 @@ destroy_tfstate() {
 	log_do "🌋 Destroying infra state" tf apply -destroy -auto-approve -json
 }
 
+unlock() {
+	case "$1" in
+	"--help")
+		die "${0} unlock [--all]"
+		;;
+	"--all")
+		ensure_workspace
+		ensure_unlocked "$script_dir"
+		ensure_unlocked "$script_dir/tf_state"
+		;;
+	*)
+		ensure_workspace
+		ensure_unlocked "$script_dir"
+		;;
+	esac
+}
+
+ensure_unlocked() {
+	cd "$1"
+	sed -i '' -e 's/prevent_destroy = true/prevent_destroy = false/' ./*.tf
+	if [ "$(tf workspace show)" = "dev" ]; then
+		return 0
+	fi
+	sed -i '' -e 's/deletion_protection_enabled = terraform.workspace != "dev"/deletion_protection_enabled = false/' ./*.tf
+	log_do "🔧 Applying unlock in $(basename "$1")" tf apply -auto-approve
+}
+
+lock() {
+	case "$1" in
+	"--help")
+		die "${0} lock [--all]"
+		;;
+	"--all")
+		ensure_workspace
+		ensure_locked "$script_dir"
+		ensure_locked "$script_dir/tf_state"
+		;;
+	*)
+		ensure_workspace
+		ensure_locked "$script_dir"
+		;;
+	esac
+}
+
+ensure_locked() {
+	cd "$1"
+	sed -i '' -e 's/prevent_destroy = false/prevent_destroy = true/' ./*.tf ./*/*.tf
+	if [ "$(tf workspace show)" = "dev" ]; then
+		return 0
+	fi
+	sed -i '' -e 's/deletion_protection_enabled = false/deletion_protection_enabled = terraform.workspace != "dev"/' ./*.tf ./*/*.tf
+	log_do "🔧 Applying lock in $(basename "$1")" tf apply -auto-approve
+}
+
 case "${1:-}" in
 "apply")
 	apply
 	;;
 "destroy")
 	shift
-	destroy "${1:-}" "${2:-}"
+	destroy "${1:-}"
 	;;
 "unlock")
-	sed -i '' -e 's/prevent_destroy = true/prevent_destroy = false/' ./*.tf ./*/*.tf
+	shift
+	unlock "${1:-}"
 	;;
 "lock")
-	sed -i '' -e 's/prevent_destroy = false/prevent_destroy = true/' ./*.tf ./*/*.tf
+	shift
+	lock "${1:-}"
 	;;
 *)
 	die "${0} (apply|destroy|unlock|lock)"

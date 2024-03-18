@@ -146,10 +146,14 @@ aws s3 ls s3://<your-globally-unique-bucket-name>
 To upgrade the infrastructure, pull the latest terraform modules and run `terraform apply` in the
 main directory (the `tf_state` will likely never need to change).
 
-To destroy the infrastructure, unset `prevent_destroy = true` then run
+To destroy the infrastructure run
 
 ```sh
+terraform apply -auto-approve # if dirty
+./s4-infra.sh unlock
+terraform apply -auto-approve # apply the unlock
 terraform destroy
 cd tf_state
+terraform apply -auto-approve # apply the unlock
 terraform destroy
 ```
