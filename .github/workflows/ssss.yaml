@@ -69,11 +69,11 @@ jobs:
             name: linux-amd64
             system: x86_64-linux
           - runner: macos-13
-            name: darwin-amd64
+            name: darwin
             system: x86_64-darwin
-          - runner: macos-14
-            name: darwin-arm64
-            system: aarch64-darwin
+          # - runner: macos-14
+          #   name: darwin-arm64
+          #   system: aarch64-darwin
     name: build (${{ matrix.platform.name }})
     runs-on: ${{ matrix.platform.runner }}
     needs:
