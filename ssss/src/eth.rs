@@ -271,7 +271,7 @@ pub async fn providers(
     Ok(futures::stream::iter(rpcs.map(|rpc| {
         let rpc = rpc.as_ref();
         let url = url::Url::parse(rpc).map_err(|_| Error::UnsupportedRpc(rpc.into()))?;
-        if url.scheme() != "http" {
+        if url.scheme() != "http" && url.scheme() != "https" {
             return Err(Error::UnsupportedRpc(rpc.into()));
         }
         Ok(providers::RetryClient::new(
