@@ -52,7 +52,7 @@ We need to install both a backend for our Terraform state file (read more about
 as well as the resources needed for the SSSS. To install this in one go:
 
 ```sh
-./s4-infra.sh create
+./s4-infra.sh apply
 ```
 
 This script will ask you for the above mentioned profile name, region, and bucket name.

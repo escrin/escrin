@@ -104,9 +104,10 @@ ensure_tfstate() {
 	state_bucket="escrin.tfstate.${ssss_domain}"
 
 	# First attempt to import the state bucket in case it was created but the local state file was lost.
-	if log_do "🔎 Detecting state bucket" tf import -var "bucket_name=$state_bucket" aws_s3_bucket.tf_state "$state_bucket"; then
+	log "🔎 Detecting existing state\n"
+	if tf import -var "bucket_name=$state_bucket" aws_s3_bucket.tf_state "$state_bucket" > /dev/null 2>&1; then
 		# Next, import the locks table. If it doesn't exist, continue to state application.
-		if log_do "🔎 Detecting locks table" tf import -var "bucket_name=$state_bucket" aws_dynamodb_table.tf_locks 'tflocks'; then
+		if tf import -var "bucket_name=$state_bucket" aws_dynamodb_table.tf_locks 'tflocks' > /dev/null 2>&1; then
 			return 0
 		fi
 	fi
