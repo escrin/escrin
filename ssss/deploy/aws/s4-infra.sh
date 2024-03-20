@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# terra_genesis.sh - A script to set up TF backend and deploy resources with specified AWS profile and region.
+# s4-infra.sh - A script to manage SSSS infrastructure (using Terraform or OpenTofu)
 
-set -eu
+set -u
 
 terraform_cmd=""
 tf() {
@@ -20,15 +20,18 @@ die() {
 	exit 1
 }
 
+cdd() {
+	cd "$1" || die "Error: failed to chdir to $1"
+}
+
 log_do() {
 	log "%s..." "$1"
 	shift
-	out="/dev/null"
-	if [ -n "${VERBOSE:-}" ]; then
-		out="/dev/stderr"
-	fi
-	if ! "$@" >"$out"; then
+	out="$( ("$@" >/dev/null) 2>&1)"
+	status=$?
+	if [ $status != 0 ]; then
 		log "❌\n"
+		log "$out"
 		exit 1
 	fi
 	log "✅\n"
@@ -42,14 +45,14 @@ else
 	die "Error: terraform or tofu must be installed to run this script."
 fi
 
-script_dir=$(cd "$(dirname "$0")" && pwd)
+script_dir=$(cdd "$(dirname "$0")" && pwd)
 if [ ! -f "$script_dir/main.tf" ] || [ ! -f "$script_dir/tf_state/main.tf" ]; then
 	die "Error: unknown context. Please ensure that you run this script from the escrin/escrin repo."
 fi
 
 ensure_aws_creds() {
 	if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_DEFAULT_PROFILE:-}" ]; then
-		printf 'Enter your AWS profile name: (e.g., "%s")' "$(whoami)"
+		printf "Enter your AWS profile name (e.g., %s): " "$(whoami)"
 		read -r aws_profile
 		export AWS_PROFILE="$aws_profile"
 	fi
@@ -64,10 +67,9 @@ ensure_aws_region() {
 }
 
 ensure_workspace() {
-	cd "$script_dir"
 	current_workspace="$(tf workspace show)"
 	if [ "$current_workspace" != "dev" ] && [ "$current_workspace" != "prod" ]; then
-		log_do "Switching to production workspace" tf workspace select -or-create prod
+		log_do "➡️  Switching to prod workspace" tf workspace select -or-create prod
 	fi
 }
 
@@ -77,20 +79,19 @@ apply() {
 
 	ensure_tfstate
 
-	ensure_workspace
 	ensure_infra
 }
 
 state_bucket=""
 
-ensure_tfstate() {
+obtain_state_bucket() {
 	# Navigate to the directory containing TF configuration for the state
-	cd "$script_dir/tf_state"
+	cdd "$script_dir/tf_state"
 
 	# Check for an existing state file
 	if [ -f "terraform.tfstate" ]; then
 		# Check for an existing state bucket (and assume the locks table was created properly)
-		existing_bucket=$(tf state show aws_s3_bucket.tf_state | grep " bucket " | cut -d\" -f2)
+		existing_bucket=$(tf state show aws_s3_bucket.tf_state 2>/dev/null | grep " bucket " | cut -d\" -f2)
 		if [ -n "$existing_bucket" ]; then
 			state_bucket="$existing_bucket"
 			return 0
@@ -99,34 +100,57 @@ ensure_tfstate() {
 		log_do "🆕 Initializing local backend" tf init
 	fi
 
-	printf "What is the domain name of your SSSS (e.g., ssss.escrin.org)? "
+	printf "❓ What is the domain name of your SSSS (e.g., ssss.example.com)? "
 	read -r ssss_domain
-	state_bucket="escrin.tfstate.${ssss_domain}"
+	state_bucket="tfstate.$ssss_domain"
+	return 1
+}
 
-	# First attempt to import the state bucket in case it was created but the local state file was lost.
-	log "🔎 Detecting existing state\n"
-	if tf import -var "bucket_name=$state_bucket" aws_s3_bucket.tf_state "$state_bucket" > /dev/null 2>&1; then
+ensure_tfstate() {
+	# Navigate to the directory containing TF configuration for the state
+	cdd "$script_dir/tf_state"
+
+	if obtain_state_bucket; then
+		return 0
+	fi
+
+	# Attempt to import the state bucket in case it was created but the local state file was lost.
+	log "🔎 Detecting existing state..."
+	if tf import -var "bucket_name=$state_bucket" aws_s3_bucket.tf_state "$state_bucket" >/dev/null 2>&1; then
 		# Next, import the locks table. If it doesn't exist, continue to state application.
-		if tf import -var "bucket_name=$state_bucket" aws_dynamodb_table.tf_locks 'tflocks' > /dev/null 2>&1; then
+		if tf import -var "bucket_name=$state_bucket" aws_dynamodb_table.tf_locks 'tflocks' >/dev/null 2>&1; then
+			log "✅\n"
 			return 0
 		fi
 	fi
+	log "❎\n"
 
 	# Run the TF in the tf_state folder to get the backend installed
-	log_do "🔨 Creating initial resources" tf apply -var "bucket_name=$state_bucket" -auto-approve
+	log_do "🔨 Creating state infra" tf apply -var "bucket_name=$state_bucket" -auto-approve
 }
 
 ensure_infra() {
 	# Navigate to the directory containing TF configuration for the actual infra
-	cd "$script_dir"
+	cdd "$script_dir"
 
 	# Check for an existing initialization
 	if [ ! -d ".terraform" ]; then
 		ensure_aws_region
-		log_do "🚜 Initializing remote backend" tf init -backend-config="bucket=$state_bucket"
+		log_do "🆕 Initializing remote backend" tf init -backend-config="bucket=$state_bucket"
 	fi
 
-	log_do "🏗️ Creating infra" tf apply -auto-approve
+	ssss_tag=$(git tag -l 'ssss/v*.*.*' --sort=-taggerdate | head -n 1 | sed 's?ssss/v??')
+
+	ensure_workspace
+	log_do "🔨 Creating SSSS infra" tf apply -var "ssss_tag=$ssss_tag" -auto-approve
+}
+
+warn_destroy() {
+	cdd "$script_dir"
+	if [ "$(tf workspace show)" = "prod" ]; then
+		log_do "⚠️  Confirming destruction of production infra" sleep 10
+		log_do "‼️  Preparing to destroy production infra" sleep 10
+	fi
 }
 
 destroy() {
@@ -135,24 +159,35 @@ destroy() {
 		die "${0} destroy [--all]\n Call \`${0} unlock\` first"
 		;;
 	"--all")
+		warn_destroy
+		ensure_aws_creds
+		ensure_aws_region
 		destroy_infra
 		destroy_tfstate
 		;;
 	*)
+		warn_destroy
+		ensure_aws_creds
+		ensure_aws_region
 		destroy_infra
 		;;
 	esac
 }
 
 destroy_infra() {
-	ensure_workspace
-	cd "$script_dir"
-	log_do "🧨 Destroying infra" tf apply -destroy -auto-approve -json
+	cdd "$script_dir"
+	if [ -d ".terraform" ]; then
+		ensure_workspace
+		log_do "🧹 Destroying infra" tf apply -var "ssss_tag=" -destroy -auto-approve
+	fi
 }
 
 destroy_tfstate() {
-	cd "$script_dir/tf_state"
-	log_do "🌋 Destroying infra state" tf apply -destroy -auto-approve -json
+	cdd "$script_dir/tf_state"
+	if [ -d ".terraform" ]; then
+		obtain_state_bucket
+		log_do "🧹 Destroying state" tf apply -var "bucket_name=$state_bucket" -destroy -auto-approve
+	fi
 }
 
 unlock() {
@@ -161,25 +196,13 @@ unlock() {
 		die "${0} unlock [--all]"
 		;;
 	"--all")
-		ensure_workspace
 		ensure_unlocked "$script_dir"
 		ensure_unlocked "$script_dir/tf_state"
 		;;
 	*)
-		ensure_workspace
 		ensure_unlocked "$script_dir"
 		;;
 	esac
-}
-
-ensure_unlocked() {
-	cd "$1"
-	sed -i '' -e 's/prevent_destroy = true/prevent_destroy = false/' ./*.tf
-	if [ "$(tf workspace show)" = "dev" ]; then
-		return 0
-	fi
-	sed -i '' -e 's/deletion_protection_enabled = terraform.workspace != "dev"/deletion_protection_enabled = false/' ./*.tf
-	log_do "🔧 Applying unlock in $(basename "$1")" tf apply -auto-approve
 }
 
 lock() {
@@ -188,25 +211,23 @@ lock() {
 		die "${0} lock [--all]"
 		;;
 	"--all")
-		ensure_workspace
 		ensure_locked "$script_dir"
 		ensure_locked "$script_dir/tf_state"
 		;;
 	*)
-		ensure_workspace
 		ensure_locked "$script_dir"
 		;;
 	esac
 }
 
+ensure_unlocked() {
+	cdd "$1"
+	sed -i '' -e 's/prevent_destroy = true/prevent_destroy = false/' ./*.tf
+}
+
 ensure_locked() {
-	cd "$1"
+	cdd "$1"
 	sed -i '' -e 's/prevent_destroy = false/prevent_destroy = true/' ./*.tf ./*/*.tf
-	if [ "$(tf workspace show)" = "dev" ]; then
-		return 0
-	fi
-	sed -i '' -e 's/deletion_protection_enabled = false/deletion_protection_enabled = terraform.workspace != "dev"/' ./*.tf ./*/*.tf
-	log_do "🔧 Applying lock in $(basename "$1")" tf apply -auto-approve
 }
 
 case "${1:-}" in

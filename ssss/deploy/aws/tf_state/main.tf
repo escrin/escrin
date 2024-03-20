@@ -5,6 +5,8 @@ variable "bucket_name" {
 resource "aws_s3_bucket" "tf_state" {
   bucket = var.bucket_name
 
+  force_destroy = true
+
   lifecycle {
     prevent_destroy = true
   }
@@ -58,7 +60,7 @@ resource "aws_dynamodb_table" "tf_locks" {
     type = "S"
   }
 
-  deletion_protection_enabled = true
+  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true

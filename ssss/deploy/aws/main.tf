@@ -10,11 +10,6 @@ variable "instance_type" {
   default     = "t4g.nano"
 }
 
-variable "ami" {
-  description = "The SSSS EC2 instance AMI"
-  default     = "ami-08b46fd32a1a5be7f"
-}
-
 variable "ssss_tag" {
   description = "The tag of the ghcr.io/escrin/ssss image to use"
 }
@@ -63,7 +58,7 @@ resource "aws_dynamodb_table" "shares" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = terraform.workspace != "dev"
+  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -90,7 +85,7 @@ resource "aws_dynamodb_table" "keys" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = terraform.workspace != "dev"
+  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -122,7 +117,7 @@ resource "aws_dynamodb_table" "permits" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = terraform.workspace != "dev"
+  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -148,7 +143,7 @@ resource "aws_dynamodb_table" "nonces" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = terraform.workspace != "dev"
+  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -165,7 +160,7 @@ resource "aws_dynamodb_table" "chain_state" {
     type = "N"
   }
 
-  deletion_protection_enabled = terraform.workspace != "dev"
+  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -192,7 +187,7 @@ resource "aws_dynamodb_table" "verifiers" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = terraform.workspace != "dev"
+  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -272,8 +267,17 @@ resource "aws_iam_group_policy_attachment" "attach_dev_policy" {
   policy_arn = aws_iam_policy.policy.arn
 }
 
+data "aws_ami" "ami" {
+  most_recent = true
+  owners = ["amazon"]
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023*-arm64"]
+  }
+}
+
 resource "aws_instance" "instance" {
-  ami           = var.ami
+  ami           = data.aws_ami.ami.id
   instance_type = var.instance_type
 
   root_block_device {
@@ -347,14 +351,14 @@ resource "aws_security_group" "sg" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = locals.sg_cidrs
+    cidr_blocks = local.sg_cidrs
   }
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = locals.sg_cidrs
+    cidr_blocks = local.sg_cidrs
   }
 
   egress {
