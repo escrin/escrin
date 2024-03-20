@@ -1,0 +1,40 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:*",
+        "iam:*InstanceProfile",
+        "iam:*Policy",
+        "iam:*Role",
+        "iam:Get*",
+        "iam:List*",
+        "s3:*"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:*",
+        "arn:aws:ec2:*:*:*",
+        "arn:aws:iam::*:*",
+        "arn:aws:kms:*:*:*",
+        "arn:aws:s3:::*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:*",
+        "kms:*Alias",
+        "kms:CreateKey",
+        "kms:Describe*",
+        "kms:Get*",
+        "kms:List*",
+        "kms:PutKeyPolicy",
+        "kms:ScheduleKeyDeletion",
+        "kms:TagResource",
+        "kms:UntagResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
