@@ -10,6 +10,8 @@ abstract contract TaskAcceptor is ITaskAcceptor, ERC165 {
     error SubmisionTaskIdsNotSorted(); // E+1Qrg== 13ed50ae
     /// The set of accepted task ids was not sorted.
     error AcceptedTaskIdsNotSorted(); // WjXPLQ== 5a35cf2d
+    /// The caller is not authorized to make the request.
+    error Unauthorized(); // 82b42900 grQpAA==
 
     using TaskIdSelectorOps for TaskIdSelector;
 
