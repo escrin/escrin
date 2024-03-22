@@ -20,10 +20,8 @@ abstract contract TaskAcceptor is ITaskAcceptor, ERC165 {
         bytes calldata proof,
         bytes calldata report
     ) external virtual returns (TaskIdSelector memory sel) {
-        if (!_isSortedSet(taskIds)) revert SubmisionTaskIdsNotSorted();
         _beforeTaskResultsAccepted({taskIds: taskIds, proof: proof, report: report});
         sel = _acceptTaskResults({taskIds: taskIds, proof: proof, report: report});
-        if (!_isSortedSet(sel.taskIds)) revert AcceptedTaskIdsNotSorted();
         _afterTaskResultsAccepted({taskIds: taskIds, report: report, selected: sel});
     }
 
@@ -39,7 +37,7 @@ abstract contract TaskAcceptor is ITaskAcceptor, ERC165 {
     }
 
     /// Accepts one or more elements of a task runner's task results submission, returning the set of tasks that were accepted.
-    /// @param taskIds a sorted set of taskIds completed in this submission
+    /// @param taskIds taskIds completed in this submission
     /// @param proof some proof of having completed the identified tasks that the acceptor can verify.
     /// @param report Some data provided by the submitter that the requester may or may not trust
     /// @return A selection of the accepted task results, which may be empty.
@@ -68,9 +66,8 @@ abstract contract TaskAcceptor is ITaskAcceptor, ERC165 {
 
     function _isSortedSet(uint256[] memory input) internal pure returns (bool) {
         for (uint256 i = 1; i < input.length; ++i) {
-            if (input[i] <= input[i - 1]) {
-                return false;
-            }
+            if (input[i] > input[i - 1]) continue;
+            return false;
         }
         return true;
     }

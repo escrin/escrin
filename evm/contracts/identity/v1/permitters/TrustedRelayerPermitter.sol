@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import {IdentityId, Permitter} from "./Permitter.sol";
 
-contract TrustedRelayerPermitter is Permitter {
+abstract contract TrustedRelayerPermitter is Permitter {
     address private immutable trustedRelayer_;
 
     constructor(address upstream, address trustedRelayer) Permitter(upstream) {

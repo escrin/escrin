@@ -3,11 +3,15 @@ pragma solidity ^0.8.18;
 
 import {TaskAcceptor, TaskIdSelectorOps} from "./TaskAcceptor.sol";
 
-contract StaticDelegatedTaskAcceptor is TaskAcceptor {
-    address public immutable upstream;
+abstract contract StaticDelegatedTaskAcceptor is TaskAcceptor {
+    address internal immutable upstream;
 
     constructor(address trustedUpstream) {
         upstream = trustedUpstream;
+    }
+
+    function getUpstreamTaskAcceptor() external view returns (address) {
+        return upstream;
     }
 
     function _acceptTaskResults(uint256[] calldata, bytes calldata, bytes calldata)
@@ -21,13 +25,13 @@ contract StaticDelegatedTaskAcceptor is TaskAcceptor {
     }
 }
 
-contract DelegatedTaskAcceptor is TaskAcceptor {
-    event UpstreamChanged();
+abstract contract DelegatedTaskAcceptor is TaskAcceptor {
+    event UpstreamChanged(address);
 
-    address public upstream;
+    address internal upstream;
 
     constructor(address trustedUpstream) {
-        upstream = trustedUpstream;
+        _setUpstreamTaskAcceptor(trustedUpstream);
     }
 
     function _acceptTaskResults(uint256[] calldata, bytes calldata, bytes calldata)
@@ -40,69 +44,57 @@ contract DelegatedTaskAcceptor is TaskAcceptor {
         return TaskIdSelectorOps.all();
     }
 
-    function _setUpstreamTaskAcceptor(address trustedUpstream) internal virtual {
-        upstream = trustedUpstream;
+    function _setUpstreamTaskAcceptor(address newUpstream) internal virtual {
+        upstream = newUpstream;
+        emit UpstreamChanged(newUpstream);
     }
 }
 
-contract TimelockedDelegatedTaskAcceptor is DelegatedTaskAcceptor {
-    event DelayChanged();
-
-    uint64 public delay;
+abstract contract TimelockedDelegatedTaskAcceptor is DelegatedTaskAcceptor {
+    event UpstreamIncoming(address);
+    event DelayIncoming(uint64);
+    event DelayChanged(uint64);
 
     struct IncomingUpstream {
         address addr;
         uint64 activationTime;
     }
 
-    IncomingUpstream public incomingUpstream;
-
     struct IncomingDelay {
         uint64 delay;
         uint64 activationTime;
     }
 
-    IncomingDelay public incomingDelay;
+    uint64 internal delay;
+    IncomingUpstream private incomingUpstream;
+    IncomingDelay private incomingDelay;
 
     constructor(address upstream, uint64 timelockDelay) DelegatedTaskAcceptor(upstream) {
         delay = timelockDelay;
-    }
-
-    function _acceptTaskResults(uint256[] calldata, bytes calldata, bytes calldata)
-        internal
-        virtual
-        override
-        returns (TaskIdSelector memory sel)
-    {
-        if (msg.sender != upstream) revert Unauthorized();
-        return TaskIdSelectorOps.all();
+        emit DelayChanged(delay);
     }
 
     function _setUpstreamTaskAcceptor(address newUpstream) internal override {
         IncomingUpstream storage u = incomingUpstream;
-        if (u.addr == newUpstream) {
-            if (u.activationTime < block.timestamp) revert Unauthorized();
-            upstream = u.addr;
-            u.addr = address(0);
-            u.activationTime = 0;
-        } else {
-            u.addr = newUpstream;
-            u.activationTime = uint64(block.timestamp) + delay;
+        if (u.addr != newUpstream) {
+            (u.addr, u.activationTime) = (newUpstream, uint64(block.timestamp + delay));
+            emit UpstreamIncoming(newUpstream);
+            return;
         }
-        emit UpstreamChanged();
+        if (u.activationTime < block.timestamp) revert Unauthorized();
+        super._setUpstreamTaskAcceptor(newUpstream);
+        (u.addr, u.activationTime) = (address(0), 0);
     }
 
     function _setTaskAcceptorTimelockDelay(uint64 newDelay) internal {
         IncomingDelay storage d = incomingDelay;
-        if (d.delay == newDelay) {
-            if (d.activationTime < block.timestamp) revert Unauthorized();
-            delay = d.delay;
-            d.delay = 0;
-            d.activationTime = 0;
-        } else {
-            d.delay = newDelay;
-            d.activationTime = uint64(block.timestamp) + delay;
+        if (d.delay != newDelay) {
+            (d.delay, d.activationTime) = (newDelay, uint64(block.timestamp + delay));
+            emit DelayIncoming(newDelay);
+            return;
         }
-        emit DelayChanged();
+        if (d.activationTime < block.timestamp) revert Unauthorized();
+        (delay, d.delay, d.activationTime) = (d.delay, 0, 0);
+        emit DelayChanged(newDelay);
     }
 }
