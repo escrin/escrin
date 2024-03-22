@@ -222,12 +222,12 @@ lock() {
 
 ensure_unlocked() {
 	cdd "$1"
-	sed -i '' -e 's/prevent_destroy = true/prevent_destroy = false/' ./*.tf
+	perl -pi -e 's/prevent_destroy = true/prevent_destroy = false/' ./*.tf
 }
 
 ensure_locked() {
 	cdd "$1"
-	sed -i '' -e 's/prevent_destroy = false/prevent_destroy = true/' ./*.tf ./*/*.tf
+	perl -pi -e 's/prevent_destroy = false/prevent_destroy = true/' ./*.tf
 }
 
 case "${1:-}" in
