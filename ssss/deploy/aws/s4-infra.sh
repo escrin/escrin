@@ -80,6 +80,7 @@ apply() {
 	ensure_tfstate
 
 	ensure_infra
+	tf output
 }
 
 state_bucket=""
