@@ -24,9 +24,18 @@ variable "cloudflare" {
   default     = false
 }
 
+locals {
+  tags = {
+    Vendor      = "escrin",
+    Component   = "ssss",
+    Environment = "${terraform.workspace}",
+  }
+}
+
 resource "aws_kms_key" "sek" {
   description             = "Escrin secret share encryption key (${terraform.workspace})"
   deletion_window_in_days = 7
+  tags                    = local.tags
 
   lifecycle {
     prevent_destroy = true
@@ -43,6 +52,7 @@ resource "aws_dynamodb_table" "shares" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
   range_key    = "version"
+  tags         = local.tags
 
   attribute {
     name = "id"
@@ -57,8 +67,6 @@ resource "aws_dynamodb_table" "shares" {
   point_in_time_recovery {
     enabled = terraform.workspace != "dev"
   }
-
-  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -70,6 +78,7 @@ resource "aws_dynamodb_table" "keys" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
   range_key    = "version"
+  tags         = local.tags
 
   attribute {
     name = "id"
@@ -85,8 +94,6 @@ resource "aws_dynamodb_table" "keys" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = false
-
   lifecycle {
     prevent_destroy = true
   }
@@ -97,6 +104,7 @@ resource "aws_dynamodb_table" "permits" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "identity"
   range_key    = "recipient"
+  tags         = local.tags
 
   attribute {
     name = "identity"
@@ -117,8 +125,6 @@ resource "aws_dynamodb_table" "permits" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = false
-
   lifecycle {
     prevent_destroy = true
   }
@@ -128,6 +134,7 @@ resource "aws_dynamodb_table" "nonces" {
   name         = "escrin-nonces-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "nonce"
+  tags         = local.tags
 
   attribute {
     name = "nonce"
@@ -143,8 +150,6 @@ resource "aws_dynamodb_table" "nonces" {
     enabled = terraform.workspace != "dev"
   }
 
-  deletion_protection_enabled = false
-
   lifecycle {
     prevent_destroy = true
   }
@@ -154,13 +159,12 @@ resource "aws_dynamodb_table" "chain_state" {
   name         = "escrin-chain-state-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "chain"
+  tags         = local.tags
 
   attribute {
     name = "chain"
     type = "N"
   }
-
-  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -172,6 +176,7 @@ resource "aws_dynamodb_table" "verifiers" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "permitter"
   range_key    = "identity"
+  tags         = local.tags
 
   attribute {
     name = "permitter"
@@ -186,8 +191,6 @@ resource "aws_dynamodb_table" "verifiers" {
   point_in_time_recovery {
     enabled = terraform.workspace != "dev"
   }
-
-  deletion_protection_enabled = false
 
   lifecycle {
     prevent_destroy = true
@@ -231,24 +234,25 @@ resource "aws_iam_policy" "policy" {
   name        = "escrin_policy_${terraform.workspace}"
   description = "Escrin KM access policy"
   policy      = data.aws_iam_policy_document.policy.json
+  tags        = local.tags
 }
 
 data "aws_iam_policy_document" "ec2_assume_role_policy" {
   statement {
-    effect = "Allow"
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
 
     principals {
       type        = "Service"
       identifiers = ["ec2.amazonaws.com"]
     }
-
-    actions = ["sts:AssumeRole"]
   }
 }
 
 resource "aws_iam_role" "ec2_role" {
   name               = "escrin_ec2_role_${terraform.workspace}"
   assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
+  tags               = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "attach_ec2_policy" {
@@ -269,7 +273,7 @@ resource "aws_iam_group_policy_attachment" "attach_dev_policy" {
 
 data "aws_ami" "ami" {
   most_recent = true
-  owners = ["amazon"]
+  owners      = ["amazon"]
   filter {
     name   = "name"
     values = ["al2023-ami-2023*-arm64"]
@@ -277,18 +281,15 @@ data "aws_ami" "ami" {
 }
 
 resource "aws_instance" "instance" {
-  ami           = data.aws_ami.ami.id
-  instance_type = var.instance_type
+  ami                         = data.aws_ami.ami.id
+  instance_type               = var.instance_type
+  iam_instance_profile        = aws_iam_instance_profile.profile.name
+  vpc_security_group_ids      = [aws_security_group.sg.id]
+  user_data_replace_on_change = true
+  key_name                    = var.ssh_key
+  tags                        = merge(local.tags, { Name = "escrin-ssss-${terraform.workspace}" })
 
-  root_block_device {
-    volume_size = 8
-  }
-
-  iam_instance_profile = aws_iam_instance_profile.profile.name
-
-  vpc_security_group_ids = [aws_security_group.sg.id]
-
-  user_data                   = <<-EOF
+  user_data = <<-EOF
     #!/bin/bash
     yum -yq update
     yum -yq install containerd nerdctl cni-plugins iptables
@@ -296,12 +297,9 @@ resource "aws_instance" "instance" {
     systemctl start containerd
     nerdctl run -p 80:1075 -d --restart=always ghcr.io/escrin/ssss:${var.ssss_tag} -vv
     EOF
-  user_data_replace_on_change = true
 
-  key_name = var.ssh_key
-
-  tags = {
-    Name = "escrin-ssss-${terraform.workspace}"
+  root_block_device {
+    volume_size = 8
   }
 
   lifecycle {
@@ -312,10 +310,12 @@ resource "aws_instance" "instance" {
 resource "aws_iam_instance_profile" "profile" {
   name = "escrin_ec2_instance_profile_${terraform.workspace}"
   role = aws_iam_role.ec2_role.name
+  tags = local.tags
 }
 
 resource "aws_eip" "eip" {
   instance = aws_instance.instance.id
+  tags     = local.tags
 }
 
 output "instance_ip" {
@@ -346,6 +346,7 @@ locals {
 resource "aws_security_group" "sg" {
   name        = "escrin-ssss-sg-${terraform.workspace}"
   description = "Allow HTTP & SSH from anywhere"
+  tags        = local.tags
 
   ingress {
     from_port   = 80
