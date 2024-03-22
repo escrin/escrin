@@ -74,13 +74,23 @@ ensure_workspace() {
 }
 
 apply() {
-	ensure_aws_creds
-	ensure_aws_region
-
-	ensure_tfstate
-
-	ensure_infra
-	tf output
+	case "$1" in
+	"-h" | "--help")
+		die "${0} apply [--only-tfstate]"
+		;;
+	"--only-tfstate")
+		ensure_aws_creds
+		ensure_aws_region
+		ensure_tfstate
+		;;
+	*)
+		ensure_aws_creds
+		ensure_aws_region
+		ensure_tfstate
+		ensure_infra
+		tf output
+		;;
+	esac
 }
 
 state_bucket=""
@@ -156,7 +166,7 @@ warn_destroy() {
 
 destroy() {
 	case "$1" in
-	"--help")
+	"-h" | "--help")
 		die "${0} destroy [--all]\n Call \`${0} unlock\` first"
 		;;
 	"--all")
@@ -193,7 +203,7 @@ destroy_tfstate() {
 
 unlock() {
 	case "$1" in
-	"--help")
+	"-h" | "--help")
 		die "${0} unlock [--all]"
 		;;
 	"--all")
@@ -208,7 +218,7 @@ unlock() {
 
 lock() {
 	case "$1" in
-	"--help")
+	"-h" | "--help")
 		die "${0} lock [--all]"
 		;;
 	"--all")
@@ -233,7 +243,8 @@ ensure_locked() {
 
 case "${1:-}" in
 "apply")
-	apply
+	shift
+	apply "${1:-}"
 	;;
 "destroy")
 	shift
