@@ -7,7 +7,7 @@ import {ITaskHub, TaskHub} from "./TaskHub.sol";
 
 error NotTaskHub(); // owTjPw== a304e33f
 
-contract BaseTaskHubNotifier {
+abstract contract BaseTaskHubNotifier {
     event TaskHubChanged(address to);
 
     ITaskHub private taskHub_;
@@ -40,7 +40,7 @@ contract BaseTaskHubNotifier {
     }
 }
 
-contract TaskHubNotifier is BaseTaskHubNotifier {
+abstract contract TaskHubNotifier is BaseTaskHubNotifier {
     constructor() BaseTaskHubNotifier(inferTaskHub()) {
         return;
     }

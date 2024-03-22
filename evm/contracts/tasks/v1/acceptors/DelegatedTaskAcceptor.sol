@@ -81,7 +81,7 @@ abstract contract TimelockedDelegatedTaskAcceptor is DelegatedTaskAcceptor {
             emit UpstreamIncoming(newUpstream);
             return;
         }
-        if (u.activationTime < block.timestamp) revert Unauthorized();
+        if (u.activationTime > block.timestamp) revert Unauthorized();
         super._setUpstreamTaskAcceptor(newUpstream);
         (u.addr, u.activationTime) = (address(0), 0);
     }
@@ -93,7 +93,7 @@ abstract contract TimelockedDelegatedTaskAcceptor is DelegatedTaskAcceptor {
             emit DelayIncoming(newDelay);
             return;
         }
-        if (d.activationTime < block.timestamp) revert Unauthorized();
+        if (d.activationTime > block.timestamp) revert Unauthorized();
         (delay, d.delay, d.activationTime) = (d.delay, 0, 0);
         emit DelayChanged(newDelay);
     }
