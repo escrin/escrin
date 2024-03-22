@@ -10,6 +10,8 @@
         "iam:*Role",
         "iam:Get*",
         "iam:List*",
+        "iam:Tag*",
+        "iam:Untag*",
         "s3:*"
       ],
       "Resource": [
@@ -31,8 +33,8 @@
         "kms:List*",
         "kms:PutKeyPolicy",
         "kms:ScheduleKeyDeletion",
-        "kms:TagResource",
-        "kms:UntagResource"
+        "kms:Tag*",
+        "kms:Untag*"
       ],
       "Resource": "*"
     }
