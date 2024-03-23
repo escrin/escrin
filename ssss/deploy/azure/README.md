@@ -1,49 +1,32 @@
-# Amazon Web Services (AWS)
+# Micosoft Azure
 
 These are instructions to use Terraform to get the necessary cloud resources for the SSSS into your
-AWS account. [OpenTofu](https://opentofu.org) is an open-source tool to define and provision cloud
+Azure account. [OpenTofu](https://opentofu.org) is an open-source tool to define and provision cloud
 resources with simple, declarative configuration files.
 
 ## Prerequisites
 
+- Azure account
 - OpenTofu [(installation instructions)](https://opentofu.org/docs/intro/install/) or Terraform
-- AWS CLI
-  [(installation instructions)](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- Azure CLI
+  [(installation instructions)](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 
-## AWS Configuration
+## Azure Configuration
 
-Terraform needs your AWS credentials to install resources on your behalf. Follow the instructions in
-the [guide](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user_manage_add-key.html#),
-ignoring any "Alternatives to root user access keys". Record the new access key and secret key.
-
-Then in your command line run:
+In command line run:
 
 ```sh
-aws configure
+az login
 ```
 
-When it asks, put in your account and secret key, as well as a default region code and an output
-format that you may leave blank. For region codes refer to
-[this list](https://www.aws-services.info/regions.html).
+You'll need to know two things:
 
-You'll need to know the following three things:
-
-1. The name of your AWS profile that you just configured
-
-It's probably `default` or your user name. If you care to check, get this by running
-`head -n 1 ~/.aws/credentials`. This should return something like:
-
-```sh
-[<profile name>]
-```
-
-2. The region code you want to install the resources
+1. The region code you want to install the resources
 
 There is not currently a good method to decide where an SSSS should live so you may pick one that is
-in a place dear to your heart. (Or you have reason to believe it's underserved.) _The region does
-not have to match your profile's default._
+in a place dear to your heart. (Or you have reason to believe it's underserved.) Find a [list of Azure regions here](https://gist.github.com/ausfestivus/04e55c7d80229069bf3bc75870630ec8)
 
-3. A domain name or subdomain where you will provide the expose SSSS API (e.g., `ssss.escrin.org`).
+2. A domain name or subdomain where you will provide the expose SSSS API (e.g., `ssss.escrin.org`).
 
 ## Quick install
 
@@ -55,7 +38,7 @@ as well as the resources needed for the SSSS. To install this in one go:
 ./s4-infra.sh apply
 ```
 
-This script will ask you for the above mentioned profile name, region, domain name, and a globally unique s3 bucket name.
+This script will ask you for the above mentioned profile name, region, and bucket name.
 
 If you want more control over your terraform processes use the
 [two-step install](#two-step-install).
@@ -85,7 +68,7 @@ This will create the Terraform state bucket in AWS and DynamoDB table to manage 
 ```sh
 cd tf_state
 terraform init
-# You will be prompted to choose a globally unique S3 bucket name to save the Terraform state.
+# You will be prompted to choose a globally unique Storage Account name to save the Terraform state.
 terraform plan -out out.tfstate
 terraform apply out.tfstate
 ```
