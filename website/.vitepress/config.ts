@@ -41,6 +41,7 @@ export default defineConfig({
           { text: 'Smart Workers', link: '/docs/reference/worker' },
           // { text: 'Solidity Library', link: '/docs/reference/solidity' },
           { text: 'Escrin Runner', link: '/docs/reference/runner' },
+          { text: 'Simple Secret Sharing Server (SSSS)', link: '/docs/reference/ssss' },
         ],
       },
     ],
