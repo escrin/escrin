@@ -7,7 +7,7 @@ terraform {
 
 variable "instance_type" {
   description = "The SSSS EC2 instance type"
-  default     = "t4g.nano"
+  default     = "t2.nano"
 }
 
 variable "ssss_tag" {
@@ -271,12 +271,21 @@ resource "aws_iam_group_policy_attachment" "attach_dev_policy" {
   policy_arn = aws_iam_policy.policy.arn
 }
 
+data "aws_ec2_instance_type" "instance" {
+  instance_type = var.instance_type
+}
+
+locals {
+  instance_archs = data.aws_ec2_instance_type.instance.supported_architectures
+  instance_arch = try(element([for v in local.instance_archs : v if can(regex("64$", v))], 0), null)
+}
+
 data "aws_ami" "ami" {
   most_recent = true
   owners      = ["amazon"]
   filter {
     name   = "name"
-    values = ["al2023-ami-2023*-arm64"]
+    values = ["al2023-ami-2023*-${local.instance_arch}"]
   }
 }
 
