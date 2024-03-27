@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
 
     trace!("loading providers");
     let providers = eth::providers(args.gateway.iter()).await?;
-    let permitters: HashMap<_, _> = args.permitters.into_iter().collect();
+    let permitters: HashMap<_, _> = args.permitter.into_iter().collect();
     let missing_providers: Vec<_> = permitters
         .keys()
         .filter(|&chain| (!providers.contains_key(chain)))

@@ -13,10 +13,11 @@ pub struct Args {
     #[arg(short, long, action = Count, default_value_t = 0)]
     pub verbosity: u8,
 
-    #[arg(long, default_value = "localhost:1075")]
+    /// The domain at which this SSSS's API is expected to be served.
+    #[arg(long, default_value = "127.0.0.1:1075")]
     pub host: axum::http::uri::Authority,
 
-    /// Specify multiple gateways to watch multiple chains or multiple providers per chain.
+    /// Web3 gateway(s) to watch. Multiple gateways per chain provides quorum.
     #[arg(short, long, action = Append, default_values = ["http://127.0.0.1:8545"], value_hint = ValueHint::Url)]
     pub gateway: Vec<String>,
 
@@ -27,9 +28,9 @@ pub struct Args {
     #[arg(short, long = "permitter", value_parser = permitters_parser(), action = Append, default_values = [
         "31337=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
     ])]
-    pub permitters: Vec<(ChainId, Address)>,
+    pub permitter: Vec<(ChainId, Address)>,
 
-    #[arg(long, value_enum, default_value = "dev")]
+    #[arg(short, long, value_enum, default_value = "dev")]
     pub env: crate::store::Environment,
 }
 

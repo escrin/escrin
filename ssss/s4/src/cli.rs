@@ -22,6 +22,7 @@ impl Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Write a new policy to the blockchain for retrieval by the listening SSSSs.
     SetPolicy {
         #[command(flatten)]
         args: WritePermitterArgs,
@@ -33,6 +34,7 @@ pub enum Command {
         #[arg(value_hint = ValueHint::FilePath)]
         policy_path: Option<String>,
     },
+    /// Acquire an Escrin identity from an SSSS.
     AcquireIdentity {
         #[command(flatten)]
         ssss: Ssss,
@@ -59,6 +61,7 @@ pub enum Command {
         #[arg(short, long, required = true)]
         recipient: Address,
     },
+    /// Split a secret into shares and deal it to the requested SSSSs.
     Deal {
         #[command(flatten)]
         args: WritePermitterArgs,
@@ -75,6 +78,9 @@ pub enum Command {
         #[command(flatten)]
         threshold: Threshold,
     },
+    /// Reconstructs a secret from shares requested by the requested SSSSs.
+    ///
+    /// Requires that the requester wallet possesses the appropriate identity.
     Reconstruct {
         #[command(flatten)]
         il: IdentityLocatorArgs,
