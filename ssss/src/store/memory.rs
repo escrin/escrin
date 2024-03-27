@@ -250,5 +250,5 @@ impl Store for MemoryStore {
 mod tests {
     use super::*;
 
-    crate::make_store_tests!(MemoryStore::default());
+    crate::make_store_tests!(async { MemoryStore::default() });
 }

@@ -4,9 +4,9 @@ use super::*;
 
 #[macro_export]
 macro_rules! make_store_tests {
-        ($store:expr) => {
+        ($store_factory:expr) => {
             $crate::make_store_tests!(
-                $store,
+                $store_factory,
                 roundtrip_share,
                 create_second_share_version,
                 create_duplicate_share_version,
@@ -27,11 +27,12 @@ macro_rules! make_store_tests {
                 roundtrip_verifier,
             );
         };
-        ($store:expr, $($test:ident),+ $(,)?) => {
+        ($store_factory:expr, $($test:ident),+ $(,)?) => {
             $(
                 #[tokio::test]
                 async fn $test() {
-                    $crate::store::tests::$test($store).await;
+                    let store = $store_factory.await;
+                    $crate::store::tests::$test(store).await;
                 }
             )+
         }
