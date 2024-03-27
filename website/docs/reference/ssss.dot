@@ -1,4 +1,7 @@
 digraph {
+    graph [compound=true, fontname="Helvetica"]
+    edge [fontname="Helvetica"]
+
     node [shape=rect]
     newrank = true
     rankdir = LR
