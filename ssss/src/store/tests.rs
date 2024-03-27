@@ -47,6 +47,7 @@ where
     Fut: futures::Future<Output = T> + 'a,
 {
     let share_id = ShareId {
+        secret_name: "test".into(),
         identity: IdentityLocator {
             chain: 31337,
             registry: Address::repeat_byte(1),
@@ -58,7 +59,7 @@ where
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut share);
     let created = store
         .put_share(
-            share_id,
+            share_id.clone(),
             SecretShare {
                 index: 1,
                 share: share.into(),
@@ -69,8 +70,8 @@ where
         created,
         "share not created due to duplicate or non-contiguous version"
     );
-    let res = f(store, share_id).await;
-    store.delete_share(share_id).await?;
+    let res = f(store, share_id.clone()).await;
+    store.delete_share(share_id.clone()).await?;
     Ok(res)
 }
 
@@ -87,8 +88,8 @@ pub async fn roundtrip_share(store: impl Store) {
             "unexpected share identity"
         );
         ensure!(share_id.version == 1, "unexpected share version");
-        let share = store.get_share(share_id).await?;
-        let share2 = store.get_share(share_id).await?;
+        let share = store.get_share(share_id.clone()).await?;
+        let share2 = store.get_share(share_id.clone()).await?;
         ensure!(share == share2, "retrieved shares mismatched");
         Ok(())
     })
@@ -100,7 +101,7 @@ pub async fn roundtrip_share(store: impl Store) {
 pub async fn create_second_share_version(store: impl Store) {
     let identity = IdentityId::random();
     with_share(&store, identity, 1, |store, share_id1| async move {
-        let share1_1 = store.get_share(share_id1).await?;
+        let share1_1 = store.get_share(share_id1.clone()).await?;
         with_share(store, identity, 2, |store, share_id2| async move {
             ensure!(
                 share_id1.identity == share_id2.identity,
@@ -337,6 +338,7 @@ where
 
 fn mock_share() -> ShareId {
     ShareId {
+        secret_name: "test".into(),
         identity: IdentityLocator {
             chain: 31337,
             registry: Address::repeat_byte(42),
@@ -352,7 +354,7 @@ pub async fn roundtrip_permit(store: impl Store) {
     let expiry = now() + 20;
     with_permit(
         &store,
-        share,
+        share.clone(),
         recipient,
         expiry,
         |store, permit| async move {
@@ -371,11 +373,17 @@ pub async fn expired_permit(store: impl Store) {
     let share = mock_share();
     let recipient = Address::random();
     let expiry = now() - 60;
-    with_permit(&store, share, recipient, expiry, |store, _| async move {
-        let read_permit = store.read_permit(share.identity, recipient).await?;
-        ensure!(read_permit.is_none(), "permit not expired");
-        Ok(())
-    })
+    with_permit(
+        &store,
+        share.clone(),
+        recipient,
+        expiry,
+        |store, _| async move {
+            let read_permit = store.read_permit(share.identity, recipient).await?;
+            ensure!(read_permit.is_none(), "permit not expired");
+            Ok(())
+        },
+    )
     .await
     .expect("test failed")
     .expect("permit creation failed");
@@ -390,7 +398,7 @@ pub async fn used_nonce_permit(store: impl Store) {
 
     with_permit_nonce(
         &store,
-        share,
+        share.clone(),
         recipient,
         expiry,
         |_, _| async {},
@@ -399,11 +407,16 @@ pub async fn used_nonce_permit(store: impl Store) {
     .await
     .unwrap();
 
-    assert!(
-        with_permit_nonce(&store, share, recipient, expiry, |_, _| async {}, nonce)
-            .await
-            .is_none()
-    );
+    assert!(with_permit_nonce(
+        &store,
+        share.clone(),
+        recipient,
+        expiry,
+        |_, _| async {},
+        nonce
+    )
+    .await
+    .is_none());
 }
 
 pub async fn refresh_permit(store: impl Store) {
@@ -413,19 +426,25 @@ pub async fn refresh_permit(store: impl Store) {
     let expiry_far = now() + 10;
     with_permit(
         &store,
-        share,
+        share.clone(),
         recipient,
         expiry_soon,
         |store, _| async move {
-            with_permit(store, share, recipient, expiry_far, |store, _| async move {
-                let read_permit = store.read_permit(share.identity, recipient).await?;
-                ensure!(read_permit.is_some(), "permit not created");
-                ensure!(
-                    read_permit.unwrap().expiry == expiry_far,
-                    "permit exiry not refrshed"
-                );
-                Ok(())
-            })
+            with_permit(
+                store,
+                share.clone(),
+                recipient,
+                expiry_far,
+                |store, _| async move {
+                    let read_permit = store.read_permit(share.identity, recipient).await?;
+                    ensure!(read_permit.is_some(), "permit not created");
+                    ensure!(
+                        read_permit.unwrap().expiry == expiry_far,
+                        "permit exiry not refrshed"
+                    );
+                    Ok(())
+                },
+            )
             .await
         },
     )
@@ -442,7 +461,7 @@ pub async fn defresh_permit_fail(store: impl Store) {
     let expiry_far = now() + 10;
     with_permit(
         &store,
-        share,
+        share.clone(),
         recipient,
         expiry_far,
         |store, _| async move {
@@ -464,14 +483,14 @@ pub async fn delete_defresh_permit(store: impl Store) {
     let expiry_far = now() + 10;
     with_permit(
         &store,
-        share,
+        share.clone(),
         recipient,
         expiry_far,
         |store, _| async move {
             store.delete_permit(share.identity, recipient).await?;
             let outcome = with_permit(
                 store,
-                share,
+                share.clone(),
                 recipient,
                 expiry_soon,
                 |store, permit| async move {

@@ -48,7 +48,7 @@ impl Client {
     naming_fn!(chain_state_table, "escrin-chain-state");
     naming_fn!(kms_key, "alias/escrin-sek");
 
-    async fn current_share_version(&self, id: ShareId) -> Result<Option<ShareVersion>, Error> {
+    async fn current_share_version(&self, id: &ShareId) -> Result<Option<ShareVersion>, Error> {
         Ok(self
             .db_client
             .query()
@@ -87,7 +87,7 @@ impl Client {
 
 impl Store for Client {
     async fn put_share(&self, id: ShareId, ss: SecretShare) -> Result<bool, Error> {
-        let current_version = self.current_share_version(id).await?.unwrap_or_default();
+        let current_version = self.current_share_version(&id).await?.unwrap_or_default();
         if id.version != current_version + 1 {
             return Ok(false);
         }
@@ -575,8 +575,12 @@ impl ToAttributeValue for ShareId {
 
 impl ToEncryptionContext for ShareId {
     fn to_encryption_context(&self) -> String {
-        let Self { identity, version } = &self;
-        format!("{}-{version}", identity.to_key())
+        let Self {
+            secret_name,
+            identity,
+            version,
+        } = &self;
+        format!("{secret_name}-{}-{version}", identity.to_key())
     }
 }
 

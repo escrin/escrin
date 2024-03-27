@@ -42,8 +42,9 @@ pub struct IdentityLocator {
     pub id: IdentityId,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ShareId {
+    pub secret_name: String,
     pub identity: IdentityLocator,
     pub version: ShareVersion,
 }

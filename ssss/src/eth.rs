@@ -32,7 +32,7 @@ ethers::contract::abigen!(
 
         function setPolicy(bytes32 identity, bytes calldata config)
 
-        function dealShares(bytes32 identity, uint64 version, bytes pk, bytes32 nonce, bytes[] shares)
+        function dealShares(bytes32 identity, string secretName, uint64 version, bytes pk, bytes32 nonce, bytes[] shares)
     ]"
 );
 
@@ -104,6 +104,7 @@ impl<M: providers::Middleware> SsssHub<M> {
     ) -> Result<TxHash, Error<M>> {
         self.send_tx(self.contract.deal_shares(
             identity.0.into(),
+            "omni".into(),
             version,
             pk.into(),
             nonce,
@@ -240,10 +241,17 @@ impl<M: providers::Middleware> SsssHub<M> {
                 })
             }
             SsssHubContractEvents::SharesDealtFilter(_) => {
-                let (identity, version, pk, nonce, shares): (H256, U256, Bytes, H256, Vec<Bytes>) =
-                    AbiDecode::decode(&input[4..]).unwrap();
+                let (identity, secret_name, version, pk, nonce, shares): (
+                    H256,
+                    String,
+                    U256,
+                    Bytes,
+                    H256,
+                    Vec<Bytes>,
+                ) = AbiDecode::decode(&input[4..]).unwrap();
                 EventKind::SharesDealt(SharesDealt {
                     identity: identity.into(),
+                    secret_name,
                     version: version.low_u64(),
                     scheme: SsScheme::Shamir {
                         pk: p384::PublicKey::from_sec1_bytes(&pk).ok()?,
@@ -334,6 +342,7 @@ pub struct PolicyChange {
 #[derive(Clone, Debug)]
 pub struct SharesDealt {
     pub identity: IdentityId,
+    pub secret_name: String,
     pub version: u64,
     pub scheme: SsScheme,
 }

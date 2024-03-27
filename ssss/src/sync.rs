@@ -118,6 +118,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                 }
                 eth::EventKind::SharesDealt(eth::SharesDealt {
                     identity: identity_id,
+                    secret_name,
                     version,
                     scheme: eth::SsScheme::Shamir { pk, nonce, shares },
                 }) => {
@@ -141,6 +142,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                     };
                     retry(|| {
                         let share = share.clone();
+                        let secret_name = secret_name.clone();
                         async move {
                             let identity = IdentityLocator {
                                 chain: chain_id,
@@ -149,7 +151,11 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
                             };
                             let put_share = store
                                 .put_share(
-                                    ShareId { identity, version },
+                                    ShareId {
+                                        secret_name,
+                                        identity,
+                                        version,
+                                    },
                                     SecretShare { index, share },
                                 )
                                 .await?;

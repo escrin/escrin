@@ -298,6 +298,7 @@ async fn get_share<M: Middleware, S: Store>(
     let SecretShare { index, share } = retry_times(
         || {
             store.get_share(ShareId {
+                secret_name: "omni".into(),
                 identity: IdentityLocator {
                     chain,
                     registry,
