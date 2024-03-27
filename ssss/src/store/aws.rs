@@ -538,9 +538,11 @@ fn address_to_value(addr: &Address) -> AttributeValue {
     S(format!("{addr:#x}"))
 }
 
-pub trait ToAttributeValue {
-    fn to_key(&self) -> String;
+trait ToAttributeValue {
+    fn to_attribute_value(&self) -> AttributeValue;
+}
 
+impl<T: ToKey> ToAttributeValue for T {
     fn to_attribute_value(&self) -> AttributeValue {
         S(self.to_key())
     }
@@ -548,29 +550,6 @@ pub trait ToAttributeValue {
 
 pub trait ToEncryptionContext {
     fn to_encryption_context(&self) -> String;
-}
-
-impl ToAttributeValue for IdentityId {
-    fn to_key(&self) -> String {
-        format!("{:#x}", self.0)
-    }
-}
-
-impl ToAttributeValue for IdentityLocator {
-    fn to_key(&self) -> String {
-        let Self {
-            chain,
-            registry,
-            id: IdentityId(identity),
-        } = &self;
-        format!("{chain}-{registry:#x}-{identity:#x}")
-    }
-}
-
-impl ToAttributeValue for ShareId {
-    fn to_key(&self) -> String {
-        self.identity.to_key()
-    }
 }
 
 impl ToEncryptionContext for ShareId {
@@ -581,17 +560,6 @@ impl ToEncryptionContext for ShareId {
             version,
         } = &self;
         format!("{secret_name}-{}-{version}", identity.to_key())
-    }
-}
-
-impl ToAttributeValue for KeyId {
-    fn to_key(&self) -> String {
-        let Self {
-            name,
-            identity,
-            version: _,
-        } = &self;
-        format!("{}-{name}", identity.to_key())
     }
 }
 
@@ -606,16 +574,9 @@ impl ToEncryptionContext for KeyId {
     }
 }
 
-impl ToAttributeValue for PermitterLocator {
-    fn to_key(&self) -> String {
-        let Self { chain, permitter } = &self;
-        format!("{chain}-{permitter:#x}")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    crate::make_store_tests!(Client::connect(Environment::Dev).await);
+    crate::make_store_tests!(Client::connect(Environment::Dev));
 }

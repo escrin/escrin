@@ -1,5 +1,7 @@
 #[cfg(feature = "aws")]
 pub mod aws;
+#[cfg(feature = "azure")]
+pub mod azure;
 #[cfg(feature = "local")]
 pub mod local;
 pub mod memory;
@@ -8,6 +10,7 @@ mod tests;
 
 use std::future::Future;
 
+use axum::http::uri::Authority;
 use ethers::types::Address;
 
 use crate::types::*;
@@ -104,6 +107,8 @@ pub enum DynStoreKind {
     Memory(memory::MemoryStore),
     #[cfg(feature = "aws")]
     Aws(aws::Client),
+    #[cfg(feature = "azure")]
+    Azure(azure::Client),
     #[cfg(feature = "local")]
     Local(local::LocalStore),
 }
@@ -114,6 +119,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.put_share(id, share).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.put_share(id, share).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.put_share(id, share).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.put_share(id, share).await,
         }
@@ -124,6 +131,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.get_share(id).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.get_share(id).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.get_share(id).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.get_share(id).await,
         }
@@ -134,6 +143,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.delete_share(id).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.delete_share(id).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.delete_share(id).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.delete_share(id).await,
         }
@@ -144,6 +155,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.put_key(id, key).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.put_key(id, key).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.put_key(id, key).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.put_key(id, key).await,
         }
@@ -154,6 +167,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.get_key(id).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.get_key(id).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.get_key(id).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.get_key(id).await,
         }
@@ -164,6 +179,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.delete_key(id).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.delete_key(id).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.delete_key(id).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.delete_key(id).await,
         }
@@ -180,6 +197,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.create_permit(identity, recipient, expiry, nonce).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.create_permit(identity, recipient, expiry, nonce).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.create_permit(identity, recipient, expiry, nonce).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.create_permit(identity, recipient, expiry, nonce).await,
         }
@@ -194,6 +213,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.read_permit(identity, recipient).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.read_permit(identity, recipient).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.read_permit(identity, recipient).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.read_permit(identity, recipient).await,
         }
@@ -208,6 +229,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.delete_permit(identity, recipient).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.delete_permit(identity, recipient).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.delete_permit(identity, recipient).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.delete_permit(identity, recipient).await,
         }
@@ -218,6 +241,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.get_chain_state(chain).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.get_chain_state(chain).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.get_chain_state(chain).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.get_chain_state(chain).await,
         }
@@ -228,6 +253,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.update_chain_state(chain, update).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.update_chain_state(chain, update).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.update_chain_state(chain, update).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.update_chain_state(chain, update).await,
         }
@@ -239,6 +266,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.clear_chain_state(chain).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.clear_chain_state(chain).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.clear_chain_state(chain).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.clear_chain_state(chain).await,
         }
@@ -253,6 +282,8 @@ impl Store for DynStore {
             DynStoreKind::Memory(s) => s.get_verifier(permitter, identity).await,
             #[cfg(feature = "aws")]
             DynStoreKind::Aws(s) => s.get_verifier(permitter, identity).await,
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => s.get_verifier(permitter, identity).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.get_verifier(permitter, identity).await,
         }
@@ -275,6 +306,11 @@ impl Store for DynStore {
                 s.update_verifier(permitter, identity, config, version)
                     .await
             }
+            #[cfg(feature = "azure")]
+            DynStoreKind::Azure(s) => {
+                s.update_verifier(permitter, identity, config, version)
+                    .await
+            }
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => {
                 s.update_verifier(permitter, identity, config, version)
@@ -291,6 +327,7 @@ impl Store for DynStore {
     ) -> Result<(), Error> {
         match &self.inner {
             DynStoreKind::Aws(s) => s.clear_verifier(permitter, identity).await,
+            DynStoreKind::Azure(s) => s.clear_verifier(permitter, identity).await,
             DynStoreKind::Memory(s) => s.clear_verifier(permitter, identity).await,
             #[cfg(feature = "local")]
             DynStoreKind::Local(s) => s.clear_verifier(permitter, identity).await,
@@ -320,17 +357,39 @@ pub enum Environment {
     Prod,
 }
 
-#[cfg_attr(not(feature = "aws"), allow(unused))]
-pub async fn create(backend: StoreKind, env: Environment) -> impl Store {
-    DynStore {
+impl std::fmt::Display for Environment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Dev => "dev",
+                Self::Prod => "prod",
+            }
+        )
+    }
+}
+
+#[allow(unused)]
+pub async fn create(
+    backend: StoreKind,
+    env: Environment,
+    host: &Authority,
+) -> Result<impl Store, Error> {
+    Ok(DynStore {
         inner: match backend {
             StoreKind::Memory => DynStoreKind::Memory(Default::default()),
             #[cfg(feature = "aws")]
             StoreKind::Aws => DynStoreKind::Aws(aws::Client::connect(env).await),
+            #[cfg(feature = "azure")]
+            StoreKind::Aws => {
+                todo!("account");
+                DynStoreKind::Azure(azure::Client::connect("".into(), host, env).await?)
+            }
             #[cfg(feature = "local")]
             StoreKind::Local => todo!(),
         },
-    }
+    })
 }
 
 fn now() -> u64 {
@@ -338,4 +397,132 @@ fn now() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs()
+}
+
+pub trait ToKey {
+    fn to_key(&self) -> String;
+}
+
+pub trait FromKey
+where
+    Self: Sized,
+{
+    fn from_key(key: &str) -> anyhow::Result<Self>;
+}
+
+impl ToKey for IdentityId {
+    fn to_key(&self) -> String {
+        format!("{:#x}", self.0)
+    }
+}
+
+impl ToKey for IdentityLocator {
+    fn to_key(&self) -> String {
+        let Self {
+            chain,
+            registry,
+            id: IdentityId(identity),
+        } = &self;
+        format!("{chain}-{registry:#x}-{identity:#x}")
+    }
+}
+
+impl FromKey for IdentityLocator {
+    fn from_key(key: &str) -> anyhow::Result<Self> {
+        let mut parts = key.split('-');
+        let Some(chain) = parts.next().and_then(|v| v.parse().ok()) else {
+            anyhow::bail!("missing or invalid chain id");
+        };
+        let Some(registry) = parts.next().and_then(|v| v.parse().ok()) else {
+            anyhow::bail!("missing or invalid registry");
+        };
+        let Some(id) = parts.next().and_then(|v| v.parse().ok()).map(IdentityId) else {
+            anyhow::bail!("missing or invalid identity id");
+        };
+        anyhow::ensure!(parts.next().is_none(), "extra identity locator parts");
+        Ok(Self {
+            chain,
+            registry,
+            id,
+        })
+    }
+}
+
+impl ToKey for ShareId {
+    fn to_key(&self) -> String {
+        let Self {
+            secret_name,
+            identity,
+            version: _,
+        } = &self;
+        format!("share-{secret_name}-{}", identity.to_key())
+    }
+}
+
+impl ToKey for KeyId {
+    fn to_key(&self) -> String {
+        let Self {
+            name,
+            identity,
+            version: _,
+        } = &self;
+        format!("key-{name}-{}", identity.to_key())
+    }
+}
+
+impl ToKey for PermitterLocator {
+    fn to_key(&self) -> String {
+        let Self { chain, permitter } = &self;
+        format!("{chain}-{permitter:#x}")
+    }
+}
+
+impl FromKey for PermitterLocator {
+    fn from_key(key: &str) -> anyhow::Result<Self> {
+        let mut parts = key.split('-');
+        let Some(chain) = parts.next().and_then(|v| v.parse().ok()) else {
+            anyhow::bail!("missing or invalid chain id");
+        };
+        let Some(permitter) = parts.next().and_then(|v| v.parse().ok()) else {
+            anyhow::bail!("missing or invalid permitter");
+        };
+        anyhow::ensure!(parts.next().is_none(), "extra permitter locator parts");
+        Ok(Self { chain, permitter })
+    }
+}
+
+impl ToKey for Address {
+    fn to_key(&self) -> String {
+        format!("{self:#x}")
+    }
+}
+
+impl ToKey for ChainId {
+    fn to_key(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl ToKey for () {
+    fn to_key(&self) -> String {
+        Default::default()
+    }
+}
+
+mod serde_key {
+    use serde::{
+        de::{self, Deserialize, Deserializer},
+        ser::{Serialize, Serializer},
+    };
+
+    use super::{FromKey, ToKey};
+
+    pub fn deserialize<'de, T: FromKey, D: Deserializer<'de>>(d: D) -> Result<T, D::Error> {
+        let s = String::deserialize(d)?;
+        T::from_key(&s).map_err(|e| de::Error::custom(e.to_string()))
+    }
+
+    pub fn serialize<T: ToKey, S: Serializer>(t: &T, s: S) -> Result<S::Ok, S::Error> {
+        t.to_key().serialize(s)
+    }
 }
