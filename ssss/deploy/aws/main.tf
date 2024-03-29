@@ -230,7 +230,7 @@ data "aws_ec2_instance_type" "instance" {
 
 locals {
   instance_archs = data.aws_ec2_instance_type.instance.supported_architectures
-  instance_arch = try(element([for v in local.instance_archs : v if can(regex("64$", v))], 0), null)
+  instance_arch  = try(element([for v in local.instance_archs : v if can(regex("64$", v))], 0), null)
 }
 
 data "aws_ami" "ami" {
