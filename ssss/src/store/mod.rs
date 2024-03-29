@@ -29,7 +29,7 @@ pub trait Store: Clone + Send + Sync + 'static {
         id: ShareId,
     ) -> impl Future<Output = Result<Option<SecretShare>, Error>> + Send;
 
-    fn delete_share(&self, id: ShareId) -> impl Future<Output = Result<(), Error>> + Send;
+    fn delete_share_version(&self, id: ShareId) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn put_key(
         &self,
@@ -39,7 +39,7 @@ pub trait Store: Clone + Send + Sync + 'static {
 
     fn get_key(&self, id: KeyId) -> impl Future<Output = Result<Option<WrappedKey>, Error>> + Send;
 
-    fn delete_key(&self, id: KeyId) -> impl Future<Output = Result<(), Error>> + Send;
+    fn delete_key_version(&self, id: KeyId) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn create_permit(
         &self,
@@ -138,15 +138,15 @@ impl Store for DynStore {
         }
     }
 
-    async fn delete_share(&self, id: ShareId) -> Result<(), Error> {
+    async fn delete_share_version(&self, id: ShareId) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.delete_share(id).await,
+            DynStoreKind::Memory(s) => s.delete_share_version(id).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.delete_share(id).await,
+            DynStoreKind::Aws(s) => s.delete_share_version(id).await,
             #[cfg(feature = "azure")]
-            DynStoreKind::Azure(s) => s.delete_share(id).await,
+            DynStoreKind::Azure(s) => s.delete_share_version(id).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.delete_share(id).await,
+            DynStoreKind::Local(s) => s.delete_share_version(id).await,
         }
     }
 
@@ -174,15 +174,15 @@ impl Store for DynStore {
         }
     }
 
-    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
+    async fn delete_key_version(&self, id: KeyId) -> Result<(), Error> {
         match &self.inner {
-            DynStoreKind::Memory(s) => s.delete_key(id).await,
+            DynStoreKind::Memory(s) => s.delete_key_version(id).await,
             #[cfg(feature = "aws")]
-            DynStoreKind::Aws(s) => s.delete_key(id).await,
+            DynStoreKind::Aws(s) => s.delete_key_version(id).await,
             #[cfg(feature = "azure")]
-            DynStoreKind::Azure(s) => s.delete_key(id).await,
+            DynStoreKind::Azure(s) => s.delete_key_version(id).await,
             #[cfg(feature = "local")]
-            DynStoreKind::Local(s) => s.delete_key(id).await,
+            DynStoreKind::Local(s) => s.delete_key_version(id).await,
         }
     }
 
@@ -384,7 +384,7 @@ pub async fn create(
             #[cfg(feature = "azure")]
             StoreKind::Aws => {
                 todo!("account");
-                DynStoreKind::Azure(azure::Client::connect("".into(), host, env).await?)
+                DynStoreKind::Azure(azure::Client::connect(host, env).await?)
             }
             #[cfg(feature = "local")]
             StoreKind::Local => todo!(),
@@ -506,6 +506,12 @@ impl ToKey for ChainId {
 impl ToKey for () {
     fn to_key(&self) -> String {
         Default::default()
+    }
+}
+
+impl ToKey for &[u8] {
+    fn to_key(&self) -> String {
+        hex::encode(self)
     }
 }
 

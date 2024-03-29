@@ -384,29 +384,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aws-sdk-kms"
-version = "1.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75e3f79ff95933d7f91d3a22afd0c908589689846b14199451416b7c1b5c2886"
-dependencies = [
- "aws-credential-types",
- "aws-http",
- "aws-runtime",
- "aws-smithy-async",
- "aws-smithy-http",
- "aws-smithy-json",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
- "aws-smithy-types",
- "aws-types",
- "bytes",
- "http 0.2.11",
- "once_cell",
- "regex-lite",
- "tracing",
-]
-
-[[package]]
 name = "aws-sdk-sso"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4350,7 +4327,6 @@ dependencies = [
  "async-stream",
  "aws-config",
  "aws-sdk-dynamodb",
- "aws-sdk-kms",
  "axum",
  "axum-extra",
  "azure_core",
@@ -4362,7 +4338,7 @@ dependencies = [
  "clap",
  "coset",
  "ethers",
- "futures",
+ "futures-util",
  "hex",
  "http-body 1.0.0",
  "once_cell",

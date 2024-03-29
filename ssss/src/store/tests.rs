@@ -4,49 +4,43 @@ use super::*;
 
 #[macro_export]
 macro_rules! make_store_tests {
-        ($store_factory:expr) => {
-            $crate::make_store_tests!(
-                $store_factory,
-                roundtrip_share,
-                create_second_share_version,
-                create_duplicate_share_version,
-                create_discontinuous_share_version,
-                create_second_share,
-                roundtrip_key,
-                create_second_key_version,
-                create_duplicate_key_version,
-                create_discontinuous_key_version,
-                create_second_key,
-                roundtrip_permit,
-                refresh_permit,
-                expired_permit,
-                used_nonce_permit,
-                defresh_permit_fail,
-                delete_defresh_permit,
-                roundtrip_chain_state,
-                roundtrip_verifier,
-            );
-        };
-        ($store_factory:expr, $($test:ident),+ $(,)?) => {
-            $(
-                #[tokio::test]
-                async fn $test() {
-                    let store = $store_factory.await;
-                    $crate::store::tests::$test(store).await;
-                }
-            )+
-        }
+    ($store_factory:expr) => {
+        $crate::make_store_tests!(
+            $store_factory,
+            roundtrip_share,
+            create_second_share_version,
+            create_duplicate_share_version,
+            create_discontinuous_share_version,
+            create_delete_create_share_version,
+            create_second_share,
+            roundtrip_key,
+            create_second_key_version,
+            create_duplicate_key_version,
+            create_discontinuous_key_version,
+            create_delete_create_key_version,
+            create_second_key,
+            roundtrip_permit,
+            refresh_permit,
+            expired_permit,
+            used_nonce_permit,
+            defresh_permit_fail,
+            delete_defresh_permit,
+            roundtrip_chain_state,
+            roundtrip_verifier,
+        );
+    };
+    ($store_factory:expr, $($test:ident),+ $(,)?) => {
+        $(
+            #[tokio::test]
+            async fn $test() {
+                let store = $store_factory.await;
+                $crate::store::tests::$test(store).await;
+            }
+        )+
     }
+}
 
-async fn with_share<'a, S: Store, Fut, T>(
-    store: &'a S,
-    identity: IdentityId,
-    version: ShareVersion,
-    f: impl FnOnce(&'a S, ShareId) -> Fut,
-) -> Result<T, Error>
-where
-    Fut: futures::Future<Output = T> + 'a,
-{
+fn make_share(identity: IdentityId, version: u64) -> (ShareId, SecretShare) {
     let share_id = ShareId {
         secret_name: "test".into(),
         identity: IdentityLocator {
@@ -58,27 +52,50 @@ where
     };
     let mut share = vec![0u8; 32];
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut share);
-    let created = store
-        .put_share(
-            share_id.clone(),
-            SecretShare {
-                index: 1,
-                share: share.into(),
-            },
-        )
-        .await?;
+    (
+        share_id,
+        SecretShare {
+            index: 1,
+            share: share.into(),
+        },
+    )
+}
+
+async fn with_new_share<'a, S: Store, Fut, T>(
+    store: &'a S,
+    identity: IdentityId,
+    version: ShareVersion,
+    f: impl FnOnce(&'a S, ShareId) -> Fut,
+) -> Result<T, Error>
+where
+    Fut: std::future::Future<Output = T> + 'a,
+{
+    let (share_id, share) = make_share(identity, version);
+    with_share(store, share_id, share, f).await
+}
+
+async fn with_share<'a, S: Store, Fut, T>(
+    store: &'a S,
+    share_id: ShareId,
+    share: SecretShare,
+    f: impl FnOnce(&'a S, ShareId) -> Fut,
+) -> Result<T, Error>
+where
+    Fut: std::future::Future<Output = T> + 'a,
+{
+    let created = store.put_share(share_id.clone(), share).await?;
     ensure!(
         created,
         "share not created due to duplicate or non-contiguous version"
     );
     let res = f(store, share_id.clone()).await;
-    store.delete_share(share_id.clone()).await?;
+    store.delete_share_version(share_id.clone()).await?;
     Ok(res)
 }
 
 pub async fn roundtrip_share(store: impl Store) {
     let identity = IdentityId::random();
-    with_share(&store, identity, 1, |store, share_id| async move {
+    with_new_share(&store, identity, 1, |store, share_id| async move {
         ensure!(share_id.identity.chain == 31337, "unexpected share chain");
         ensure!(
             share_id.identity.registry == Address::repeat_byte(1),
@@ -101,9 +118,9 @@ pub async fn roundtrip_share(store: impl Store) {
 
 pub async fn create_second_share_version(store: impl Store) {
     let identity = IdentityId::random();
-    with_share(&store, identity, 1, |store, share_id1| async move {
+    with_new_share(&store, identity, 1, |store, share_id1| async move {
         let share1_1 = store.get_share(share_id1.clone()).await?;
-        with_share(store, identity, 2, |store, share_id2| async move {
+        with_new_share(store, identity, 2, |store, share_id2| async move {
             ensure!(
                 share_id1.identity == share_id2.identity,
                 "share identity changed"
@@ -119,15 +136,15 @@ pub async fn create_second_share_version(store: impl Store) {
     })
     .await
     .expect("test failed")
-    .expect("second share creation failed")
-    .expect("first share creation failed");
+    .expect("first share creation failed")
+    .expect("second share creation failed");
 }
 
 pub async fn create_duplicate_share_version(store: impl Store) {
     let identity = IdentityId::random();
-    with_share(&store, identity, 1, |store, _| async move {
+    with_new_share(&store, identity, 1, |store, _| async move {
         ensure!(
-            with_share(store, identity, 1, |_, _| async move {})
+            with_new_share(store, identity, 1, |_, _| async move {})
                 .await
                 .is_err(),
             "duplicate share version wrongly created"
@@ -139,11 +156,33 @@ pub async fn create_duplicate_share_version(store: impl Store) {
     .expect("first share creation failed");
 }
 
+pub async fn create_delete_create_share_version(store: impl Store) {
+    let identity = IdentityId::random();
+    let (share_id_1, share) = make_share(identity, 1);
+    let share_id_2 = ShareId {
+        version: 2,
+        ..share_id_1.clone()
+    };
+    let share_id_3 = ShareId {
+        version: 3,
+        ..share_id_1.clone()
+    };
+    with_share(&store, share_id_1, share.clone(), |_, _| async {})
+        .await
+        .unwrap();
+    with_share(&store, share_id_2, share.clone(), |_, _| async {})
+        .await
+        .unwrap();
+    with_share(&store, share_id_3, share, |_, _| async {})
+        .await
+        .unwrap();
+}
+
 pub async fn create_discontinuous_share_version(store: impl Store) {
     let identity = IdentityId::random();
-    with_share(&store, identity, 1, |store, _| async move {
+    with_new_share(&store, identity, 1, |store, _| async move {
         ensure!(
-            with_share(store, identity, 3, |_, _| async move {})
+            with_new_share(store, identity, 3, |_, _| async move {})
                 .await
                 .is_err(),
             "discontinuous share version wrongly created"
@@ -158,9 +197,9 @@ pub async fn create_discontinuous_share_version(store: impl Store) {
 pub async fn create_second_share(store: impl Store) {
     let identity1 = IdentityId::random();
     let identity2 = IdentityId::random();
-    with_share(&store, identity1, 1, |store, share_id1| async move {
+    with_new_share(&store, identity1, 1, |store, share_id1| async move {
         let share1 = store.get_share(share_id1).await?;
-        with_share(store, identity2, 1, |store, share_id2| async move {
+        with_new_share(store, identity2, 1, |store, share_id2| async move {
             let share2 = store.get_share(share_id2).await?;
             ensure!(share1 != share2, "wrong share returned");
             Ok(())
@@ -169,19 +208,11 @@ pub async fn create_second_share(store: impl Store) {
     })
     .await
     .expect("test failed")
-    .expect("second share creation failed")
-    .expect("first share creation failed");
+    .expect("first share creation failed")
+    .expect("second share creation failed");
 }
 
-async fn with_key<'a, S: Store, Fut, T>(
-    store: &'a S,
-    identity: IdentityId,
-    version: KeyVersion,
-    f: impl FnOnce(&'a S, KeyId) -> Fut,
-) -> Result<T, Error>
-where
-    Fut: futures::Future<Output = T> + 'a,
-{
+fn make_key(identity: IdentityId, version: u64) -> (KeyId, WrappedKey) {
     let key_id = KeyId {
         name: "omni".to_string(),
         identity: IdentityLocator {
@@ -193,19 +224,44 @@ where
     };
     let mut key = vec![0u8; 32];
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut key);
-    let created = store.put_key(key_id.clone(), key.into()).await?;
+    (key_id, key.into())
+}
+
+async fn with_new_key<'a, S: Store, Fut, T>(
+    store: &'a S,
+    identity: IdentityId,
+    version: KeyVersion,
+    f: impl FnOnce(&'a S, KeyId) -> Fut,
+) -> Result<T, Error>
+where
+    Fut: std::future::Future<Output = T> + 'a,
+{
+    let (key_id, key) = make_key(identity, version);
+    with_key(store, key_id, key, f).await
+}
+
+async fn with_key<'a, S: Store, Fut, T>(
+    store: &'a S,
+    key_id: KeyId,
+    key: WrappedKey,
+    f: impl FnOnce(&'a S, KeyId) -> Fut,
+) -> Result<T, Error>
+where
+    Fut: std::future::Future<Output = T> + 'a,
+{
+    let created = store.put_key(key_id.clone(), key).await?;
     ensure!(
         created,
         "key not created due to duplicate or non-contiguous version"
     );
     let res = f(store, key_id.clone()).await;
-    store.delete_key(key_id).await?;
+    store.delete_key_version(key_id).await?;
     Ok(res)
 }
 
 pub async fn roundtrip_key(store: impl Store) {
     let identity = IdentityId::random();
-    with_key(&store, identity, 1, |store, key_id| async move {
+    with_new_key(&store, identity, 1, |store, key_id| async move {
         ensure!(key_id.identity.chain == 31337, "unexpected key chain");
         ensure!(
             key_id.identity.registry == Address::repeat_byte(1),
@@ -225,9 +281,9 @@ pub async fn roundtrip_key(store: impl Store) {
 
 pub async fn create_second_key_version(store: impl Store) {
     let identity = IdentityId::random();
-    with_key(&store, identity, 1, |store, key_id1| async move {
+    with_new_key(&store, identity, 1, |store, key_id1| async move {
         let key1_1 = store.get_key(key_id1.clone()).await?;
-        with_key(store, identity, 2, |store, key_id2| async move {
+        with_new_key(store, identity, 2, |store, key_id2| async move {
             ensure!(key_id1.identity == key_id2.identity, "key identity changed");
             ensure!(key_id2.version == 2, "key version did not increment");
             let key1_2 = store.get_key(key_id1).await?;
@@ -240,15 +296,15 @@ pub async fn create_second_key_version(store: impl Store) {
     })
     .await
     .expect("test failed")
-    .expect("second key creation failed")
-    .expect("first key creation failed");
+    .expect("first key creation failed")
+    .expect("second key creation failed");
 }
 
 pub async fn create_duplicate_key_version(store: impl Store) {
     let identity = IdentityId::random();
-    with_key(&store, identity, 1, |store, _| async move {
+    with_new_key(&store, identity, 1, |store, _| async move {
         ensure!(
-            with_key(store, identity, 1, |_, _| async move {})
+            with_new_key(store, identity, 1, |_, _| async move {})
                 .await
                 .is_err(),
             "duplicate key version wrongly created"
@@ -260,11 +316,33 @@ pub async fn create_duplicate_key_version(store: impl Store) {
     .expect("first key creation failed");
 }
 
+pub async fn create_delete_create_key_version(store: impl Store) {
+    let identity = IdentityId::random();
+    let (key_id_1, key) = make_key(identity, 1);
+    let key_id_2 = KeyId {
+        version: 2,
+        ..key_id_1.clone()
+    };
+    let key_id_3 = KeyId {
+        version: 3,
+        ..key_id_1.clone()
+    };
+    with_key(&store, key_id_1, key.clone(), |_, _| async {})
+        .await
+        .unwrap();
+    with_key(&store, key_id_2, key.clone(), |_, _| async {})
+        .await
+        .unwrap();
+    with_key(&store, key_id_3, key, |_, _| async {})
+        .await
+        .unwrap();
+}
+
 pub async fn create_discontinuous_key_version(store: impl Store) {
     let identity = IdentityId::random();
-    with_key(&store, identity, 1, |store, _| async move {
+    with_new_key(&store, identity, 1, |store, _| async move {
         ensure!(
-            with_key(store, identity, 3, |_, _| async move {})
+            with_new_key(store, identity, 3, |_, _| async move {})
                 .await
                 .is_err(),
             "discontinuous key version wrongly created"
@@ -279,9 +357,9 @@ pub async fn create_discontinuous_key_version(store: impl Store) {
 pub async fn create_second_key(store: impl Store) {
     let identity1 = IdentityId::random();
     let identity2 = IdentityId::random();
-    with_key(&store, identity1, 1, |store, key_id1| async move {
+    with_new_key(&store, identity1, 1, |store, key_id1| async move {
         let key1 = store.get_key(key_id1).await?;
-        with_key(store, identity2, 1, |store, key_id2| async move {
+        with_new_key(store, identity2, 1, |store, key_id2| async move {
             let key2 = store.get_key(key_id2).await?;
             ensure!(key1 != key2, "wrong key returned");
             Ok(())
@@ -290,8 +368,8 @@ pub async fn create_second_key(store: impl Store) {
     })
     .await
     .expect("test failed")
-    .expect("second key creation failed")
-    .expect("first key creation failed");
+    .expect("first key creation failed")
+    .expect("second key creation failed");
 }
 
 async fn with_permit<'a, S: Store, Fut, T>(
@@ -302,7 +380,7 @@ async fn with_permit<'a, S: Store, Fut, T>(
     f: impl FnOnce(&'a S, Permit) -> Fut,
 ) -> Option<T>
 where
-    Fut: futures::Future<Output = T> + 'a,
+    Fut: std::future::Future<Output = T> + 'a,
 {
     let mut nonce = vec![0u8; 32];
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
@@ -318,19 +396,19 @@ async fn with_permit_nonce<'a, S: Store, Fut, T>(
     nonce: Vec<u8>,
 ) -> Option<T>
 where
-    Fut: futures::Future<Output = T> + 'a,
+    Fut: std::future::Future<Output = T> + 'a,
 {
     let permit = store
         .create_permit(share.identity, recipient, expiry, nonce)
         .await
-        .unwrap();
+        .expect("permit not created");
     match permit {
         Some(p) => {
             let res = f(store, p).await;
             store
                 .delete_permit(share.identity, recipient)
                 .await
-                .unwrap();
+                .expect("permit not deleted");
             Some(res)
         }
         None => None,
@@ -352,7 +430,7 @@ fn mock_share() -> ShareId {
 pub async fn roundtrip_permit(store: impl Store) {
     let share = mock_share();
     let recipient = Address::random();
-    let expiry = now() + 20;
+    let expiry = now() + 30;
     with_permit(
         &store,
         share.clone(),
@@ -393,7 +471,7 @@ pub async fn expired_permit(store: impl Store) {
 pub async fn used_nonce_permit(store: impl Store) {
     let share = mock_share();
     let recipient = Address::random();
-    let expiry = now() + 5;
+    let expiry = now() + 30;
     let mut nonce = vec![0u8; 32];
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
 
@@ -423,8 +501,8 @@ pub async fn used_nonce_permit(store: impl Store) {
 pub async fn refresh_permit(store: impl Store) {
     let share = mock_share();
     let recipient = Address::random();
-    let expiry_soon = now() + 5;
-    let expiry_far = now() + 10;
+    let expiry_soon = now() + 30;
+    let expiry_far = now() + 60;
     with_permit(
         &store,
         share.clone(),
@@ -441,7 +519,7 @@ pub async fn refresh_permit(store: impl Store) {
                     ensure!(read_permit.is_some(), "permit not created");
                     ensure!(
                         read_permit.unwrap().expiry == expiry_far,
-                        "permit exiry not refrshed"
+                        "permit expiry not refreshed"
                     );
                     Ok(())
                 },
@@ -451,15 +529,15 @@ pub async fn refresh_permit(store: impl Store) {
     )
     .await
     .expect("test failed")
-    .expect("second permit creation failed")
-    .expect("first permit creation failed");
+    .expect("first permit creation failed")
+    .expect("second permit creation failed");
 }
 
 pub async fn defresh_permit_fail(store: impl Store) {
     let share = mock_share();
     let recipient = Address::random();
-    let expiry_soon = now() + 5;
-    let expiry_far = now() + 10;
+    let expiry_soon = now() + 30;
+    let expiry_far = now() + 60;
     with_permit(
         &store,
         share.clone(),
@@ -480,8 +558,8 @@ pub async fn defresh_permit_fail(store: impl Store) {
 pub async fn delete_defresh_permit(store: impl Store) {
     let share = mock_share();
     let recipient = Address::random();
-    let expiry_soon = now() + 5;
-    let expiry_far = now() + 10;
+    let expiry_soon = now() + 30;
+    let expiry_far = now() + 60;
     with_permit(
         &store,
         share.clone(),

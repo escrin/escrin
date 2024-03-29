@@ -17,6 +17,7 @@ type Grantee = (IdentityLocator, Address);
 type PermitterIdentityLocator = (PermitterLocator, IdentityId);
 type VerionedVerifierConfig = (Vec<u8>, EventIndex);
 type IdentityNamedItem = (IdentityLocator, String);
+type IdentityNonce = (IdentityLocator, Nonce);
 
 #[derive(Default)]
 struct State {
@@ -25,7 +26,7 @@ struct State {
     permits: RwLock<HashMap<Grantee, Permit>>,
     verifiers: RwLock<HashMap<PermitterIdentityLocator, VerionedVerifierConfig>>,
     chain: RwLock<HashMap<u64, ChainState>>,
-    nonces: RwLock<HashSet<Nonce>>,
+    nonces: RwLock<HashSet<IdentityNonce>>,
 }
 
 impl Store for MemoryStore {
@@ -54,7 +55,7 @@ impl Store for MemoryStore {
             .flatten())
     }
 
-    async fn delete_share(&self, id: ShareId) -> Result<(), Error> {
+    async fn delete_share_version(&self, id: ShareId) -> Result<(), Error> {
         if let Some(versions) = self.state.shares.write().unwrap().get_mut(&id.identity) {
             if let btree_map::Entry::Occupied(mut oe) = versions.entry(id.version) {
                 oe.insert(None);
@@ -88,7 +89,7 @@ impl Store for MemoryStore {
             .flatten())
     }
 
-    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
+    async fn delete_key_version(&self, id: KeyId) -> Result<(), Error> {
         if let Some(versions) = self
             .state
             .keys
@@ -110,7 +111,7 @@ impl Store for MemoryStore {
         expiry: u64,
         nonce: Nonce,
     ) -> Result<Option<Permit>, Error> {
-        if !self.state.nonces.write().unwrap().insert(nonce) {
+        if !self.state.nonces.write().unwrap().insert((identity, nonce)) {
             return Ok(None);
         }
         Ok(

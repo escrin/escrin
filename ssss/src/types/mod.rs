@@ -107,6 +107,12 @@ impl From<Vec<u8>> for WrappedKey {
     }
 }
 
+impl AsRef<[u8]> for WrappedKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EventIndex {
     pub block: u64,

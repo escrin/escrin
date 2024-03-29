@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use azure_core::Etag;
 use azure_data_tables::prelude::*;
-use futures::TryStreamExt;
+use futures_util::{StreamExt as _, TryStreamExt as _};
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -16,44 +16,49 @@ pub struct Client {
     db: Arc<TableServiceClient>,
 }
 
-macro_rules! naming_fn {
-    ($fn_name:ident, $prefix:literal) => {
-        const fn $fn_name(&self) -> &'static str {
-            match self.env {
-                Environment::Dev => concat!($prefix, "-dev"),
-                Environment::Prod => concat!($prefix, "-prod"),
-            }
-        }
-    };
-}
+static SECRET_VERSIONS_TABLE: &str = "secretversions";
+static PERMITS_TABLE: &str = "permits";
+static NONCES_TABLE: &str = "nonces";
+static VERIFIERS_TABLE: &str = "verifiers";
+static CHAIN_STATE_TABLE: &str = "chainstate";
 
 impl Client {
-    pub async fn connect(
-        account: String,
-        host: &Authority,
-        env: Environment,
-    ) -> Result<Self, Error> {
+    pub async fn connect(host: &Authority, env: Environment) -> Result<Self, Error> {
+        let hostname = host.to_string();
+        let kv_url = format!(
+            "https://{}-{env}.vault.azure.net",
+            hostname
+                .chars()
+                .map(|ch| match ch {
+                    '.' | '_' => '-',
+                    _ => ch,
+                })
+                .collect::<String>(),
+        );
+        let sa_name = format!(
+            "{}{env}",
+            hostname
+                .chars()
+                .filter(|ch| !matches!(ch, '.' | '-' | '_'))
+                .collect::<String>(),
+        );
+
         let creds = Arc::new(azure_identity::DefaultAzureCredential::default());
         let secrets = Arc::new(azure_security_keyvault::SecretClient::new(
-            &format!("https://{env}.{host}.vault.azure.net"),
+            &kv_url,
             creds.clone(),
         )?);
         let creds: Arc<dyn azure_core::auth::TokenCredential + 'static> = creds;
-        let db = Arc::new(TableServiceClient::new(account, creds));
+        let db = Arc::new(TableServiceClient::new(sa_name, creds));
 
         Ok(Self { env, secrets, db })
     }
-
-    naming_fn!(permits_table, "escrin-permits");
-    naming_fn!(nonces_table, "escrin-nonces");
-    naming_fn!(verifiers_table, "escrin-verifiers");
-    naming_fn!(chain_state_table, "escrin-chain-state");
 
     async fn get_current_chain_state(
         &self,
         chain: ChainId,
     ) -> Result<Option<(Etag, ChainState)>, Error> {
-        self.get_current(self.chain_state_table(), chain, None::<()>)
+        self.get_current(CHAIN_STATE_TABLE, &chain, None::<&()>)
             .await
     }
 
@@ -61,16 +66,16 @@ impl Client {
         &self,
         permitter: PermitterLocator,
         identity: IdentityId,
-    ) -> Result<Option<(Etag, Vec<u8>)>, Error> {
-        self.get_current(self.verifiers_table(), permitter, Some(identity))
+    ) -> Result<Option<(Etag, VerifierEntity)>, Error> {
+        self.get_current(VERIFIERS_TABLE, &permitter, Some(&identity))
             .await
     }
 
     async fn get_current<T: serde::de::DeserializeOwned + Send + Sync>(
         &self,
         table: &'static str,
-        partition_key: impl ToKey,
-        row_key: Option<impl ToKey>,
+        partition_key: &impl ToKey,
+        row_key: Option<&impl ToKey>,
     ) -> Result<Option<(Etag, T)>, Error> {
         let partition_key_filter = format!("PartitionKey eq '{}'", partition_key.to_key());
         let filter = match row_key {
@@ -97,6 +102,87 @@ impl Client {
         };
         Ok(Some(("".parse().unwrap(), entity)))
     }
+
+    async fn get_secret_guid(
+        &self,
+        key: &impl ToKey,
+        version: SecretVersion,
+    ) -> Result<Option<(u64, String)>, Error> {
+        let version = match version {
+            SecretVersion::Latest => None,
+            SecretVersion::Numbered(n) => Some(InvSortableInt(n)),
+        };
+        let Some((_, SecretVersionEntity { version, guid, .. })) = self
+            .get_current::<SecretVersionEntity>(SECRET_VERSIONS_TABLE, key, version.as_ref())
+            .await?
+        else {
+            return Ok(None);
+        };
+        Ok(Some((version.0, guid)))
+    }
+
+    async fn put_secret(
+        &self,
+        id: &impl ToKey,
+        version: u64,
+        secret: String,
+    ) -> Result<bool, Error> {
+        let (current_version, guid) = self
+            .get_secret_guid(id, SecretVersion::Latest)
+            .await?
+            .unwrap_or_default();
+        if version != current_version + 1 {
+            return Ok(false);
+        }
+        self.secrets.set(id.to_key(), secret).into_future().await?;
+        let secret = self.secrets.get(id.to_key()).into_future().await?;
+        self.db
+            .table_client(SECRET_VERSIONS_TABLE)
+            .insert::<_, ()>(SecretVersionEntity {
+                id: id.to_key(),
+                version: InvSortableInt(version),
+                guid: secret.id.rsplit_once('/').unwrap().1.to_string(),
+            })?
+            .return_entity(false)
+            .into_future()
+            .await;
+        Ok(true)
+    }
+
+    async fn get_secret(&self, id: &impl ToKey, version: u64) -> Result<Option<String>, Error> {
+        let Some((_, guid)) = self
+            .get_secret_guid(id, SecretVersion::Numbered(version))
+            .await?
+        else {
+            return Ok(None);
+        };
+        let s = self
+            .secrets
+            .get(id.to_key())
+            .version(&guid)
+            .into_future()
+            .await?;
+        if !s.attributes.enabled {
+            return Ok(None);
+        }
+        Ok(Some(s.value))
+    }
+
+    async fn delete_secret_version(&self, id: &impl ToKey, version: u64) -> Result<(), Error> {
+        let Some((_, guid)) = self
+            .get_secret_guid(id, SecretVersion::Numbered(version))
+            .await?
+        else {
+            return Ok(());
+        };
+        self.secrets
+            .update(id.to_key())
+            .version(guid)
+            .enabled(false)
+            .into_future()
+            .await
+            .or_else(default_if_notfound)
+    }
 }
 
 fn encode_ss(SecretShare { index, share }: SecretShare) -> String {
@@ -115,83 +201,33 @@ fn decode_ss(s: String) -> Result<SecretShare, Error> {
 
 impl Store for Client {
     async fn put_share(&self, id: ShareId, ss: SecretShare) -> Result<bool, Error> {
-        let mut share_versions = self
-            .secrets
-            .get_versions(id.identity.to_key())
-            .into_stream();
-        let mut current_version: u64 = 0;
-        while let Some(versions) = share_versions.try_next().await? {
-            current_version += versions.value.len() as u64;
-        }
-        if id.version != current_version + 1 {
-            return Ok(false);
-        }
-
-        self.secrets
-            .set(id.identity.to_key(), encode_ss(ss))
-            .into_future()
-            .await?;
-        Ok(true)
+        self.put_secret(&id, id.version, encode_ss(ss)).await
     }
 
     async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
-        let s = self
-            .secrets
-            .get(id.identity.to_key())
-            .version(id.version.to_string())
-            .into_future()
-            .await?;
-        if !s.attributes.enabled {
+        let Some(s) = self.get_secret(&id, id.version).await? else {
             return Ok(None);
-        }
-        decode_ss(s.value).map(Some)
+        };
+        decode_ss(s).map(Some)
     }
 
-    async fn delete_share(&self, id: ShareId) -> Result<(), Error> {
-        Ok(self
-            .secrets
-            .delete(id.identity.to_key())
-            .into_future()
-            .await?)
+    async fn delete_share_version(&self, id: ShareId) -> Result<(), Error> {
+        self.delete_secret_version(&id, id.version).await
     }
 
     async fn put_key(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
-        let mut key_versions = self.secrets.get_versions(id.to_key()).into_stream();
-        let mut current_version: u64 = 0;
-        while let Some(versions) = key_versions.try_next().await? {
-            current_version += versions.value.len() as u64;
-        }
-        if id.version != current_version + 1 {
-            return Ok(false);
-        }
-
-        self.secrets
-            .set(id.identity.to_key(), hex::encode(&key.into_vec()))
-            .into_future()
-            .await?;
-        Ok(true)
+        self.put_secret(&id, id.version, hex::encode(&key)).await
     }
 
     async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
-        let s = self
-            .secrets
-            .get(id.to_key())
-            .version(id.version.to_string())
-            .into_future()
-            .await?;
-        if !s.attributes.enabled {
+        let Some(k) = self.get_secret(&id, id.version).await? else {
             return Ok(None);
-        }
-        let key_hex = zeroize::Zeroizing::new(s.value);
-        Ok(Some(hex::decode(&key_hex)?.into()))
+        };
+        Ok(Some(hex::decode(k)?.into()))
     }
 
-    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
-        Ok(self
-            .secrets
-            .delete(id.identity.to_key())
-            .into_future()
-            .await?)
+    async fn delete_key_version(&self, id: KeyId) -> Result<(), Error> {
+        self.delete_secret_version(&id, id.version).await
     }
 
     async fn create_permit(
@@ -201,40 +237,29 @@ impl Store for Client {
         expiry: u64,
         nonce: Nonce,
     ) -> Result<Option<Permit>, Error> {
-        let nonces = self.db.table_client(self.nonces_table());
-        let nonce_key = nonce_to_key(&nonce);
+        let nonces = self
+            .db
+            .table_client(NONCES_TABLE)
+            .partition_key_client(identity.to_key())
+            .entity_client(nonce.as_slice().to_key());
 
         let nonce_used = nonces
-            .query()
-            .filter(format!("PartitionKey eq '{nonce_key}'"))
-            .top(1)
-            .into_stream::<Expiring<()>>()
-            .try_next()
-            .await?
-            .and_then(|res| res.entities.into_iter().nth(0))
-            .map(|e| e.expiry > now())
-            .unwrap_or_default();
+            .get::<Expiring<()>>()
+            .into_future()
+            .await
+            .map(|res| res.entity.expiry > now())
+            .or_else(default_if_notfound)?;
         if nonce_used {
             return Ok(None);
         }
 
         let nonce_res = nonces
-            .insert::<_, ()>(Expiring {
-                item: NonceEntity { nonce },
-                expiry,
-            })?
-            .return_entity(false)
+            .insert_or_replace(Expiring { item: (), expiry })?
             .into_future()
             .await;
 
         let cleanup_nonce = || async {
-            nonces
-                .partition_key_client(&nonce_key)
-                .entity_client("")
-                .delete()
-                .into_future()
-                .await
-                .ok();
+            nonces.delete().into_future().await.ok();
         };
 
         if let Err(e) = nonce_res {
@@ -243,25 +268,22 @@ impl Store for Client {
         }
 
         match self.read_permit(identity, recipient).await {
-            Ok(Some(_)) => return Ok(None),
-            Ok(None) => {}
+            Ok(Some(Permit {
+                expiry: prev_expiry,
+            })) if prev_expiry >= expiry => return Ok(None),
             Err(e) => {
                 cleanup_nonce().await;
                 return Err(e);
             }
+            _ => {}
         }
 
         let permit_res = self
             .db
-            .table_client(self.permits_table())
-            .insert::<_, ()>(Expiring {
-                item: PermitEntity {
-                    identity,
-                    recipient,
-                },
-                expiry,
-            })?
-            .return_entity(false)
+            .table_client(PERMITS_TABLE)
+            .partition_key_client(identity.to_key())
+            .entity_client(recipient.to_key())
+            .insert_or_merge(Expiring { item: (), expiry })?
             .into_future()
             .await;
 
@@ -280,19 +302,14 @@ impl Store for Client {
     ) -> Result<Option<Permit>, Error> {
         let Some(permit) = self
             .db
-            .table_client(self.permits_table())
-            .query()
-            .filter(format!(
-                "PartitionKey eq '{}' and RowKey eq '{}' and expiry gt {}",
-                identity.to_key(),
-                recipient.to_key(),
-                now()
-            ))
-            .top(1)
-            .into_stream::<Expiring<()>>()
-            .try_next()
-            .await?
-            .and_then(|res| res.entities.into_iter().nth(0))
+            .table_client(PERMITS_TABLE)
+            .partition_key_client(identity.to_key())
+            .entity_client(recipient.to_key())
+            .get::<Expiring<()>>()
+            .into_future()
+            .await
+            .map(|res| (res.entity.expiry > now()).then_some(res.entity))
+            .or_else(default_if_notfound)?
         else {
             return Ok(None);
         };
@@ -307,13 +324,14 @@ impl Store for Client {
         recipient: Address,
     ) -> Result<(), Error> {
         self.db
-            .table_client(self.permits_table())
+            .table_client(PERMITS_TABLE)
             .partition_key_client(identity.to_key())
             .entity_client(recipient.to_key())
             .delete()
             .into_future()
-            .await?;
-        Ok(())
+            .await
+            .map(|_| ())
+            .or_else(default_if_notfound)
     }
 
     async fn get_chain_state(&self, chain: ChainId) -> Result<Option<ChainState>, Error> {
@@ -328,14 +346,24 @@ impl Store for Client {
         chain: ChainId,
         update: ChainStateUpdate,
     ) -> Result<(), Error> {
-        let current_chain_state = self.get_current_chain_state(chain).await?;
-        // TODO: get the etag from the current state and do conditional update
+        let Some(block) = update.block else {
+            return Ok(());
+        };
+        // TODO: use etag and conditional insert once etag is supported
+        let current_chain_state = self
+            .get_current_chain_state(chain)
+            .await?
+            .map(|(_, s)| s)
+            .unwrap_or_default();
+        if current_chain_state.block >= block {
+            return Ok(());
+        }
 
         self.db
-            .table_client(self.chain_state_table())
+            .table_client(CHAIN_STATE_TABLE)
             .partition_key_client(chain.to_key())
             .entity_client("")
-            .update(update, IfMatchCondition::Any)?
+            .insert_or_merge(update)?
             .into_future()
             .await?;
         Ok(())
@@ -344,13 +372,14 @@ impl Store for Client {
     #[cfg(test)]
     async fn clear_chain_state(&self, chain: ChainId) -> Result<(), Error> {
         self.db
-            .table_client(self.chain_state_table())
+            .table_client(CHAIN_STATE_TABLE)
             .partition_key_client(chain.to_key())
-            .entity_client(chain.to_key())
+            .entity_client("")
             .delete()
             .into_future()
-            .await?;
-        Ok(())
+            .await
+            .map(|_| ())
+            .or_else(default_if_notfound)
     }
 
     async fn get_verifier(
@@ -361,7 +390,7 @@ impl Store for Client {
         Ok(self
             .get_current_verifier(permitter, identity)
             .await?
-            .map(|(_, v)| v))
+            .map(|(_, v)| v.config))
     }
 
     async fn update_verifier(
@@ -371,21 +400,25 @@ impl Store for Client {
         config: Vec<u8>,
         EventIndex { block, log_index }: EventIndex,
     ) -> Result<(), Error> {
-        let current_verifier = self.get_current_verifier(permitter, identity).await?;
-        // TODO: get the etag from the current state and do conditional update
-        // TODO: store block and log index for idempotence
+        let current_verifier_ix = self
+            .get_current_verifier(permitter, identity)
+            .await?
+            .map(|(_, v)| (v.block, v.log_index))
+            .unwrap_or_default();
+        if current_verifier_ix >= (block, log_index) {
+            return Ok(());
+        }
         self.db
-            .table_client(self.verifiers_table())
+            .table_client(VERIFIERS_TABLE)
             .partition_key_client(permitter.to_key())
             .entity_client(identity.to_key())
-            .update(
-                VerifierEntity {
-                    permitter,
-                    identity,
-                    config,
-                },
-                IfMatchCondition::Any,
-            )?
+            .insert_or_replace(VerifierEntity {
+                permitter,
+                identity,
+                config,
+                block,
+                log_index,
+            })?
             .into_future()
             .await?;
         Ok(())
@@ -398,18 +431,21 @@ impl Store for Client {
         identity: IdentityId,
     ) -> Result<(), Error> {
         self.db
-            .table_client(self.verifiers_table())
+            .table_client(VERIFIERS_TABLE)
             .partition_key_client(permitter.to_key())
             .entity_client(identity.to_key())
             .delete()
             .into_future()
-            .await?;
-        Ok(())
+            .await
+            .map(|_| ())
+            .or_else(default_if_notfound)
     }
 }
 
-fn nonce_to_key(nonce: &[u8]) -> String {
-    hex::encode(nonce)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SecretVersion {
+    Latest,
+    Numbered(u64),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -421,7 +457,9 @@ struct Expiring<T> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct NonceEntity {
-    #[serde(rename = "PartitionKey", with = "hex::serde")]
+    #[serde(rename = "PartitionKey", with = "serde_key")]
+    identity: IdentityLocator,
+    #[serde(rename = "RowKey", with = "hex::serde")]
     nonce: Vec<u8>,
 }
 
@@ -441,6 +479,60 @@ struct VerifierEntity {
     identity: IdentityId,
     #[serde(with = "hex::serde")]
     config: Vec<u8>,
+    block: u64,
+    log_index: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SecretVersionEntity {
+    #[serde(rename = "PartitionKey")]
+    id: String,
+    #[serde(rename = "RowKey")]
+    version: InvSortableInt,
+    guid: String,
+}
+
+/// An integer that sorts inverse numerically when stringified,
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
+struct InvSortableInt(u64);
+
+impl std::fmt::Display for InvSortableInt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", hex::encode((u64::MAX - self.0).to_be_bytes()))
+    }
+}
+
+impl From<InvSortableInt> for String {
+    fn from(v: InvSortableInt) -> Self {
+        format!("{}", v)
+    }
+}
+
+impl TryFrom<String> for InvSortableInt {
+    type Error = anyhow::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let mut b = [0u8; 8];
+        hex::decode_to_slice(&s, &mut b)?;
+        Ok(Self(u64::MAX - u64::from_be_bytes(b)))
+    }
+}
+
+impl ToKey for InvSortableInt {
+    fn to_key(&self) -> String {
+        self.to_string()
+    }
+}
+
+fn default_if_notfound<T: Default>(e: azure_core::Error) -> Result<T, Error> {
+    match e.kind() {
+        azure_core::error::ErrorKind::HttpResponse {
+            status: azure_core::StatusCode::NotFound,
+            ..
+        } => Ok(Default::default()),
+        _ => Err(e.into()),
+    }
 }
 
 #[cfg(test)]
@@ -449,12 +541,8 @@ mod tests {
 
     crate::make_store_tests!(async {
         let ssss_host = std::env::var("SSSS_HOST").expect("SSSS_HOST must be set");
-        Client::connect(
-            "".into(),
-            &Authority::try_from(ssss_host).unwrap(),
-            Environment::Dev,
-        )
-        .await
-        .unwrap()
+        Client::connect(&Authority::try_from(ssss_host).unwrap(), Environment::Dev)
+            .await
+            .unwrap()
     });
 }

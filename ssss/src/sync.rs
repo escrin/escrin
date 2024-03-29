@@ -5,7 +5,7 @@ use std::sync::{
 
 use aes_gcm_siv::AeadInPlace as _;
 use ethers::middleware::Middleware;
-use futures::stream::StreamExt as _;
+use futures_util::stream::StreamExt as _;
 use ssss::identity::{self, Identity};
 use tokio::time::{sleep, Duration};
 use tracing::{error, trace, warn};
@@ -78,7 +78,7 @@ async fn sync_chain<M: Middleware + 'static, S: Store + 'static>(
     permitter
         .events(start_block, None)
         .buffered(1)
-        .map(futures::stream::iter)
+        .map(futures_util::stream::iter)
         .flatten()
         .for_each(|event| async move {
             trace!(event = ?event, "event");
