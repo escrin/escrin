@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
                 },
         } => {
             let ssss_identities =
-                futures::future::try_join_all(sssss.iter().map(|maybe_ssss_url| async {
+                futures_util::future::try_join_all(sssss.iter().map(|maybe_ssss_url| async {
                     Ok::<_, eyre::Error>(
                         SsssClient::new(maybe_ssss_url.parse()?)
                             .get_ssss_identity()
@@ -185,13 +185,14 @@ async fn main() -> Result<()> {
             wallet,
         } => {
             let wallet = &*wallet;
-            let shares = futures::future::try_join_all(sssss.iter().map(|url_str| async move {
-                let url: url::Url = url_str.parse()?;
-                SsssClient::new(url)
-                    .get_share("omni", il.into(), *version, wallet, None)
-                    .await
-            }))
-            .await?;
+            let shares =
+                futures_util::future::try_join_all(sssss.iter().map(|url_str| async move {
+                    let url: url::Url = url_str.parse()?;
+                    SsssClient::new(url)
+                        .get_share("omni", il.into(), *version, wallet, None)
+                        .await
+                }))
+                .await?;
 
             let secret = vsss_rs::combine_shares::<p384::Scalar, u8, Vec<u8>>(
                 &shares.into_iter().map(|s| s.1).collect::<Vec<_>>(),

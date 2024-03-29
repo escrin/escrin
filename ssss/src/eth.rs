@@ -10,7 +10,7 @@ use ethers::{
     providers::{self, JsonRpcClient as _},
     types::{Address, Bytes, Filter, Log, Transaction, TxHash, ValueOrArray, H256, U256, U64},
 };
-use futures::{future::BoxFuture, FutureExt, Stream, StreamExt as _, TryStreamExt as _};
+use futures_util::{future::BoxFuture, FutureExt, Stream, StreamExt as _, TryStreamExt as _};
 use smallvec::{smallvec, SmallVec};
 use tokio::sync::{Mutex, OnceCell};
 use tracing::{trace, warn};
@@ -137,7 +137,7 @@ impl<M: providers::Middleware> SsssHub<M> {
         async_stream::stream!({
             for await block in self.blocks(start_block).await {
                 yield self.get_block_events(block, self.address).boxed();
-                yield futures::future::ready(smallvec![Event {
+                yield futures_util::future::ready(smallvec![Event {
                     kind: EventKind::ProcessedBlock,
                     index: Default::default(),
                     tx: Default::default(),
@@ -201,11 +201,11 @@ impl<M: providers::Middleware> SsssHub<M> {
                 .address(ValueOrArray::Value(addr));
             async move { provider.get_logs(&filter).await }
         })
-        .map(futures::stream::iter)
+        .map(futures_util::stream::iter)
         .flatten_stream()
         .map(|log| async move { self.decode_permitter_event(log).await })
         .buffer_unordered(100)
-        .filter_map(futures::future::ready)
+        .filter_map(futures_util::future::ready)
         .collect::<SmallVec<[Event; 4]>>()
         .await
     }
@@ -276,7 +276,7 @@ type Provider =
 pub async fn providers(
     rpcs: impl Iterator<Item = impl AsRef<str>>,
 ) -> Result<Providers, Error<Provider>> {
-    Ok(futures::stream::iter(rpcs.map(|rpc| {
+    Ok(futures_util::stream::iter(rpcs.map(|rpc| {
         let rpc = rpc.as_ref();
         let url = url::Url::parse(rpc).map_err(|_| Error::UnsupportedRpc(rpc.into()))?;
         if url.scheme() != "http" && url.scheme() != "https" {

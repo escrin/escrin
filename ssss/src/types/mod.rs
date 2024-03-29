@@ -56,7 +56,7 @@ pub struct KeyId {
     pub version: KeyVersion,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PermitterLocator {
     pub chain: u64,
     pub permitter: Address,
@@ -73,13 +73,14 @@ pub struct Permit {
     pub expiry: u64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChainState {
     pub block: u64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChainStateUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub block: Option<u64>,
 }
 
@@ -103,6 +104,12 @@ impl WrappedKey {
 impl From<Vec<u8>> for WrappedKey {
     fn from(bytes: Vec<u8>) -> Self {
         Self(bytes)
+    }
+}
+
+impl AsRef<[u8]> for WrappedKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }
 

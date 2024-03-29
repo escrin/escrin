@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
         .collect();
 
     trace!("creating store");
-    let store = store::create(args.store, args.env).await;
+    let store = store::create(args.store, args.env, &args.host).await?;
 
     let identity_key_id = types::KeyId {
         name: "ssss-identity".into(),

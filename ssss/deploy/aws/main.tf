@@ -32,49 +32,8 @@ locals {
   }
 }
 
-resource "aws_kms_key" "sek" {
-  description             = "Escrin secret share encryption key (${terraform.workspace})"
-  deletion_window_in_days = 7
-  tags                    = local.tags
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_kms_alias" "sek" {
-  name          = "alias/escrin-sek-${terraform.workspace}"
-  target_key_id = aws_kms_key.sek.key_id
-}
-
-resource "aws_dynamodb_table" "shares" {
-  name         = "escrin-shares-${terraform.workspace}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "id"
-  range_key    = "version"
-  tags         = local.tags
-
-  attribute {
-    name = "id"
-    type = "S"
-  }
-
-  attribute {
-    name = "version"
-    type = "N"
-  }
-
-  point_in_time_recovery {
-    enabled = terraform.workspace != "dev"
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_dynamodb_table" "keys" {
-  name         = "escrin-keys-${terraform.workspace}"
+resource "aws_dynamodb_table" "secrets" {
+  name         = "escrin-secrets-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
   range_key    = "version"
@@ -133,8 +92,14 @@ resource "aws_dynamodb_table" "permits" {
 resource "aws_dynamodb_table" "nonces" {
   name         = "escrin-nonces-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "nonce"
+  hash_key     = "identity"
+  range_key    = "nonce"
   tags         = local.tags
+
+  attribute {
+    name = "identity"
+    type = "S"
+  }
 
   attribute {
     name = "nonce"
@@ -201,27 +166,15 @@ data "aws_iam_policy_document" "policy" {
   statement {
     effect = "Allow"
     actions = [
-      "kms:Encrypt",
-      "kms:ReEncrypt",
-      "kms:Decrypt",
-    ]
-    resources = [
-      "${aws_kms_key.sek.arn}",
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
       "dynamodb:ConditionCheckItem",
       "dynamodb:DeleteItem",
       "dynamodb:GetItem",
       "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
       "dynamodb:Query",
     ]
     resources = [
-      "${aws_dynamodb_table.shares.arn}",
-      "${aws_dynamodb_table.keys.arn}",
+      "${aws_dynamodb_table.secrets.arn}",
       "${aws_dynamodb_table.permits.arn}",
       "${aws_dynamodb_table.nonces.arn}",
       "${aws_dynamodb_table.verifiers.arn}",
@@ -277,7 +230,7 @@ data "aws_ec2_instance_type" "instance" {
 
 locals {
   instance_archs = data.aws_ec2_instance_type.instance.supported_architectures
-  instance_arch = try(element([for v in local.instance_archs : v if can(regex("64$", v))], 0), null)
+  instance_arch  = try(element([for v in local.instance_archs : v if can(regex("64$", v))], 0), null)
 }
 
 data "aws_ami" "ami" {

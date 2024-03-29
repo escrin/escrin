@@ -16,7 +16,7 @@ use axum::{
 };
 use axum_extra::{headers::Header as _, TypedHeader};
 use ethers::{middleware::Middleware, types::Address};
-use futures::TryFutureExt as _;
+use futures_util::TryFutureExt as _;
 use p384::elliptic_curve::JwkEcKey;
 use ssss::identity::{self, Identity};
 use tower_http::cors;
@@ -166,7 +166,7 @@ fn support_only_omni(
     Path<(String,)>,
     Request,
     Next,
-) -> futures::future::BoxFuture<'static, Result<Response, Error>>)
+) -> futures_util::future::BoxFuture<'static, Result<Response, Error>>)
        + Clone {
     move |Path((name,)), req, next| {
         Box::pin(async move {
@@ -396,7 +396,7 @@ async fn delete_key<M: Middleware, S: Store>(
     State(AppState { store, .. }): State<AppState<M, S>>,
 ) -> Result<StatusCode, Error> {
     store
-        .delete_key(KeyId {
+        .delete_key_version(KeyId {
             name,
             identity: IdentityLocator {
                 chain,

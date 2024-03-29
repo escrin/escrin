@@ -58,7 +58,7 @@ impl Store for LocalStore {
         todo!()
     }
 
-    async fn delete_share(&self, share: ShareId) -> Result<(), Error> {
+    async fn delete_share_version(&self, share: ShareId) -> Result<(), Error> {
         todo!()
     }
 
@@ -70,7 +70,7 @@ impl Store for LocalStore {
         todo!()
     }
 
-    async fn delete_key(&self, id: KeyId) -> Result<(), Error> {
+    async fn delete_key_version(&self, id: KeyId) -> Result<(), Error> {
         todo!()
     }
 

@@ -1,11 +1,10 @@
-use futures::Future;
 use tokio::time::{sleep, Duration};
 use tracing::warn;
 
 pub async fn retry<T, E, Fut>(f: impl Fn() -> Fut) -> T
 where
     E: std::fmt::Display,
-    Fut: Future<Output = Result<T, E>>,
+    Fut: std::future::Future<Output = Result<T, E>>,
 {
     do_retry(f, Some, None).await.unwrap()
 }
@@ -13,7 +12,7 @@ where
 pub async fn retry_if<T, E, U, Fut>(f: impl Fn() -> Fut, map_done: impl Fn(T) -> Option<U>) -> U
 where
     E: std::fmt::Display,
-    Fut: Future<Output = Result<T, E>>,
+    Fut: std::future::Future<Output = Result<T, E>>,
 {
     do_retry(f, map_done, None).await.unwrap()
 }
@@ -21,7 +20,7 @@ where
 pub async fn retry_times<T, E, Fut>(f: impl Fn() -> Fut, limit: u64) -> Result<T, RetriesExceeded>
 where
     E: std::fmt::Display,
-    Fut: Future<Output = Result<T, E>>,
+    Fut: std::future::Future<Output = Result<T, E>>,
 {
     do_retry(f, Some, Some(limit)).await
 }
@@ -33,7 +32,7 @@ async fn do_retry<T, E, U, Fut>(
 ) -> Result<U, RetriesExceeded>
 where
     E: std::fmt::Display,
-    Fut: Future<Output = Result<T, E>>,
+    Fut: std::future::Future<Output = Result<T, E>>,
 {
     let mut failures = 0;
     loop {
