@@ -1,13 +1,5 @@
 provider "azurerm" {
   features {}
-  skip_provider_registration = true
-}
-
-locals {
-  tags = {
-    Vendor    = "escrin",
-    Component = "infra",
-  }
 }
 
 variable "location" {
@@ -19,28 +11,38 @@ variable "resource_group_name" {
   default     = "escrin-ssss-tfstate"
 }
 
-variable "storage_account_name" {
-  description = "The name of the storage account to create. It must be globally unique, can only consist of lowercase letters and numbers, and must be between 3 and 24 characters long"
+variable "hostname" {
+  description = "The hostname of your SSSS deployment (e.g., ssss.example.org)"
+  validation {
+    condition     = can(regex("^([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$", var.hostname))
+    error_message = "Invalid hostname format. Please provide a valid hostname (e.g., ssss.example.com, ssss.xyz)."
+  }
 }
 
 variable "container_name" {
   description = "The name of the blob container to create."
-  default     = "backend-blob"
+  default     = "terraform"
+}
+
+locals {
+  tags = {
+    Vendor    = "escrin",
+    Component = "infra",
+  }
 }
 
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_group_name
   location = var.location
-  tags = local.tags
+  tags     = local.tags
 }
 
 resource "azurerm_storage_account" "sa" {
-  name                     = var.storage_account_name
+  name                     = "${replace(var.hostname, "/[^a-zA-Z0-9]/", "")}tfstate"
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
-
   tags = local.tags
 }
 

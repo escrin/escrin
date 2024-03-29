@@ -1,3 +1,19 @@
+terraform {
+  backend "azurerm" {
+    resource_group_name = "escrin-ssss-tfstate"
+    container_name      = "terraform"
+    key                 = "terraform.tfstate"
+  }
+}
+
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy = true
+    }
+  }
+}
+
 variable "instance_type" {
   description = "The Azure VM instance type"
   default     = "Standard_B2s"
@@ -16,6 +32,14 @@ variable "location" {
   description = "The location of the resources (e.g. 'eastus')"
 }
 
+variable "hostname" {
+  description = "The hostname of your SSSS deployment (e.g., ssss.example.com)"
+  validation {
+    condition     = can(regex("^([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$", var.hostname))
+    error_message = "Invalid hostname format. Please provide a valid hostname (e.g., ssss.example.com, ssss.xyz)."
+  }
+}
+
 variable "cloudflare" {
   description = "Whether to restrict ingress to only Cloudflare IPs. Makes instance unreachable except through Cloudflare's relays."
   default     = false
@@ -27,30 +51,89 @@ locals {
     Component   = "infra",
     Environment = "${terraform.workspace}",
   }
+
+  storage_account_name = "${replace(var.hostname, "/[^a-zA-Z0-9]/", "")}${terraform.workspace}"
+  kv_name = "${replace(var.hostname, ".", "-")}-${terraform.workspace}"
 }
 
-data "azurerm_subscription" "primary" {}
-data "azurerm_client_config" "current" {}
-
 resource "azurerm_resource_group" "rg" {
-  name     = "escrin-ssss-infra"
+  name     = "escrin-ssss-${terraform.workspace}"
   location = var.location
   tags     = local.tags
 }
 
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_user_assigned_identity" "uai" {
+  name                = "escrin-ssss-identity-${terraform.workspace}"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+}
+
+resource "azurerm_storage_account" "sa" {
+  name                     = local.storage_account_name
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  tags                     = local.tags
+}
+
+resource "azurerm_role_assignment" "user" {
+  count                = terraform.workspace == "dev" ? 1 : 0
+  scope                = azurerm_storage_account.sa.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+resource "azurerm_role_assignment" "instance" {
+  scope                = azurerm_storage_account.sa.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.uai.principal_id
+}
+
+
+locals {
+  storage_tables = ["secretversions", "permits", "nonces", "verifiers", "chainstate"]
+}
+
+resource "azurerm_storage_table" "storage" {
+  for_each             = toset(local.storage_tables)
+  name                 = "${each.key}"
+  storage_account_name = azurerm_storage_account.sa.name
+}
+
 resource "azurerm_key_vault" "kv" {
-  name                        = "escrin-KV"
+  name                        = local.kv_name
   location                    = azurerm_resource_group.rg.location
   resource_group_name         = azurerm_resource_group.rg.name
   enabled_for_disk_encryption = true
   tenant_id                   = data.azurerm_client_config.current.tenant_id
   tags                        = local.tags
-  sku_name                    = "standard"
+  sku_name                    = "premium"
+}
+
+resource "azurerm_key_vault_access_policy" "instance" {
+  key_vault_id = azurerm_key_vault.kv.id
+  tenant_id    = azurerm_user_assigned_identity.uai.tenant_id
+  object_id    = azurerm_user_assigned_identity.uai.principal_id
+
+  secret_permissions = [
+    "Get",
+    "List",
+    "Set",
+    "Delete",
+    "Purge",
+    "Recover",
+    "Backup",
+    "Restore"
+  ]
 }
 
 resource "azurerm_key_vault_access_policy" "client" {
-  key_vault_id = azurerm_key_vault.kv.id
+  count = terraform.workspace == "dev" ? 1 : 0
 
+  key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = data.azurerm_client_config.current.object_id
 
@@ -59,6 +142,7 @@ resource "azurerm_key_vault_access_policy" "client" {
     "List",
     "Set",
     "Delete",
+    "Purge",
     "Recover",
     "Backup",
     "Restore"
@@ -90,7 +174,6 @@ resource "azurerm_network_interface" "ni" {
     name                          = "escrin-ip-config"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
-    
     public_ip_address_id          = azurerm_public_ip.public_ip.id
   }
 }
@@ -137,13 +220,13 @@ resource "azurerm_virtual_machine" "vm" {
     CUSTOM_DATA
   }
 
-  os_profile_linux_config {
-    disable_password_authentication = true
-    ssh_keys {
-      path     = "/home/escrin-administrator/.ssh/authorized_keys"
-      key_data = file("~/.ssh/id_rsa.pub")
-    }
-  }
+  # os_profile_linux_config {
+  #   disable_password_authentication = true
+  #   ssh_keys {
+  #     path     = "/home/escrin-administrator/.ssh/authorized_keys"
+  #     key_data = file("~/.ssh/id_rsa.pub")
+  #   }
+  # }
 
   storage_image_reference {
     publisher = "OpenLogic"
@@ -161,6 +244,11 @@ resource "azurerm_virtual_machine" "vm" {
 
   lifecycle {
     create_before_destroy = true
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.uai.id]
   }
 
 }
