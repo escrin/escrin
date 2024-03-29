@@ -3940,7 +3940,7 @@ dependencies = [
  "elliptic-curve",
  "ethers",
  "eyre",
- "futures",
+ "futures-util",
  "headers",
  "p384",
  "rand 0.8.5",

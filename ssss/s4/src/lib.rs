@@ -5,7 +5,7 @@ use ethers::{
     types::transaction::eip712::Eip712 as _,
 };
 use eyre::Result;
-use futures::TryFutureExt as _;
+use futures_util::TryFutureExt as _;
 use headers::Header as _;
 use reqwest::StatusCode;
 use ssss::types::{api::*, *};
