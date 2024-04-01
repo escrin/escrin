@@ -1,12 +1,11 @@
 digraph {
     graph [compound=true, fontname="Helvetica"]
     edge [fontname="Helvetica"]
-
-    node [shape=rect]
+    node [shape=rect, fontname="Helvetica"]
     newrank = true
     rankdir = LR
     splines = spline
-    nodesep = 0.3
+    nodesep = 0.5
     ranksep = 0
 
     subgraph cluster_ssss {
@@ -14,25 +13,25 @@ digraph {
 
         tsync [label=<Sync Task>]
         tapi [shape=none, label=<
-            <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"6\">
+            <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
                 <TR><TD>API Task</TD></TR>
-                <TR><TD PORT=\"ep_permits\"><font face=\"courier\" point-size=\"12\">POST ../permits</font></TD></TR>
-                <TR><TD PORT=\"ep_shares\"><font face=\"courier\" point-size=\"12\">GET ../shares</font></TD></TR>
+                <TR><TD PORT="ep_permits"><font face="courier" point-size="12">POST ../permits</font></TD></TR>
+                <TR><TD PORT="ep_shares"><font face="courier" point-size="12">GET ../shares</font></TD></TR>
             </TABLE>
         >]
 
         tverifier [label=<Policy Engine>]
 
-        db [shape=cylinder, label=<Blob Store>]
-        kms [shape=cylinder, penwidth=2, label=<Secret Store>]
+        db [shape=cylinder, label=<Blob<br/>Store>]
+        kms [shape=cylinder, penwidth=2, label=<Secret<br/>Store>]
 
         tapi:ep_permits -> tverifier [label=<verify request>]
-        db -> tverifier [label=<  policy>]
+        db -> tverifier [label=<   policy>]
         tapi:ep_permits -> db [label=<permit>]
 
         kms -> tapi:ep_shares [xlabel=<secret share>]
 
-        tsync -> db [label=<policy>]
+        tsync -> db [label=<policy  >]
         tsync -> kms [xlabel=<secret share>]
 
         {rank=same;tsync;tverifier}
@@ -42,10 +41,10 @@ digraph {
     worker [penwidth=2, label=<Escrin<br/>Smart Worker>]
 
     l1 [shape=box3d, label=<Consensus Network<br/>(e.g., Ethereum)>]
-    l1 -> tsync [xlabel=<policy &amp; secret share>]
+    l1 -> tsync [label=<policy,<br/>secret share>]
 
-    worker -> tapi:ep_permits [xlabel=<<font face=\"courier\" point-size=\"12\">acquire_identity</font>>]
-    worker -> tapi:ep_shares [label=<<font face=\"courier\" point-size=\"12\">get_omni_key</font>>]
+    worker -> tapi:ep_permits [xlabel=<<font face="courier" point-size="12">acquire_identity</font>>]
+    worker -> tapi:ep_shares [label=<<font face="courier" point-size="12">get_key</font>>]
 
     dev [label=<App Dev>, shape=egg]
     dev -> l1 [label=<set policy>]
