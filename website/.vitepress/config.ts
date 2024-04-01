@@ -36,6 +36,13 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Applications',
+        items: [
+          { text: 'Nanobridges', link: '/docs/apps/nanobridges' },
+          // { text: 'Games', link: '/docs/apps/games' },
+        ],
+      },
+      {
         text: 'Reference',
         items: [
           { text: 'Smart Workers', link: '/docs/reference/worker' },

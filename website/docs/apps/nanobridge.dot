@@ -1,0 +1,17 @@
+digraph {
+    edge [fontname="Helvetica"]
+    node [shape=rect, fontname="Helvetica"]
+    nodesep = 1
+
+    user [shape=egg, label=<User>]
+    emerald [label=<Bridge contract<br/>(old sidechain)>]
+    sapphire [label=<Bridge Contract<br/>(new sidechain)>]
+    worker [shape=ellipse,label=<Nanobridge<br/>Worker>, penwidth=3, color="#eeaa00"]
+
+    user -> emerald [label=<  1. <font face="courier" point-size="11">transferFrom(user,_,id)</font>>]
+    worker -> emerald  [label=<4. <font face="courier" point-size="11">lock(id)</font>>]
+    emerald -> worker [xlabel=<2. <font face="courier" point-size="11">Transfer(user,_,id)</font>  >]
+    worker -> sapphire [label=<3. <font face="courier" point-size="11">mintTo(user, id)</font>>]
+
+    {rank=same;emerald;sapphire}
+}
