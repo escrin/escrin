@@ -174,6 +174,16 @@ struct AttestationUserData {
     nonce: Vec<u8>,
 }
 
+impl std::fmt::Debug for AttestationUserData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AttestationUserData")
+            .field("public_key", &hex::encode(&self.public_key))
+            .field("user_data", &hex::encode(&self.user_data))
+            .field("nonce", &hex::encode(&self.nonce))
+            .finish()
+    }
+}
+
 #[derive(Deserialize)]
 #[forbid(unused)]
 struct Policy {
