@@ -2,7 +2,7 @@
 
 # s4-infra.sh - A script to manage SSSS infrastructure (using Terraform or OpenTofu)
 
-set -u
+set -eu
 
 terraform_cmd=""
 tf() {
@@ -27,6 +27,7 @@ cdd() {
 log_do() {
 	log "%s..." "$1"
 	shift
+	set +e
 	out="$( ("$@" >/dev/null) 2>&1)"
 	status=$?
 	if [ $status != 0 ]; then
@@ -34,6 +35,7 @@ log_do() {
 		log "$out"
 		exit 1
 	fi
+	set -e
 	log "✅\n"
 }
 
@@ -219,14 +221,11 @@ unlock() {
 lock() {
 	case "$1" in
 	"-h" | "--help")
-		die "${0} lock [--all]"
+		die "${0} lock"
 		;;
-	"--all")
+	"*")
 		ensure_locked "$script_dir"
 		ensure_locked "$script_dir/tf_state"
-		;;
-	*)
-		ensure_locked "$script_dir"
 		;;
 	esac
 }
