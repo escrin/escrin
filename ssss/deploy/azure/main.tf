@@ -16,7 +16,12 @@ provider "azurerm" {
 
 variable "instance_type" {
   description = "The Azure VM instance type"
-  default     = "Standard_B2s"
+  default     = "Standard_B1ls"
+}
+
+variable "instance_arch" {
+  description = "The Azure VM instance CPU architecture (e.g., amd64, arm64)"
+  default     = "amd64"
 }
 
 variable "ssss_tag" {
@@ -24,7 +29,7 @@ variable "ssss_tag" {
 }
 
 variable "ssh_key" {
-  description = "Name of the key pair for SSH access to the Azure VM instance."
+  description = "Path to the key pair for SSH access to the Azure VM instance."
   default     = ""
 }
 
@@ -53,13 +58,17 @@ locals {
   }
 
   storage_account_name = "${replace(var.hostname, "/[^a-zA-Z0-9]/", "")}${terraform.workspace}"
-  kv_name = "${replace(var.hostname, ".", "-")}-${terraform.workspace}"
+  kv_name              = "${replace(var.hostname, ".", "-")}-${terraform.workspace}"
 }
 
 resource "azurerm_resource_group" "rg" {
   name     = "escrin-ssss-${terraform.workspace}"
   location = var.location
   tags     = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 data "azurerm_client_config" "current" {}
@@ -68,6 +77,10 @@ resource "azurerm_user_assigned_identity" "uai" {
   name                = "escrin-ssss-identity-${terraform.workspace}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_storage_account" "sa" {
@@ -77,6 +90,10 @@ resource "azurerm_storage_account" "sa" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
   tags                     = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_role_assignment" "user" {
@@ -84,12 +101,20 @@ resource "azurerm_role_assignment" "user" {
   scope                = azurerm_storage_account.sa.id
   role_definition_name = "Storage Table Data Contributor"
   principal_id         = data.azurerm_client_config.current.object_id
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_role_assignment" "instance" {
   scope                = azurerm_storage_account.sa.id
   role_definition_name = "Storage Table Data Contributor"
   principal_id         = azurerm_user_assigned_identity.uai.principal_id
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 
@@ -99,8 +124,12 @@ locals {
 
 resource "azurerm_storage_table" "storage" {
   for_each             = toset(local.storage_tables)
-  name                 = "${each.key}"
+  name                 = each.key
   storage_account_name = azurerm_storage_account.sa.name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_key_vault" "kv" {
@@ -111,6 +140,10 @@ resource "azurerm_key_vault" "kv" {
   tenant_id                   = data.azurerm_client_config.current.tenant_id
   tags                        = local.tags
   sku_name                    = "premium"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_key_vault_access_policy" "instance" {
@@ -128,6 +161,10 @@ resource "azurerm_key_vault_access_policy" "instance" {
     "Backup",
     "Restore"
   ]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_key_vault_access_policy" "client" {
@@ -147,6 +184,10 @@ resource "azurerm_key_vault_access_policy" "client" {
     "Backup",
     "Restore"
   ]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_virtual_network" "vnet" {
@@ -155,6 +196,10 @@ resource "azurerm_virtual_network" "vnet" {
   location            = azurerm_resource_group.rg.location
   address_space       = ["10.0.0.0/16"]
   tags                = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_network_security_group" "nsg" {
@@ -162,6 +207,10 @@ resource "azurerm_network_security_group" "nsg" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   tags                = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_network_interface" "ni" {
@@ -176,6 +225,10 @@ resource "azurerm_network_interface" "ni" {
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.public_ip.id
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_subnet" "subnet" {
@@ -183,6 +236,10 @@ resource "azurerm_subnet" "subnet" {
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.1.0/24"]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_public_ip" "public_ip" {
@@ -192,6 +249,23 @@ resource "azurerm_public_ip" "public_ip" {
   allocation_method   = "Static"
   sku                 = "Standard"
   tags                = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "tls_private_key" "ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+output "ssh_private_key" {
+  value = terraform.workspace == "dev" ? tls_private_key.ssh.private_key_pem : "[redacted]"
 }
 
 resource "azurerm_virtual_machine" "vm" {
@@ -209,29 +283,32 @@ resource "azurerm_virtual_machine" "vm" {
     custom_data    = <<-CUSTOM_DATA
       #!/bin/bash
       sudo apt-get -y update
-      sudo apt-get -y install apt-transport-https ca-certificates curl software-properties-common
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-      sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-      sudo apt-get -y update
-      sudo apt-get -y install docker-ce containerd.io
+      sudo apt-get -y install apt-transport-https ca-certificates curl gnupg lsb-release
+      curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      echo "deb [arch=${var.instance_arch} signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      sudo apt-get update -y
+      sudo apt-get install -y docker-ce docker-ce-cli containerd.io
       sudo systemctl enable docker
       sudo systemctl start docker
+      sudo usermod -aG docker $USER
+      sudo systemctl enable docker.service
+      sudo systemctl enable containerd.service
       sudo docker run -p 80:1075 -d --restart=always ghcr.io/escrin/ssss:${var.ssss_tag} -vv
     CUSTOM_DATA
   }
 
-  # os_profile_linux_config {
-  #   disable_password_authentication = true
-  #   ssh_keys {
-  #     path     = "/home/escrin-administrator/.ssh/authorized_keys"
-  #     key_data = file("~/.ssh/id_rsa.pub")
-  #   }
-  # }
+  os_profile_linux_config {
+    disable_password_authentication = true
+    ssh_keys {
+      path     = "/home/escrin-administrator/.ssh/authorized_keys"
+      key_data = tls_private_key.ssh.public_key_openssh
+    }
+  }
 
   storage_image_reference {
-    publisher = "OpenLogic"
-    offer     = "CentOS"
-    sku       = "7.5"
+    publisher = "Debian"
+    offer     = "debian-12"
+    sku       = "12${var.instance_arch == "arm64" ? "-arm64" : ""}"
     version   = "latest"
   }
 
@@ -242,15 +319,10 @@ resource "azurerm_virtual_machine" "vm" {
     managed_disk_type = "Standard_LRS"
   }
 
-  lifecycle {
-    create_before_destroy = true
-  }
-
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.uai.id]
   }
-
 }
 
 output "vm_ip" {
@@ -281,6 +353,10 @@ resource "azurerm_network_security_group" "sg" {
   name                = "escrin-ssss-sg-${terraform.workspace}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_network_security_rule" "http_ingress" {
@@ -296,6 +372,10 @@ resource "azurerm_network_security_rule" "http_ingress" {
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.sg.name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_network_security_rule" "ssh_ingress" {
@@ -311,6 +391,10 @@ resource "azurerm_network_security_rule" "ssh_ingress" {
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.sg.name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_network_security_rule" "egress" {
@@ -325,4 +409,8 @@ resource "azurerm_network_security_rule" "egress" {
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.sg.name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }

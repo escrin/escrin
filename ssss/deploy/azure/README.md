@@ -24,7 +24,8 @@ You'll need to know two things:
 1. The region code you want to install the resources
 
 There is not currently a good method to decide where an SSSS should live so you may pick one that is
-in a place dear to your heart. (Or you have reason to believe it's underserved.) Find a [list of Azure regions here](https://gist.github.com/ausfestivus/04e55c7d80229069bf3bc75870630ec8)
+in a place dear to your heart. (Or you have reason to believe it's underserved.) Find a
+[list of Azure regions here](https://gist.github.com/ausfestivus/04e55c7d80229069bf3bc75870630ec8)
 
 2. A domain name or subdomain where you will provide the expose SSSS API (e.g., `ssss.escrin.org`).
 
@@ -38,9 +39,8 @@ as well as the resources needed for the SSSS. To install this in one go:
 ./s4-infra.sh apply
 ```
 
-This script will ask you for the above mentioned profile name, region, and bucket name.
-
-If you want more control over your terraform processes use the
+This script will ask you for the two pieces of information listed above and use sane defaults for
+everything else. If you want more control over your terraform processes use the
 [two-step install](#two-step-install).
 
 If this script ran successfully, head over to [verify installation](#verify-installation).
@@ -55,11 +55,6 @@ To tear the environment down, run these
 ## Two-step install
 
 Skip if you've done the quick install.
-
-```sh
-export AWS_PROFILE=<your aws profile name here>
-export AWS_REGION=<your aws region name here>
-```
 
 ### Create Backend State
 
@@ -96,35 +91,35 @@ cd tf_state && terraform state list && cd .. && terraform state list
 This should show the following output:
 
 ```
-aws_dynamodb_table.tf_locks
-aws_s3_bucket.tf_state
-aws_s3_bucket_acl.tf_state
-aws_s3_bucket_ownership_controls.tf_state
-aws_s3_bucket_server_side_encryption_configuration.tf_state_sse
-aws_s3_bucket_versioning.tf_state
-aws_s3_bucket_versioning.tf_state_versioning
-data.aws_iam_policy_document.ec2_assume_role_policy
-data.aws_iam_policy_document.km_policy_doc
-aws_dynamodb_table.chain_state
-aws_dynamodb_table.keys
-aws_dynamodb_table.nonces
-aws_dynamodb_table.permits
-aws_dynamodb_table.shares
-aws_dynamodb_table.verifiers
-aws_iam_policy.km_policy
-aws_iam_role.ec2_role
-aws_iam_role_policy_attachment.attach_ec2_policy
-aws_kms_key.sek
+azurerm_resource_group.rg
+azurerm_storage_account.sa
+azurerm_storage_container.sc
+data.azurerm_client_config.current
+azurerm_key_vault.kv
+azurerm_key_vault_access_policy.instance
+azurerm_network_interface.ni
+azurerm_network_security_group.nsg
+azurerm_network_security_group.sg
+azurerm_network_security_rule.egress
+azurerm_network_security_rule.http_ingress["0.0.0.0/0"]
+azurerm_network_security_rule.ssh_ingress["0.0.0.0/0"]
+azurerm_public_ip.public_ip
+azurerm_resource_group.rg
+azurerm_role_assignment.instance
+azurerm_storage_account.sa
+azurerm_storage_table.storage["chainstate"]
+azurerm_storage_table.storage["nonces"]
+azurerm_storage_table.storage["permits"]
+azurerm_storage_table.storage["secretversions"]
+azurerm_storage_table.storage["verifiers"]
+azurerm_subnet.subnet
+azurerm_user_assigned_identity.uai
+azurerm_virtual_machine.vm
+azurerm_virtual_network.vnet
+tls_private_key.ssh
 ```
 
-And check whether the state files are present in your bucket:
-
-```sh
-# <your-globally-unique-bucket-name> is `escrin.tfstate.${domain}` if created using the script
-aws s3 ls s3://<your-globally-unique-bucket-name>
-```
-
-## How to remove, patch or otherwise deal with, previously installed resources
+## How to remove, patch, or otherwise deal with previously installed resources
 
 To upgrade the infrastructure, pull the latest terraform modules and run `terraform apply` in the
 main directory (the `tf_state` will likely never need to change).
