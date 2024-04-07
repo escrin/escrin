@@ -144,22 +144,26 @@ ensure_tfstate() {
 		return 0
 	fi
 
-	log "🔎 Detecting existing state..."
-	import() {
-		tfv import "$1" "$2" >/dev/null 2>&1
-	}
-	rgid="/subscriptions/$subid/resourceGroups/escrin-ssss-tfstate"
-	said="$rgid/providers/Microsoft.Storage/storageAccounts/${storage_account}"
-	scid="https://${storage_account}.blob.core.windows.net/terraform"
-	if import azurerm_resource_group.rg "$rgid"; then
-		if import azurerm_storage_account.sa "$said"; then
-			if import azurerm_storage_container.sc "$scid"; then
-				log "✅\n"
-				return 0
+	if [ -f "terraform.tfstate" ]; then
+		log "🔎 Detecting existing state..."
+		import() {
+			tfv import "$1" "$2" >/dev/null 2>&1
+		}
+		rgid="/subscriptions/$subid/resourceGroups/escrin-ssss-tfstate"
+		said="$rgid/providers/Microsoft.Storage/storageAccounts/${storage_account}"
+		scid="https://${storage_account}.blob.core.windows.net/terraform"
+		if import azurerm_resource_group.rg "$rgid"; then
+			if import azurerm_storage_account.sa "$said"; then
+				if import azurerm_storage_container.sc "$scid"; then
+					log "✅\n"
+					return 0
+				fi
 			fi
 		fi
+		log "❎\n"
+	elif [ ! -d ".terraform" ]; then
+		log_do "🆕 Initializing local backend" tf init
 	fi
-	log "❎\n"
 
 	# Run the TF in the tf_state folder to get the backend installed
 	log_do "🔨 Creating state infra" tfv apply -auto-approve
