@@ -16,12 +16,12 @@ provider "azurerm" {
 
 variable "instance_type" {
   description = "The Azure VM instance type"
-  default     = "Standard_B1ls"
+  default     = "Standard_B2pts_v2"
 }
 
 variable "instance_arch" {
   description = "The Azure VM instance CPU architecture (e.g., amd64, arm64)"
-  default     = "amd64"
+  default     = "arm64"
 }
 
 variable "ssss_tag" {
