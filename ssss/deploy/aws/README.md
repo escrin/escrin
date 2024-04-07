@@ -55,7 +55,7 @@ as well as the resources needed for the SSSS. To install this in one go:
 ./s4-infra.sh apply
 ```
 
-This script will ask you for the above mentioned profile name, region, and bucket name.
+This script will ask you for the above mentioned profile name, region, domain name, and a globally unique s3 bucket name.
 
 If you want more control over your terraform processes use the
 [two-step install](#two-step-install).
@@ -67,6 +67,7 @@ To tear the environment down, run these
 ```sh
 ./s4-infra.sh unlock
 ./s4-infra.sh destroy # optionally pass --all to destroy everything
+./s4-infra.sh lock
 ```
 
 ## Two-step install
@@ -121,17 +122,13 @@ aws_s3_bucket_server_side_encryption_configuration.tf_state_sse
 aws_s3_bucket_versioning.tf_state
 aws_s3_bucket_versioning.tf_state_versioning
 data.aws_iam_policy_document.ec2_assume_role_policy
-data.aws_iam_policy_document.km_policy_doc
 aws_dynamodb_table.chain_state
-aws_dynamodb_table.keys
+aws_dynamodb_table.secrets
 aws_dynamodb_table.nonces
 aws_dynamodb_table.permits
-aws_dynamodb_table.shares
 aws_dynamodb_table.verifiers
-aws_iam_policy.km_policy
 aws_iam_role.ec2_role
 aws_iam_role_policy_attachment.attach_ec2_policy
-aws_kms_key.sek
 ```
 
 And check whether the state files are present in your bucket:
@@ -141,7 +138,7 @@ And check whether the state files are present in your bucket:
 aws s3 ls s3://<your-globally-unique-bucket-name>
 ```
 
-## How to remove, patch or otherwise deal with, previously installed resources
+## How to remove, patch, or otherwise deal with previously installed resources
 
 To upgrade the infrastructure, pull the latest terraform modules and run `terraform apply` in the
 main directory (the `tf_state` will likely never need to change).

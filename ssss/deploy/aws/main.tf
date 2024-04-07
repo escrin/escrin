@@ -20,7 +20,7 @@ variable "ssh_key" {
 }
 
 variable "cloudflare" {
-  description = "Whether to restrict ingress to only Cloudflare IPs. Makes instance unreachable except Cloudflare's relays."
+  description = "Whether to restrict ingress to only Cloudflare IPs. Makes instance unreachable except through Cloudflare's relays."
   default     = false
 }
 
