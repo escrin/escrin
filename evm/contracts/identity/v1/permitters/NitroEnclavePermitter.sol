@@ -646,8 +646,20 @@ library Sig {
         if (block.chainid == 1337 || block.chainid == 31337) return;
         if (block.chainid - 0x5afd > 2) revert("no p384");
         bytes memory hash = _sha384(message);
-        if (!Sapphire.verify(Sapphire.SigningAlg.Secp384r1PrehashedSha384, pk, hash, "", sig)) {
+        bytes memory cpk = _compressP384PK(pk);
+        if (!Sapphire.verify(Sapphire.SigningAlg.Secp384r1PrehashedSha384, cpk, hash, "", sig)) {
             revert InvalidSignature();
         }
+    }
+
+    /// Compresses a p384 public key.
+    /// @dev This function is required for operation on old versions of Sapphire.
+    function _compressP384PK(bytes memory pk) internal pure returns (bytes memory) {
+        if (pk[0] != 0x04) return pk;
+        pk[0] = bytes1(0x02 | (uint8(pk[96]) & 0x01));
+        assembly ("memory-safe") {
+            mstore(pk, 49)
+        }
+        return pk;
     }
 }
