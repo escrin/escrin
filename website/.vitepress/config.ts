@@ -24,7 +24,11 @@ export default defineConfig({
     sidebar: [
       {
         text: 'Guide',
-        items: [{ text: 'What is Escrin?', link: '/docs/' }],
+        items: [
+          { text: 'What is Escrin?', link: '/docs/' },
+          // { text: 'Technology', link: '/docs/guide/technology' },
+          // { text: 'Getting Started', link: '/docs/guide/getting-started' },
+        ],
       },
       {
         text: 'Tutorial',
@@ -36,10 +40,18 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Network',
+        items: [
+          { text: 'Whitepaper', link: '/docs/network/' },
+          // { text: 'Escrin Observer', link: 'https://observer.escrin.org' },
+        ],
+      },
+      {
         text: 'Applications',
         items: [
           { text: 'Nanobridges', link: '/docs/apps/nanobridges' },
           // { text: 'Games', link: '/docs/apps/games' },
+          // { text: 'AI', link: '/docs/apps/ai' },
         ],
       },
       {
