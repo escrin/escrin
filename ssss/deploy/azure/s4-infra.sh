@@ -47,6 +47,14 @@ else
 	die "Error: terraform or tofu must be installed to run this script."
 fi
 
+if command -v sha256sum >/dev/null; then
+	sha256_cmd="sha256sum"
+elif command -v shasum >/dev/null; then
+	sha256_cmd="shasum -a 256"
+else
+	die "Error: unable to locate sha256sum or shasum."
+fi
+
 script_dir=$(cdd "$(dirname "$0")" && pwd)
 if [ ! -f "$script_dir/main.tf" ] || [ ! -f "$script_dir/tf_state/main.tf" ]; then
 	die "Error: unknown context. Please ensure that you run this script from the escrin/escrin repo."
@@ -55,7 +63,7 @@ fi
 subid=""
 ssss_hostname=""
 ssss_location=""
-storage_account=""
+tfstate_storage_account=""
 
 ensure_subscription() {
 	subid="$(az account show --query 'id' -o tsv)"
@@ -64,7 +72,7 @@ ensure_subscription() {
 set_globals() {
 	ssss_hostname="$1"
 	ssss_location="$2"
-	storage_account="$(echo "$ssss_hostname" | tr -dc '[:alnum:]')tfstate"
+	tfstate_storage_account="escrintf$(printf "%s" "$ssss_hostname" | "$sha256_cmd" | head -c 16)"
 }
 
 obtain_existing_state() {
@@ -150,8 +158,8 @@ ensure_tfstate() {
 			tfv import "$1" "$2" >/dev/null 2>&1
 		}
 		rgid="/subscriptions/$subid/resourceGroups/escrin-ssss-tfstate"
-		said="$rgid/providers/Microsoft.Storage/storageAccounts/${storage_account}"
-		scid="https://${storage_account}.blob.core.windows.net/terraform"
+		said="$rgid/providers/Microsoft.Storage/storageAccounts/${tfstate_storage_account}"
+		scid="https://${tfstate_storage_account}.blob.core.windows.net/terraform"
 		if import azurerm_resource_group.rg "$rgid"; then
 			if import azurerm_storage_account.sa "$said"; then
 				if import azurerm_storage_container.sc "$scid"; then
@@ -175,7 +183,7 @@ ensure_infra() {
 
 	# Check for an existing initialization
 	if [ ! -d ".terraform" ]; then
-		log_do "🆕 Initializing remote backend" tf init -backend-config="storage_account_name=$storage_account"
+		log_do "🆕 Initializing remote backend" tf init -backend-config="storage_account_name=$tfstate_storage_account"
 	fi
 
 	ssss_tag=$(git tag -l 'ssss/v*.*.*' --sort=-taggerdate | head -n 1 | sed 's?ssss/v??')

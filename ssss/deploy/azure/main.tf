@@ -57,8 +57,11 @@ locals {
     Environment = "${terraform.workspace}",
   }
 
-  storage_account_name = "${replace(var.hostname, "/[^a-zA-Z0-9]/", "")}${terraform.workspace}"
-  kv_name              = "${replace(var.hostname, ".", "-")}-${terraform.workspace}"
+  domain_hash = substr(sha256(var.hostname), 0, 16)
+  unique_name = "${terraform.workspace}${local.domain_hash}"
+
+  storage_account_name = local.unique_name
+  kv_name              = local.unique_name
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -265,7 +268,8 @@ resource "tls_private_key" "ssh" {
 }
 
 output "ssh_private_key" {
-  value = terraform.workspace == "dev" ? tls_private_key.ssh.private_key_pem : "[redacted]"
+  value     = terraform.workspace == "dev" ? tls_private_key.ssh.private_key_pem : "[redacted]"
+  sensitive = true
 }
 
 resource "azurerm_virtual_machine" "vm" {

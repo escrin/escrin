@@ -29,6 +29,8 @@ locals {
     Vendor    = "escrin",
     Component = "infra",
   }
+
+  domain_hash = substr(sha256(var.hostname), 0, 16)
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -42,7 +44,7 @@ resource "azurerm_resource_group" "rg" {
 }
 
 resource "azurerm_storage_account" "sa" {
-  name                     = "${replace(var.hostname, "/[^a-zA-Z0-9]/", "")}tfstate"
+  name                     = "escrintf${local.domain_hash}"
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"

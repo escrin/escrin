@@ -11,7 +11,6 @@ use super::*;
 #[derive(Clone)]
 pub struct Client {
     env: Environment,
-
     secrets: Arc<azure_security_keyvault::SecretClient>,
     db: Arc<TableServiceClient>,
 }
@@ -24,24 +23,9 @@ static CHAIN_STATE_TABLE: &str = "chainstate";
 
 impl Client {
     pub async fn connect(host: &Authority, env: Environment) -> Result<Self, Error> {
-        let hostname = host.to_string();
-        let kv_url = format!(
-            "https://{}-{env}.vault.azure.net",
-            hostname
-                .chars()
-                .map(|ch| match ch {
-                    '.' | '_' => '-',
-                    _ => ch,
-                })
-                .collect::<String>(),
-        );
-        let sa_name = format!(
-            "{}{env}",
-            hostname
-                .chars()
-                .filter(|ch| !matches!(ch, '.' | '-' | '_'))
-                .collect::<String>(),
-        );
+        let unique_name = hex::encode(&<sha2::Sha256 as sha2::Digest>::digest(host.as_str())[0..8]);
+        let sa_name = format!("{env}{unique_name}");
+        let kv_url = format!("https://{env}{unique_name}.vault.azure.net");
 
         let creds = Arc::new(azure_identity::DefaultAzureCredential::default());
         let secrets = Arc::new(azure_security_keyvault::SecretClient::new(
