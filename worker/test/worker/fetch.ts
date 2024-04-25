@@ -1,4 +1,4 @@
-import escrinWorker from '../src/index.js';
+import escrinWorker from '../../src/index.js';
 
 export default escrinWorker({
   async tasks(): Promise<void> {
