@@ -1,4 +1,5 @@
 dist/
+coverage/
 
 **/.terraform/*
 .terraform.lock.hcl

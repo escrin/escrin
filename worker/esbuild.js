@@ -4,7 +4,7 @@ import { basename, extname, join } from 'node:path';
 import esbuild from 'esbuild';
 
 const SRC_DIR = 'src';
-const TEST_DIR = 'test';
+const TEST_DIR = join('test', 'worker');
 const ENV_DIR = join(SRC_DIR, 'env');
 
 const srcs = [join(SRC_DIR, 'runner.ts'), ...fs.readdirSync(ENV_DIR).map((p) => join(ENV_DIR, p))];
