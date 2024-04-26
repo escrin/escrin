@@ -2,19 +2,19 @@ import { beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 import { hashToCurve, secp256k1 } from '@noble/curves/secp256k1';
 import { Hex, bytesToHex } from 'viem';
 
-import { PedersenVss, Share } from '../../../src/env/iam/vss.js';
+import { Pedersen, Share } from '../../src/ssss/vss.js';
 
-let vss: PedersenVss;
+let vss: Pedersen;
 
 beforeAll(() => {
-  vss = new PedersenVss(secp256k1, hashToCurve);
+  vss = new Pedersen(secp256k1, hashToCurve);
 });
 
-describe('PedersenVss', () => {
+describe('Pedersen', () => {
   const threshold = 2;
   const numShares = 3;
 
-  let secret: Uint8Array;
+  let secret: Hex;
   let shares: Share[];
   let commitments: Hex[];
 

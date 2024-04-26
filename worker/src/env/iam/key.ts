@@ -1,28 +1,60 @@
 import { wrapPublicClient } from '@oasisprotocol/sapphire-paratime/compat/viem';
-import { Hex, PrivateKeyAccount, hexToBigInt } from 'viem';
+import type { SetRequired } from 'type-fest';
+import { Hex, PrivateKeyAccount } from 'viem';
 
 import { OmniKeyStore as OmniKeyStoreAbi } from '@escrin/evm/abi';
 
-import { allocateAccount, allocateAccountKey } from './account.js';
-import { getPublicClient } from './chains.js';
+import * as ssss from '../../ssss/index.js';
 
+import { allocateAccount, allocateAccountKey } from './account.js';
+import { getPublicClient, getWalletClient } from './chains.js';
 import * as types from './types.js';
 
 export async function handleGetKey(
-  requester: string,
+  requesterService: string,
   params: types.GetKeyRequest['params'],
 ): Promise<types.GetKeyRequest['response']> {
   if (params.keyId === 'omni') {
-    const requesterAccount = allocateAccount(requester);
-    return { key: await getSapphireOmniKey(params, requesterAccount) };
+    if (!params.ssss && !isSapphire(params.network)) {
+      throw new Error('no secret storage backend configured');
+    }
+    const requesterAccount = allocateAccount(requesterService);
+
+    if (isSapphire(params.network)) {
+      return { key: await getSapphireOmniKey(params, requesterAccount) };
+    }
+
+    return {
+      key: await getSsssOmniKey(
+        params as SetRequired<types.EvmKeyStoreParams, 'ssss'>,
+        requesterAccount,
+      ),
+    };
   }
 
   if (params.keyId === 'ephemeral-account') {
-    return { key: allocateAccountKey(requester) };
+    return { key: allocateAccountKey(requesterService) };
   }
 
   const _exhaustiveCheck: never = params;
   return _exhaustiveCheck;
+}
+
+async function getSsssOmniKey(
+  params: SetRequired<types.EvmKeyStoreParams, 'ssss'>,
+  requesterAccount: PrivateKeyAccount,
+): Promise<Hex> {
+  const { network, identity, ssss: ssssParams } = params;
+  const publicClient = getPublicClient(network.chainId, network.rpcUrl);
+  const currentVersion = await ssss.getSecretVersion(
+    publicClient,
+    ssssParams.hub,
+    identity.id,
+    'omni',
+  );
+  if (currentVersion > 0) return ssss.getSecret('omni', currentVersion, params, requesterAccount);
+  const walletClient = getWalletClient(requesterAccount, network.chainId, network.rpcUrl);
+  return ssss.dealNewSecret('omni', params, publicClient, walletClient);
 }
 
 async function getSapphireOmniKey(
@@ -33,7 +65,7 @@ async function getSapphireOmniKey(
 
   let publicClient = getPublicClient(network.chainId, network.rpcUrl);
 
-  if (Math.abs(network.chainId - 0x5afe) <= 1) {
+  if (isSapphire(network)) {
     publicClient = wrapPublicClient(publicClient);
   }
 
@@ -71,3 +103,5 @@ async function getSapphireOmniKey(
     ],
   });
 }
+
+const isSapphire = (network: types.Network) => Math.abs(network.chainId - 0x5afe) <= 1;

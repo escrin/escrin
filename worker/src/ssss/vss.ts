@@ -1,7 +1,7 @@
 import { H2CPoint } from '@noble/curves/abstract/hash-to-curve';
 import * as mod from '@noble/curves/abstract/modular';
 import type { CurveFn, ProjConstructor, ProjPointType } from '@noble/curves/abstract/weierstrass';
-import { Hex, bytesToBigInt, hexToBigInt, numberToBytes, numberToHex } from 'viem';
+import { Hex, bytesToBigInt, bytesToHex, hexToBigInt, numberToHex } from 'viem';
 
 export type Share = {
   index: number;
@@ -11,7 +11,7 @@ export type Share = {
 
 type Point = ProjPointType<bigint>;
 
-export class PedersenVss {
+export class Pedersen {
   public static H_SEED = 'escrin-pedersen-vss-blinder-generator';
 
   private readonly field: mod.IField<bigint>;
@@ -26,14 +26,14 @@ export class PedersenVss {
     this.field = mod.Field(curve.CURVE.n);
 
     this.g = curve.ProjectivePoint.BASE;
-    const h = hashToCurve(new TextEncoder().encode(PedersenVss.H_SEED));
+    const h = hashToCurve(new TextEncoder().encode(Pedersen.H_SEED));
     this.h = curve.utils.precompute(8, curve.ProjectivePoint.fromAffine(h.toAffine()));
   }
 
   public generate(
     threshold: number,
     numShares: number,
-  ): { secret: Uint8Array; shares: Share[]; commitments: Hex[] } {
+  ): { secret: Hex; shares: Share[]; commitments: Hex[] } {
     if (numShares < 2) throw new Error('vss: numShares must be at least 2');
     if (threshold < 2) throw new Error('vss: threshold must be at least 2');
     if (threshold > numShares) throw new Error('vss: threshold cannot exceed numShares');
@@ -59,10 +59,10 @@ export class PedersenVss {
       });
     }
 
-    return { secret: secretBytes, shares, commitments };
+    return { secret: bytesToHex(secretBytes), shares, commitments };
   }
 
-  public reconstruct(shares: Share[], verifiers: Hex[]): Uint8Array {
+  public reconstruct(shares: Share[], verifiers: Hex[]): Hex {
     if (verifiers.length < 2) throw new Error('vss: at least two shares are required');
     if (shares.length < verifiers.length) throw new Error('vss: too few shares provided');
 
@@ -84,7 +84,7 @@ export class PedersenVss {
     if (secretShares.length < verifiers.length)
       throw new Error(`vss: too few valid shares to reconstruct`);
 
-    return numberToBytes(this.combine(secretShares));
+    return numberToHex(this.combine(secretShares));
   }
 
   private verifyShare(share: Share, commitments: Point[]): { x: bigint; si: bigint; bi: bigint } {
