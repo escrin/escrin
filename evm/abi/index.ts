@@ -1321,6 +1321,273 @@ export const OmniKeyStore = [
   }
 ] as const;
 
+export const ExperimentalSsssHub = [
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "upstream",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "acquireIdentity",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "requester",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "duration",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "context",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "authorization",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "expiry",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "creationBlock",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "dealShares",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "secretName",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "version",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "bytes[]",
+        "internalType": "bytes[]"
+      },
+      {
+        "name": "",
+        "type": "bytes[]",
+        "internalType": "bytes[]"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getIdentityRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IIdentityRegistry"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "releaseIdentity",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "requester",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "context",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "authorization",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPolicy",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "upstream",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "versions",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "ApproverChange",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PolicyChange",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SharesDealt",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "DurationTooLong",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InterfaceUnsupported",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unsupported",
+    "inputs": []
+  }
+] as const;
+
 export const BaseNitroEnclavePermitter = [
   {
     "type": "function",
@@ -2077,6 +2344,195 @@ export const Permitter = [
   }
 ] as const;
 
+export const ExperimentalSsssPermitter = [
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "upstream",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "acquireIdentity",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "requester",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "duration",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "context",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "authorization",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "expiry",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "creationBlock",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getIdentityRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IIdentityRegistry"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "releaseIdentity",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "requester",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "context",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "authorization",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPolicy",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "upstream",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "ApproverChange",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PolicyChange",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "DurationTooLong",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InterfaceUnsupported",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unsupported",
+    "inputs": []
+  }
+] as const;
+
 export const SsssPermitter = [
   {
     "type": "constructor",
@@ -2443,22 +2899,6 @@ export const UnstableSsssPermitter = [
 
 export const TrustedRelayerPermitter = [
   {
-    "type": "constructor",
-    "inputs": [
-      {
-        "name": "upstream",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "trustedRelayer",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
     "type": "function",
     "name": "acquireIdentity",
     "inputs": [
@@ -2732,6 +3172,318 @@ export const ITaskAcceptor = [
   }
 ] as const;
 
+export const DelegatedTaskAcceptor = [
+  {
+    "type": "function",
+    "name": "acceptTaskResults",
+    "inputs": [
+      {
+        "name": "taskIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "proof",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "report",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "sel",
+        "type": "tuple",
+        "internalType": "struct ITaskAcceptor.TaskIdSelector",
+        "components": [
+          {
+            "name": "quantifier",
+            "type": "uint8",
+            "internalType": "enum ITaskAcceptor.Quantifier"
+          },
+          {
+            "name": "taskIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "UpstreamChanged",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AcceptedTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SubmisionTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  }
+] as const;
+
+export const StaticDelegatedTaskAcceptor = [
+  {
+    "type": "function",
+    "name": "acceptTaskResults",
+    "inputs": [
+      {
+        "name": "taskIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "proof",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "report",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "sel",
+        "type": "tuple",
+        "internalType": "struct ITaskAcceptor.TaskIdSelector",
+        "components": [
+          {
+            "name": "quantifier",
+            "type": "uint8",
+            "internalType": "enum ITaskAcceptor.Quantifier"
+          },
+          {
+            "name": "taskIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getUpstreamTaskAcceptor",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "error",
+    "name": "AcceptedTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SubmisionTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  }
+] as const;
+
+export const TimelockedDelegatedTaskAcceptor = [
+  {
+    "type": "function",
+    "name": "acceptTaskResults",
+    "inputs": [
+      {
+        "name": "taskIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "proof",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "report",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "sel",
+        "type": "tuple",
+        "internalType": "struct ITaskAcceptor.TaskIdSelector",
+        "components": [
+          {
+            "name": "quantifier",
+            "type": "uint8",
+            "internalType": "enum ITaskAcceptor.Quantifier"
+          },
+          {
+            "name": "taskIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "DelayChanged",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DelayIncoming",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UpstreamChanged",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UpstreamIncoming",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AcceptedTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SubmisionTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  }
+] as const;
+
 export const PermittedSubmitterTaskAcceptor = [
   {
     "type": "function",
@@ -2825,6 +3577,79 @@ export const PermittedSubmitterTaskAcceptor = [
     "type": "error",
     "name": "SubmisionTaskIdsNotSorted",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  }
+] as const;
+
+export const BaseTaskAcceptor = [
+  {
+    "type": "function",
+    "name": "acceptTaskResults",
+    "inputs": [
+      {
+        "name": "taskIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "proof",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "report",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "sel",
+        "type": "tuple",
+        "internalType": "struct ITaskAcceptor.TaskIdSelector",
+        "components": [
+          {
+            "name": "quantifier",
+            "type": "uint8",
+            "internalType": "enum ITaskAcceptor.Quantifier"
+          },
+          {
+            "name": "taskIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
   }
 ] as const;
 
@@ -2897,6 +3722,11 @@ export const TaskAcceptor = [
   {
     "type": "error",
     "name": "SubmisionTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
     "inputs": []
   }
 ] as const;
@@ -2983,6 +3813,11 @@ export const TrustedSubmitterTaskAcceptor = [
   {
     "type": "error",
     "name": "SubmisionTaskIdsNotSorted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
     "inputs": []
   }
 ] as const;
@@ -3111,17 +3946,6 @@ export const TaskHub = [
 
 export const BaseTaskHubNotifier = [
   {
-    "type": "constructor",
-    "inputs": [
-      {
-        "name": "taskHub",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
     "type": "function",
     "name": "getTaskHub",
     "inputs": [],
@@ -3155,11 +3979,6 @@ export const BaseTaskHubNotifier = [
 ] as const;
 
 export const TaskHubNotifier = [
-  {
-    "type": "constructor",
-    "inputs": [],
-    "stateMutability": "nonpayable"
-  },
   {
     "type": "function",
     "name": "getTaskHub",
