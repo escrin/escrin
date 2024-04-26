@@ -1,0 +1,42 @@
+name: '@escrin/worker'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'worker/**'
+      - '.github/workflows/worker.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'worker/**'
+      - '.github/workflows/worker.yaml'
+
+concurrency:
+  group: workflow-worker-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-build-test:
+    defaults:
+      run:
+        working-directory: ./worker
+    strategy:
+      fail-fast: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          npm install -g pnpm
+          pnpm install --frozen-lockfile
+
+      - name: Lint, build, test
+        run: |
+          pnpm run lint
+          pnpm run build
+          pnpm run test
