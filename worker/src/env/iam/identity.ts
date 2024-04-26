@@ -1,4 +1,4 @@
-import { Address, BlockNotFoundError, Hash, TransactionNotFoundError, hexToBigInt } from 'viem';
+import { Address, BlockNotFoundError, Hash, TransactionNotFoundError } from 'viem';
 
 import {
   IIdentityRegistry as IdentityRegistryAbi,
@@ -6,7 +6,7 @@ import {
 } from '@escrin/evm/abi';
 
 import { ApiError } from '../../rpc.js';
-
+import * as ssss from '../../ssss/index.js';
 import { allocateAccount } from './account.js';
 import { getPublicClient, getWalletClient } from './chains.js';
 import * as types from './types.js';
@@ -25,72 +25,25 @@ export async function handleAcquireIdentity(
   requesterService: string,
   opts: types.AcquireIdentityParams,
 ): Promise<void> {
-  if (opts.sssss) return acquireIdentitySsss(gasKey, requesterService, opts);
+  if (opts.ssss) return acquireIdentitySsss(requesterService, opts);
   return acquireIdentitySapphire(gasKey, requesterService, opts);
 }
 
 async function acquireIdentitySsss(
-  _gasKey: Hash,
-  _requesterService: string,
-  opts: types.AcquireIdentityParams,
+  requesterService: string,
+  params: types.AcquireIdentityParams,
 ): Promise<void> {
-  const {
-    network: { chainId },
-    identity: { registry, id: identityIdHex },
-    permitter,
-    permitTtl,
-    recipient,
-    context,
-    authorization,
-    sssss,
-  } = opts;
+  if (params.ssss === undefined) throw new TypeError('ssss not provided');
 
-  if (sssss === undefined) throw new Error('sssss not provided');
+  const { optimisticGrants } = await ssss.acquireIdentity({
+    ...params,
+    recipient: params.recipient ?? allocateAccount(requesterService).address,
+    permitTtl: params.permitTtl ?? 24 * 60 * 60,
+    ssss: params.ssss,
+  });
 
-  const abort = new AbortController();
-  const fetchTimeout = setTimeout(() => abort.abort(), 60 * 1000);
-  const permitResults = await Promise.allSettled(
-    sssss.urls.map((url) =>
-      fetch(`${url}/permits/${chainId}/${registry}/${identityIdHex}`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          permitter,
-          recipient,
-          duration: permitTtl,
-          authorization,
-          context,
-        }),
-        signal: abort.signal,
-      }),
-    ),
-  );
-  clearTimeout(fetchTimeout);
-  let successCount = 0;
-  const errorBodies = [];
-  for (let i = 0; i < permitResults.length; i++) {
-    const result = permitResults[i];
-    const ssss = sssss.urls[i];
-    if (result.status === 'rejected') {
-      console.warn(`SSSS ${ssss} could not be reached: ${result.reason}`);
-    } else if (result.value.status === 201) {
-      successCount += 1;
-    } else if (result.value.status === 202) {
-      console.warn(`SSSS ${ssss} did not optimistcally issue permit`);
-    } else if (!result.value.ok && result.value.status !== 401 && result.value.status !== 403) {
-      errorBodies.push((async () => [ssss, await result.value.text()] as [string, string])());
-    }
-  }
-  const errors = await Promise.allSettled(errorBodies);
-  for (const error of errors) {
-    if (error.status === 'rejected') continue;
-    const [ssss, msg] = error.value;
-    console.warn(`SSSS ${ssss} returned an error: ${msg}`);
-  }
-  const quorum = sssss?.quorum ?? Math.ceil(sssss.urls.length / 2);
-  if (successCount < quorum) throw new ApiError(403, 'quorum not reached');
+  if (optimisticGrants < params.ssss.quorum)
+    throw new ApiError(403, `optimistic quorum not reached`);
 }
 
 async function acquireIdentitySapphire(

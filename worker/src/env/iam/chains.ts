@@ -1,6 +1,7 @@
 import {
-  PublicClient,
   Hash,
+  PrivateKeyAccount,
+  PublicClient,
   Transport,
   WalletClient,
   createPublicClient,
@@ -19,14 +20,16 @@ export function getPublicClient(chainId: number, rpcUrl?: string): PublicClient<
 }
 
 export function getWalletClient(
-  privateKey: Hash,
+  privateKeyOrAccount: Hash | PrivateKeyAccount,
   chainId: number,
   rpcUrl?: string,
 ): WalletClient<Transport, Chain, Account> {
   const chain = getChain(chainId, rpcUrl);
-  const gasAccount = privateKeyToAccount(privateKey);
-  // TODO: round-robin scheduling
-  return createWalletClient({ chain, transport: http(), account: gasAccount });
+  const account =
+    typeof privateKeyOrAccount === 'string'
+      ? privateKeyToAccount(privateKeyOrAccount)
+      : privateKeyOrAccount;
+  return createWalletClient({ chain, transport: http(), account });
 }
 
 export function getChain(chainId: number, rpcUrl?: string): Chain {

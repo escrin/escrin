@@ -7,6 +7,8 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "outDir": "dist/lib",
     "skipLibCheck": true,
     "strict": true,

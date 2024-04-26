@@ -65,7 +65,10 @@ export type AcquireIdentityParams = {
   /** A pointer to the identity to acquire. */
   identity: Identity;
 
-  /** For chained Permitters, the first Permitter in the chain. */
+  /**
+   * For chained Permitters, the first Permitter in the chain.
+   * Default: the permitter registered with the identity registry.
+   */
   permitter?: Address;
 
   /** The address of the recipient of the permit. Default: the worker's ephemeral wallet. */
@@ -89,12 +92,14 @@ export type AcquireIdentityParams = {
   gasKey?: Hex;
 
   /** @experimental */
-  sssss?: SsssParams;
+  ssss?: SsssParams;
 };
 
 export type SsssParams = {
+  /** The address of the SSSSHub contract. */
+  hub: Address;
   /** The M in the M-of-N secret sharing scheme. */
-  quorum?: number;
+  quorum: number;
   /** The URLs of the SSSSs to be contacted. */
   urls: string[];
 };
@@ -109,7 +114,7 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
     context,
     authorization,
     duration,
-    sssss,
+    ssss,
   } = params;
 
   if (recipient !== undefined && !isAddress(recipient))
@@ -134,7 +139,7 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
     authorization,
     permitTtl,
     duration,
-    sssss: checkSssss(sssss),
+    ssss: checkSsss(ssss),
   };
 }
 
@@ -160,28 +165,29 @@ export type EvmKeyStoreParams = {
     registry: Address;
     id: Hash;
   };
-  sssss?: SsssParams;
+  ssss?: SsssParams;
 };
 
 export function parseGetKeyParams(params: Record<string, unknown>): GetKeyParams {
   const { keyId, keyStore, ...providerParams } = params;
   if (keyId !== 'omni') throw new ApiError(400, `unknown key id ${keyId}`);
 
-  // Only one provider, so no guard is needed.
-  const { network, identity, sssss } = providerParams;
+  // There is only the one provider kind (EVM), so no guard is needed.
+  const { network, identity, ssss } = providerParams;
   return {
     keyId,
     network: parseNetwork(network),
     identity: parseIdentity(identity),
-    sssss: checkSssss(sssss),
+    ssss: checkSsss(ssss),
   };
 }
 
-function checkSssss(sssss: unknown): SsssParams | undefined {
-  if (sssss === undefined || sssss === null) return undefined;
-  let { urls, quorum } = sssss as Record<string, unknown>;
+function checkSsss(ssss: unknown): SsssParams | undefined {
+  if (ssss === undefined || ssss === null) return undefined;
+  let { urls, quorum, hub } = ssss as Record<string, unknown>;
 
-  if (!Array.isArray(urls)) throw new ApiError(400, 'invalid sssss: missing urls');
+  if (!Array.isArray(urls) || urls.length === 0)
+    throw new ApiError(400, 'invalid ssss: missing urls');
   const normalizedUrls = urls.map((u) => {
     try {
       const url = new URL(u);
@@ -191,15 +197,14 @@ function checkSssss(sssss: unknown): SsssParams | undefined {
       if (!url.pathname.endsWith('/v1')) throw new Error('unsupported SSSS API version');
       return url.toString();
     } catch (e: any) {
-      throw new ApiError(400, `invalid ssss url: ${e}`);
+      throw new ApiError(400, `invalid ssss: invalid ssss url: ${e}`);
     }
   });
 
-  if (
-    quorum !== undefined &&
-    (typeof quorum !== 'number' || quorum <= 0 || quorum % 1 > 0 || quorum > normalizedUrls.length)
-  )
-    throw new ApiError(400, 'invalid sssss: invalid quorum');
+  if (typeof quorum !== 'number' || quorum <= 0 || quorum % 1 > 0 || quorum > normalizedUrls.length)
+    throw new ApiError(400, 'invalid ssss: invalid quorum');
 
-  return { quorum, urls: normalizedUrls };
+  if (!isAddress(hub)) throw new ApiError(400, 'invalid ssss: missing hub');
+
+  return { hub, quorum, urls: normalizedUrls };
 }
