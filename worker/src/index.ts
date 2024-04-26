@@ -61,7 +61,7 @@ export type WorkerEnv = { config: Record<string, any>; iam: Fetcher; tpm?: Fetch
 export default function (callbacks: Callbacks) {
   return {
     fetch: wrapFetch(async (req: Request, env: WorkerEnv, ctx: ExecutionContext) => {
-      const { method, params: _ } = await decodeRequest(req);
+      const { method } = await decodeRequest(req);
       ctx.waitUntil(
         (async () => {
           if (method === 'tasks') {

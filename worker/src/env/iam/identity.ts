@@ -62,7 +62,7 @@ async function acquireIdentitySapphire(
     duration,
   } = opts;
   const requester = recipient ?? allocateAccount(requesterService).address;
-  let publicClient = getPublicClient(chainId, rpcUrl);
+  const publicClient = getPublicClient(chainId, rpcUrl);
 
   if (duration) {
     // If the permit key only needs to last a little while and it's already current, reuse it.
@@ -76,7 +76,7 @@ async function acquireIdentitySapphire(
     if (now + duration < expiry) return;
   }
 
-  let gasWallet = getWalletClient(gasKey, chainId, rpcUrl);
+  const gasWallet = getWalletClient(gasKey, chainId, rpcUrl);
 
   let permitterAddress: Address;
   if (permitter) {

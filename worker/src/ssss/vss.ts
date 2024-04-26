@@ -74,7 +74,7 @@ export class Pedersen {
     for (const s of shares) {
       try {
         if (seenIndices.has(s.index)) continue;
-        let { x, si, bi } = this.verifyShare(s, commitments);
+        const { x, si, bi } = this.verifyShare(s, commitments);
         secretShares.push([x, si]);
         blinderShares.push([x, bi]);
         seenIndices.add(s.index);
@@ -88,7 +88,7 @@ export class Pedersen {
   }
 
   private verifyShare(share: Share, commitments: Point[]): { x: bigint; si: bigint; bi: bigint } {
-    let x = BigInt(share.index);
+    const x = BigInt(share.index);
     let recoveredCommitment = commitments[0];
     for (let i = 1; i < commitments.length; i++) {
       recoveredCommitment = recoveredCommitment.add(

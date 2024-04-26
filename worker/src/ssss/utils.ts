@@ -20,7 +20,7 @@ export async function fetchAll<Upstream, Result>(
   const abort = new AbortController();
   // TODO: build in retrying as long as abort signal hasn't been raised
   async function doFetch(upstream: Upstream): Promise<Result> {
-    let { url, headers, body } = await makeReqParams(upstream);
+    const { url, headers, body } = await makeReqParams(upstream);
     const res = await fetch(url, {
       headers,
       body: body ? JSON.stringify(body) : undefined,
