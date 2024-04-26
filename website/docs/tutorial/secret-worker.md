@@ -347,7 +347,7 @@ export escrinWorker(new class {
         // First encrypt & store some data to IPFS.
         const msg = 'Hello, world!';
         const iv = new Uint8Array(12);
-        const ciphertext = await cipher.encrypt(new TextEncoder().encode(msg));
+        const ciphertext = await cipher.encrypt(new TextEncoder().encode(msg), iv);
         const content = new Blob([ciphertext]);
         const cid = await nftStorage.storeBlob(content);
 
