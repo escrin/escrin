@@ -169,7 +169,7 @@ export type EvmKeyStoreParams = {
 };
 
 export function parseGetKeyParams(params: Record<string, unknown>): GetKeyParams {
-  const { keyId, keyStore, ...providerParams } = params;
+  const { keyId, ...providerParams } = params;
   if (keyId !== 'omni') throw new ApiError(400, `unknown key id ${keyId}`);
 
   // There is only the one provider kind (EVM), so no guard is needed.
@@ -184,7 +184,7 @@ export function parseGetKeyParams(params: Record<string, unknown>): GetKeyParams
 
 function checkSsss(ssss: unknown): SsssParams | undefined {
   if (ssss === undefined || ssss === null) return undefined;
-  let { urls, quorum, hub } = ssss as Record<string, unknown>;
+  const { urls, quorum, hub } = ssss as Record<string, unknown>;
 
   if (!Array.isArray(urls) || urls.length === 0)
     throw new ApiError(400, 'invalid ssss: missing urls');

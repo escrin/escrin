@@ -37,7 +37,7 @@ export class Nsm {
   private communicate<Params, Res>(method: string, params?: Params): Res {
     const req = params !== undefined ? { [method]: params } : method;
     const resBuf = new Uint8Array(this.nsm.request(cbor.encode(req)));
-    const [res, _rest] = cbor.decodeFirst(resBuf);
+    const res = cbor.decodeFirst(resBuf)[0];
     if (res === undefined) throw new ApiError(500, 'nsm: unexpected empty response');
     if (res.Error) throw new ApiError(500, `nsm: ${res.Error}`);
     if (!(method in res)) throw new ApiError(500, `nsm: missing ${method} response key`);
