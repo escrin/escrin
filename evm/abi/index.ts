@@ -1321,273 +1321,6 @@ export const OmniKeyStore = [
   }
 ] as const;
 
-export const ExperimentalSsssHub = [
-  {
-    "type": "constructor",
-    "inputs": [
-      {
-        "name": "upstream",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "acquireIdentity",
-    "inputs": [
-      {
-        "name": "identity",
-        "type": "bytes32",
-        "internalType": "IdentityId"
-      },
-      {
-        "name": "requester",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "duration",
-        "type": "uint64",
-        "internalType": "uint64"
-      },
-      {
-        "name": "context",
-        "type": "bytes",
-        "internalType": "bytes"
-      },
-      {
-        "name": "authorization",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "expiry",
-        "type": "uint64",
-        "internalType": "uint64"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "creationBlock",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "dealShares",
-    "inputs": [
-      {
-        "name": "identity",
-        "type": "bytes32",
-        "internalType": "IdentityId"
-      },
-      {
-        "name": "secretName",
-        "type": "string",
-        "internalType": "string"
-      },
-      {
-        "name": "version",
-        "type": "uint64",
-        "internalType": "uint64"
-      },
-      {
-        "name": "",
-        "type": "bytes",
-        "internalType": "bytes"
-      },
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "",
-        "type": "bytes[]",
-        "internalType": "bytes[]"
-      },
-      {
-        "name": "",
-        "type": "bytes[]",
-        "internalType": "bytes[]"
-      },
-      {
-        "name": "",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "getIdentityRegistry",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IIdentityRegistry"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "releaseIdentity",
-    "inputs": [
-      {
-        "name": "identity",
-        "type": "bytes32",
-        "internalType": "IdentityId"
-      },
-      {
-        "name": "requester",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "context",
-        "type": "bytes",
-        "internalType": "bytes"
-      },
-      {
-        "name": "authorization",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setPolicy",
-    "inputs": [
-      {
-        "name": "identity",
-        "type": "bytes32",
-        "internalType": "IdentityId"
-      },
-      {
-        "name": "",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "supportsInterface",
-    "inputs": [
-      {
-        "name": "interfaceId",
-        "type": "bytes4",
-        "internalType": "bytes4"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "upstream",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "versions",
-    "inputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "IdentityId"
-      },
-      {
-        "name": "",
-        "type": "string",
-        "internalType": "string"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "event",
-    "name": "ApproverChange",
-    "inputs": [],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "PolicyChange",
-    "inputs": [],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SharesDealt",
-    "inputs": [],
-    "anonymous": false
-  },
-  {
-    "type": "error",
-    "name": "DurationTooLong",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "InterfaceUnsupported",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "Unauthorized",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "Unsupported",
-    "inputs": []
-  }
-] as const;
-
 export const BaseNitroEnclavePermitter = [
   {
     "type": "function",
@@ -2397,26 +2130,38 @@ export const ExperimentalSsssPermitter = [
   },
   {
     "type": "function",
-    "name": "creationBlock",
-    "inputs": [],
+    "name": "approverRoots",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      }
+    ],
     "outputs": [
       {
         "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
-    "name": "getIdentityRegistry",
-    "inputs": [],
+    "name": "policyHashes",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      }
+    ],
     "outputs": [
       {
         "name": "",
-        "type": "address",
-        "internalType": "contract IIdentityRegistry"
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "stateMutability": "view"
@@ -2451,7 +2196,7 @@ export const ExperimentalSsssPermitter = [
   },
   {
     "type": "function",
-    "name": "setPolicy",
+    "name": "setApproversRoot",
     "inputs": [
       {
         "name": "identity",
@@ -2459,9 +2204,27 @@ export const ExperimentalSsssPermitter = [
         "internalType": "IdentityId"
       },
       {
-        "name": "",
-        "type": "bytes",
-        "internalType": "bytes"
+        "name": "approversRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPolicyHash",
+    "inputs": [
+      {
+        "name": "identity",
+        "type": "bytes32",
+        "internalType": "IdentityId"
+      },
+      {
+        "name": "policyHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
