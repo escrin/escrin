@@ -10,20 +10,31 @@ contract ExperimentalSsssPermitter is Permitter {
     event PolicyChange();
     event ApproverChange();
 
-    uint256 public immutable creationBlock;
+    mapping(IdentityId => bytes32) public policyHashes;
+    mapping(IdentityId => bytes32) public approverRoots;
 
-    constructor(address upstream) Permitter(upstream) {
-        creationBlock = block.number;
-    }
+    constructor(address upstream) Permitter(upstream) {}
 
-    function setPolicy(IdentityId identity, bytes calldata /* config */ ) external {
+    modifier onlyRegistrant(IdentityId identity) {
         (address registrant,) = _getIdentityRegistry().getRegistrant(identity);
         if (msg.sender != registrant) revert Unauthorized();
+        _;
+    }
+
+    function setPolicyHash(IdentityId identity, bytes32 policyHash)
+        external
+        onlyRegistrant(identity)
+    {
+        policyHashes[identity] = policyHash;
         emit PolicyChange();
     }
 
-    function getIdentityRegistry() external view returns (IIdentityRegistry) {
-        return _getIdentityRegistry();
+    function setApproversRoot(IdentityId identity, bytes32 approversRoot)
+        external
+        onlyRegistrant(identity)
+    {
+        approverRoots[identity] = approversRoot;
+        emit ApproverChange();
     }
 
     function _acquireIdentity(IdentityId, address, uint64, bytes calldata, bytes calldata)
