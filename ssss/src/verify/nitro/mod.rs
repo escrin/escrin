@@ -72,7 +72,7 @@ impl Verifier for NitroEnclaveVerifier {
         Ok(Verification {
             nonce: ud.nonce,
             public_key: ud.public_key,
-            expiry: match req {
+            duration: match req {
                 RequestKind::Grant { duration } => Some(duration.min(policy.max_duration)),
                 RequestKind::Revoke => None,
             },

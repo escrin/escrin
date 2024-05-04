@@ -151,7 +151,7 @@ impl SsssClient {
             ));
         }
 
-        let res: ShareResponse = shares_res.error_for_status()?.json().await?;
+        let res: ShareBody = shares_res.error_for_status()?.json().await?;
 
         let share = match res.format {
             ShareResponseFormat::Plain => res.ss.share,

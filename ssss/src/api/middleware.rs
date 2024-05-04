@@ -19,29 +19,30 @@ use tiny_keccak::{Hasher as _, Keccak};
 
 use super::Error;
 use crate::{
-    store::Store,
+    eth,
     types::{api::*, *},
-    utils::retry_times,
 };
 
 #[tracing::instrument(level = "info", skip_all)]
-pub async fn permitted_requester<S: Store>(
+pub async fn permitted_requester(
     Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     TypedHeader(RequesterHeader(requester)): TypedHeader<RequesterHeader>,
-    State(store): State<S>,
+    State(providers): State<eth::Providers>,
     req: Request,
     next: Next,
 ) -> Result<Response, Error> {
-    let identity_locator = IdentityLocator {
-        chain,
-        registry,
-        id: identity,
+    let Some(provider) = providers.get(&chain) else {
+        return Err(Error::UnsupportedChain(chain));
     };
-    retry_times(|| store.read_permit(identity_locator, requester), 3)
+    if eth::IdentityRegistry::new(registry, provider.clone())
+        .is_permitted(requester, identity)
         .await
-        .map_err(anyhow::Error::from)?
-        .ok_or_else(|| Error::Unauthorized("no acceptable permit found".into()))?;
-    Ok(next.run(req).await)
+        .map_err(|e| Error::Unhandled(e.into()))?
+    {
+        Ok(next.run(req).await)
+    } else {
+        Err(Error::Forbidden("requester not permitted".into()))
+    }
 }
 
 #[tracing::instrument(level = "info", skip_all)]
@@ -105,8 +106,7 @@ fn verify_sig(
     let req721_hash = H256(
         SsssRequest {
             method: method.to_string(),
-            host: host.to_string(),
-            path_and_query: path_and_query.to_string(),
+            url: format!("{host}{path_and_query}"),
             body: body.unwrap_or_default(),
         }
         .encode_eip712()
@@ -197,4 +197,22 @@ where
     fn size_hint(&self) -> http_body::SizeHint {
         self.inner.size_hint()
     }
+}
+
+#[derive(Clone, serde::Deserialize)]
+pub struct PathChainId {
+    chain: ChainId,
+}
+
+#[tracing::instrument(level = "info", skip_all)]
+pub async fn ensure_supported_chain(
+    State(providers): State<eth::Providers>,
+    Path(PathChainId { chain }): Path<PathChainId>,
+    req: Request,
+    next: Next,
+) -> Result<Response, Error> {
+    if !providers.contains_key(&chain) {
+        return Err(Error::UnsupportedChain(chain));
+    }
+    Ok(next.run(req).await)
 }

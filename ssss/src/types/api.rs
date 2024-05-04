@@ -1,31 +1,39 @@
 use axum::http::header;
 use axum_extra::headers;
 use ethers::types::{Address, Bytes, Signature};
-use p384::elliptic_curve::JwkEcKey;
 use serde::{Deserialize, Serialize};
 
-use super::{Permit, WrappedKey};
+use super::{SsssPermit, WrappedKey};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdentityResponse {
-    pub persistent: JwkEcKey,
-    pub ephemeral: JwkEcKey,
+    pub key_id: String,
+    pub pk: p384::PublicKey,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SetPolicyRequest {
+    pub permitter: Address,
+    pub policy: Box<serde_json::value::RawValue>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AcqRelIdentityRequest {
-    #[serde(default)]
-    pub duration: u64,
-    pub authorization: Bytes,
-    pub context: Bytes,
     pub permitter: Address,
     pub recipient: Address,
+    pub base_block: u64,
+    #[serde(default)]
+    pub duration: Option<u64>,
+    #[serde(default)]
+    pub authorization: Bytes,
+    #[serde(default)]
+    pub context: Bytes,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AcqRelIdentityResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub permit: Option<Permit>,
+pub struct PermitResponse {
+    pub permit: SsssPermit,
+    pub signature: Signature,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -33,28 +41,78 @@ pub struct GetShareQuery {
     pub version: u64,
 }
 
+#[derive(Clone, Deserialize)]
+#[serde(untagged)]
+pub enum MaybeEncryptedRequest<T> {
+    Encrypted(EncryptedPayload),
+    Plain(T),
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareResponse {
-    pub format: ShareResponseFormat,
-    pub ss: WrappedSecretShare,
+pub struct EncryptedPayload {
+    pub format: EncryptedPayloadFormat,
+    pub payload: Bytes,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum EncryptedPayloadFormat {
+    P384EcdhAes256GcmSiv {
+        curve: CurveP384,
+        pk: p384::PublicKey,
+        #[serde(with = "hex::serde")]
+        nonce: [u8; 12],
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        recipient_key_id: String,
+    },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct CurveP384;
+
+impl Serialize for CurveP384 {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        "P-384".serialize(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for CurveP384 {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        if s != "P-384" {
+            Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(&s),
+                &"P-384",
+            ))
+        } else {
+            Ok(Self)
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareBody {
+    pub share: SecretShare,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct WrappedSecretShare {
-    pub index: u64,
-    #[serde(with = "hex::serde")]
-    pub share: Vec<u8>,
+pub struct SecretShare {
+    #[serde(flatten)]
+    pub meta: super::SecretShareMeta,
+    pub share: Bytes,
+    pub blinder: Bytes,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ShareResponseFormat {
-    Plain,
-    EncAes256GcmSiv {
-        #[serde(with = "hex::serde")]
-        nonce: [u8; 12],
-    },
+impl From<crate::types::SecretShare> for SecretShare {
+    fn from(ss: crate::types::SecretShare) -> Self {
+        Self {
+            meta: ss.meta,
+            share: (*ss.share).clone().into(),
+            blinder: (*ss.blinder).clone().into(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -80,7 +138,7 @@ pub struct ErrorResponse {
 pub struct SignatureHeader(pub Signature);
 
 impl std::fmt::Display for SignatureHeader {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{}", hex::encode(self.0.to_vec()))
     }
 }
@@ -128,7 +186,7 @@ impl std::ops::Deref for SignatureHeader {
 pub struct RequesterHeader(pub Address);
 
 impl std::fmt::Display for RequesterHeader {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:x}", self.0)
     }
 }
@@ -174,7 +232,7 @@ impl std::ops::Deref for RequesterHeader {
 pub struct RequesterPublicKeyHeader(pub p384::PublicKey);
 
 impl std::fmt::Display for RequesterPublicKeyHeader {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", hex::encode(self.0.to_sec1_bytes()))
     }
 }

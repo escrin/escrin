@@ -122,7 +122,7 @@ resource "azurerm_role_assignment" "instance" {
 
 
 locals {
-  storage_tables = ["secretversions", "permits", "nonces", "verifiers", "chainstate"]
+  storage_tables = ["secretversions", "verifiers"]
 }
 
 resource "azurerm_storage_table" "storage" {

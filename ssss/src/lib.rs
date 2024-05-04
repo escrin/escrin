@@ -1,5 +1,8 @@
+#![forbid(unsafe_code)]
+#![deny(rust_2018_idioms)]
+
+pub mod backend;
 pub mod eth;
-pub mod identity;
-pub mod store;
+pub mod keypair;
 pub mod types;
 pub mod utils;

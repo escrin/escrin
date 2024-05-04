@@ -1,9 +1,6 @@
-mod auth;
+mod middleware;
 
-use std::{
-    collections::HashMap,
-    net::{Ipv4Addr, SocketAddrV4},
-};
+use std::net::{Ipv4Addr, SocketAddrV4};
 
 use aes_gcm_siv::AeadInPlace as _;
 use axum::{
@@ -14,28 +11,33 @@ use axum::{
     routing::{any, delete, get, post, put},
     Json, Router,
 };
-use axum_extra::{headers::Header as _, TypedHeader};
-use ethers::{middleware::Middleware, types::Address};
-use futures_util::TryFutureExt as _;
-use p384::elliptic_curve::JwkEcKey;
-use ssss::identity::{self, Identity};
+use axum_extra::{either::Either, headers::Header as _, TypedHeader};
+use ethers::{
+    core::{
+        k256, k256::elliptic_curve::sec1::FromEncodedPoint as _, types::transaction::eip712,
+        utils::keccak256,
+    },
+    providers::Middleware,
+    types::{transaction::eip712::Eip712 as _, Address},
+};
+use once_cell::sync::Lazy;
+use ssss::keypair::{self, KeyPair, RotatingKeyPairProvider};
 use tower_http::cors;
+use vsss_rs::PedersenVerifierSet;
 
 use crate::{
-    eth::SsssHub,
-    store::Store,
+    backend::{Signer, Store},
+    eth,
     types::{api::*, *},
-    utils::retry_times,
     verify,
 };
 
 #[derive(Clone)]
-struct AppState<M: Middleware, S> {
-    store: S,
-    sssss: HashMap<ChainId, SsssHub<M>>,
+struct AppState<B> {
+    backend: B,
     host: Authority,
-    persistent_identity_jwk: JwkEcKey,
-    ephemeral_identity: Identity,
+    providers: eth::Providers,
+    kps: RotatingKeyPairProvider<B>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -48,6 +50,8 @@ enum Error {
     Unauthorized(String),
     #[error("{0}")]
     Forbidden(String),
+    #[error("unsupported chain: {0}")]
+    UnsupportedChain(ChainId),
     #[error("internal server error")]
     Unhandled(#[from] anyhow::Error),
 }
@@ -62,6 +66,7 @@ impl IntoResponse for Error {
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             Self::Forbidden(_) => StatusCode::FORBIDDEN,
+            Self::UnsupportedChain(_) => StatusCode::MISDIRECTED_REQUEST,
             Self::Unhandled(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (
@@ -74,30 +79,23 @@ impl IntoResponse for Error {
     }
 }
 
-pub async fn serve<M: Middleware + Clone + 'static, S: Store>(
-    store: S,
-    sssss: impl Iterator<Item = SsssHub<M>>,
-    host: Authority,
-    identity_jwk: JwkEcKey,
-) {
-    assert!(identity_jwk.is_public_key());
+pub async fn serve<B: Store + Signer>(backend: B, providers: eth::Providers, host: Authority) {
     let bind_addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), host.port_u16().unwrap_or(443));
     let listener = tokio::net::TcpListener::bind(bind_addr).await.unwrap();
     axum::serve(
         listener,
         make_router(AppState {
-            store,
-            sssss: sssss.map(|ssss| (ssss.chain, ssss)).collect(),
+            backend: backend.clone(),
             host,
-            persistent_identity_jwk: identity_jwk,
-            ephemeral_identity: Identity::ephemeral(),
+            providers,
+            kps: RotatingKeyPairProvider::new(backend),
         }),
     )
     .await
     .unwrap();
 }
 
-fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>) -> Router {
+fn make_router<S: Store + Signer>(state: AppState<S>) -> Router {
     Router::new()
         .route("/", any(root))
         .nest(
@@ -105,41 +103,62 @@ fn make_router<M: Middleware + Clone + 'static, S: Store>(state: AppState<M, S>)
             Router::new()
                 .route("/identity", get(get_ssss_identity))
                 .nest(
+                    "/policies/:chain/:registry/:identity",
+                    Router::new().route("/", post(set_policy)).layer(
+                        axum::middleware::from_fn_with_state(
+                            state.providers.clone(),
+                            middleware::ensure_supported_chain,
+                        ),
+                    ),
+                )
+                .nest(
                     "/permits/:chain/:registry/:identity",
                     Router::new()
                         .route("/", post(acqrel_identity))
                         .route("/", delete(acqrel_identity))
                         .layer(axum::middleware::from_fn_with_state(
-                            state.host.clone(),
-                            auth::escrin1,
+                            state.providers.clone(),
+                            middleware::ensure_supported_chain,
                         )),
                 )
-                .route(
+                .nest(
                     "/shares/:name/:chain/:registry/:identity",
-                    get(get_share)
+                    Router::new()
+                        .route("/", get(get_share))
+                        .route("/", post(deal_share))
+                        .route("/", delete(destroy_share))
+                        .route("/commit", post(commit_share))
                         .layer(axum::middleware::from_fn_with_state(
-                            state.store.clone(),
-                            auth::permitted_requester::<S>,
+                            state.providers.clone(),
+                            middleware::permitted_requester,
                         ))
                         .layer(axum::middleware::from_fn_with_state(
                             state.host.clone(),
-                            auth::escrin1,
+                            middleware::escrin1,
+                        ))
+                        .layer(axum::middleware::from_fn_with_state(
+                            state.providers.clone(),
+                            middleware::ensure_supported_chain,
                         ))
                         .layer(axum::middleware::from_fn(support_only_omni("share"))),
                 )
                 .nest(
-                    "/keys/:name/:chain/:registry/:identity",
+                    "/secrets/:name/:chain/:registry/:identity",
                     Router::new()
-                        .route("/", put(put_key))
-                        .route("/", get(get_key))
-                        .route("/", delete(delete_key))
+                        .route("/", put(put_secret))
+                        .route("/", get(get_secret))
+                        .route("/", delete(delete_secret))
                         .layer(axum::middleware::from_fn_with_state(
-                            state.store.clone(),
-                            auth::permitted_requester::<S>,
+                            state.providers.clone(),
+                            middleware::permitted_requester,
                         ))
                         .layer(axum::middleware::from_fn_with_state(
                             state.host.clone(),
-                            auth::escrin1,
+                            middleware::escrin1,
+                        ))
+                        .layer(axum::middleware::from_fn_with_state(
+                            state.providers.clone(),
+                            middleware::ensure_supported_chain,
                         ))
                         .layer(axum::middleware::from_fn(support_only_omni("key"))),
                 ),
@@ -182,23 +201,59 @@ async fn root() -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-async fn get_ssss_identity<M: Middleware + 'static, S: Store>(
-    State(AppState {
-        persistent_identity_jwk,
-        ephemeral_identity,
-        ..
-    }): State<AppState<M, S>>,
-) -> Json<IdentityResponse> {
-    Json(IdentityResponse {
-        persistent: persistent_identity_jwk,
-        ephemeral: ephemeral_identity.public_key().to_jwk(),
-    })
+async fn get_ssss_identity<S: Store>(
+    State(AppState { kps, .. }): State<AppState<S>>,
+) -> Result<Json<IdentityResponse>, Error> {
+    let (key_id, pk) = kps
+        .with_latest_key(|id, kp| (id.to_string(), *kp.public_key()))
+        .await?;
+    Ok(Json(IdentityResponse { key_id, pk }))
 }
 
-async fn acqrel_identity<M: Middleware + 'static, S: Store>(
+async fn set_policy<S: Store>(
+    Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
+    State(AppState {
+        providers, backend, ..
+    }): State<AppState<S>>,
+    Json(SetPolicyRequest { permitter, policy }): Json<SetPolicyRequest>,
+) -> Result<StatusCode, Error> {
+    let Some(provider) = providers.get(&chain) else {
+        return Err(Error::UnsupportedChain(chain));
+    };
+    let expected_policy_hash = eth::SsssPermitter::new(permitter, provider.clone())
+        .policy_hash(identity)
+        .await
+        .map_err(|e| Error::Unhandled(e.into()))?;
+
+    let provided_policy_hash = keccak256(policy.get());
+    if provided_policy_hash != expected_policy_hash.0 {
+        return Err(Error::BadRequest(
+            "provided policy did not match registered policy".into(),
+        ));
+    }
+
+    backend
+        .put_verifier(
+            PermitterLocator { chain, permitter },
+            IdentityLocator {
+                chain,
+                registry,
+                id: identity,
+            },
+            policy.get().as_bytes().to_vec(),
+        )
+        .await
+        .map_err(Error::Unhandled)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn acqrel_identity<S: Store + Signer>(
     method: Method,
     Path((chain, registry, identity)): Path<(ChainId, Address, IdentityId)>,
-    State(AppState { store, sssss, .. }): State<AppState<M, S>>,
+    State(AppState {
+        backend, providers, ..
+    }): State<AppState<S>>,
     relayer: Option<TypedHeader<RequesterHeader>>,
     Json(AcqRelIdentityRequest {
         duration,
@@ -206,29 +261,59 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
         context,
         permitter,
         recipient,
+        base_block,
     }): Json<AcqRelIdentityRequest>,
-) -> Result<StatusCode, Error> {
-    let ssss = sssss
-        .get(&chain)
-        .ok_or_else(|| Error::BadRequest(format!("unsupported chain: {chain}")))?;
+) -> Result<Json<PermitResponse>, Error> {
+    let Some(provider) = providers.get(&chain) else {
+        return Err(Error::UnsupportedChain(chain));
+    };
+    let current_block = provider
+        .get_block_number()
+        .await
+        .map_err(|e| Error::Unhandled(e.into()))?;
+    if base_block > current_block.low_u64() {
+        return Err(Error::BadRequest("base block is in the future".into()));
+    }
 
-    let policy_bytes = retry_times(
-        || store.get_verifier(PermitterLocator::new(chain, permitter), identity),
-        3,
-    )
-    .await
-    .map_err(anyhow::Error::from)?
-    .ok_or_else(|| Error::NotFound("policy".into()))?;
+    let policy_bytes = backend
+        .get_verifier(
+            PermitterLocator::new(chain, permitter),
+            IdentityLocator {
+                chain,
+                registry,
+                id: identity,
+            },
+        )
+        .await
+        .map_err(anyhow::Error::from)?
+        .ok_or_else(|| Error::NotFound("policy".into()))?;
+
+    let policy_hash = keccak256(&policy_bytes);
+    let current_policy_hash = eth::SsssPermitter::new(permitter, provider.clone())
+        .policy_hash(identity)
+        .await
+        .map_err(|e| Error::Unhandled(e.into()))?;
+
+    if policy_hash != current_policy_hash.0 {
+        return Err(Error::Unauthorized("policy not current".into()));
+    }
 
     let identity_locator = IdentityLocator {
         chain,
         registry,
         id: identity,
     };
-    let verification = verify::verify(
+    let crate::verify::Verification {
+        nonce,
+        public_key,
+        duration,
+    } = verify::verify(
         &policy_bytes,
         match method {
-            Method::POST => verify::RequestKind::Grant { duration },
+            Method::POST => verify::RequestKind::Grant {
+                duration: duration
+                    .ok_or_else(|| Error::BadRequest("missing duration".to_string()))?,
+            },
             Method::DELETE => verify::RequestKind::Revoke,
             _ => unreachable!(),
         },
@@ -241,112 +326,214 @@ async fn acqrel_identity<M: Middleware + 'static, S: Store>(
     .await
     .map_err(|e| Error::Unauthorized(e.to_string()))?;
 
-    // TODO: call permitter to approve or revoke
+    let permit = SsssPermit {
+        registry,
+        identity: identity.0,
+        recipient,
+        grant: method == Method::POST,
+        duration: duration.unwrap_or_default(),
+        nonce: nonce.into(),
+        pk: public_key.into(),
+        base_block: base_block.into(),
+    };
 
-    if ssss.upstream().await.map_err(anyhow::Error::from)? != registry {
-        return Ok(StatusCode::ACCEPTED);
+    let permit_hash = eip712::EIP712WithDomain {
+        domain: eip712::EIP712Domain {
+            name: Some("SsssPermit".into()),
+            version: Some("1".into()),
+            chain_id: Some(chain.into()),
+            verifying_contract: Some(permitter),
+            salt: None,
+        },
+        inner: permit.clone(),
     }
-    // If the upstream of the SsssPermitter is the identity registry, it's
-    // safe to optimistically create the permit rather than waiting for quorum.
-    match method {
-        Method::POST => {
-            let expiry = verification
-                .expiry
-                .ok_or_else(|| Error::Unauthorized("verification failed".into()))?;
-            retry_times(
-                || {
-                    store.create_permit(
-                        identity_locator,
-                        recipient,
-                        expiry,
-                        verification.nonce.clone(),
-                    )
-                },
-                3,
-            )
+    .struct_hash()
+    .map_err(|e| Error::Unhandled(e.into()))?;
+
+    Ok(Json(PermitResponse {
+        permit,
+        signature: backend
+            .sign(permit_hash.into())
             .await
-            .map_err(anyhow::Error::from)?
-            .ok_or_else(|| {
-                Error::Unauthorized(
-                    "permit not created. maybe there is already a permit or this request's nonce \
-                     was already consumed"
-                        .into(),
-                )
-            })?;
-            Ok(StatusCode::CREATED)
-        }
-        Method::DELETE => {
-            retry_times(|| store.delete_permit(identity_locator, recipient), 3)
-                .await
-                .map_err(anyhow::Error::from)?;
-            Ok(StatusCode::NO_CONTENT)
-        }
-        _ => unreachable!(),
-    }
+            .map_err(Error::Unhandled)?,
+    }))
 }
 
-async fn get_share<M: Middleware, S: Store>(
-    Path((_name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+async fn get_share<S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetShareQuery { version }): Query<GetShareQuery>,
     requester_pk: Option<TypedHeader<RequesterPublicKeyHeader>>,
-    State(AppState {
-        store,
-        ephemeral_identity,
-        ..
-    }): State<AppState<M, S>>,
-) -> Result<Json<ShareResponse>, Error> {
-    let SecretShare { index, share } = retry_times(
-        || {
-            store.get_share(ShareId {
-                secret_name: "omni".into(),
+    State(AppState { backend, .. }): State<AppState<S>>,
+) -> Result<Either<Json<EncryptedPayload>, Json<ShareBody>>, Error> {
+    let ss = backend
+        .get_share(ShareId {
+            secret_name: name.clone(),
+            identity: IdentityLocator {
+                chain,
+                registry,
+                id: identity,
+            },
+            version,
+        })
+        .await?
+        .ok_or_else(|| Error::NotFound("share".into()))?;
+
+    let res = ShareBody { share: ss.into() };
+
+    let Some(peer_pk) = requester_pk else {
+        return Ok(Either::E2(Json(res)));
+    };
+
+    let mut payload = serde_json::to_vec(&res).map_err(|e| Error::Unhandled(e.into()))?;
+
+    let ephemeral_identity = KeyPair::ephemeral();
+
+    let mut nonce = aes_gcm_siv::Nonce::default();
+    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
+    ephemeral_identity
+        .derive_shared_cipher(*peer_pk.0, keypair::GET_SHARE_DOMAIN_SEP)
+        .encrypt_in_place(&nonce, &[], &mut payload)
+        .map_err(|e| Error::Unhandled(anyhow::anyhow!("encryption error: {e}")))?;
+
+    Ok(Either::E1(Json(EncryptedPayload {
+        format: EncryptedPayloadFormat::P384EcdhAes256GcmSiv {
+            curve: CurveP384,
+            pk: *ephemeral_identity.public_key(),
+            nonce: nonce.into(),
+            recipient_key_id: Default::default(),
+        },
+        payload: payload.into(),
+    })))
+}
+
+static PEDERSEN_VSS_BLINDER_GENERATOR: Lazy<k256::ProjectivePoint> = Lazy::new(|| {
+    let generator: k256::EncodedPoint =
+        "036f579b345d53115deb10137c9fdc633ed4abddfe8bd2ac36f3e5351bccf37808"
+            .parse()
+            .unwrap();
+    k256::ProjectivePoint::from_encoded_point(&generator).unwrap()
+});
+
+async fn deal_share<S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Query(GetShareQuery { version }): Query<GetShareQuery>,
+    State(AppState { backend, kps, .. }): State<AppState<S>>,
+    Json(req): Json<MaybeEncryptedRequest<api::SecretShare>>,
+) -> Result<StatusCode, Error> {
+    let ss = match req {
+        MaybeEncryptedRequest::Plain(ss) => ss,
+        MaybeEncryptedRequest::Encrypted(EncryptedPayload { format, payload }) => {
+            let EncryptedPayloadFormat::P384EcdhAes256GcmSiv {
+                pk,
+                nonce,
+                recipient_key_id,
+                ..
+            } = format
+            else {
+                return Err(Error::BadRequest("unknown encrypted request format".into()));
+            };
+            let mut payload = Vec::from(payload.0);
+            kps.with_key(&recipient_key_id, |kp| {
+                kp.derive_shared_cipher(pk, keypair::DEAL_SHARES_DOMAIN_SEP)
+                    .decrypt_in_place(&nonce.into(), &[], &mut payload)
+            })
+            .await
+            .map_err(|_| Error::BadRequest("decryption failed".into()))?;
+            serde_json::from_slice(&payload)
+                .map_err(|e| Error::BadRequest(format!("invalid payload: {e}")))?
+        }
+    };
+
+    let verifiers = ss
+        .meta
+        .commitments
+        .iter()
+        .map(|c| {
+            let ep = k256::EncodedPoint::from_bytes(c).map_err(anyhow::Error::from)?;
+            Option::from(k256::ProjectivePoint::from_encoded_point(&ep))
+                .ok_or_else(|| anyhow::anyhow!("invalid curve point"))
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| Error::BadRequest(format!("invalid commitment(s): {e}")))?;
+    <Vec<_> as PedersenVerifierSet<_>>::pedersen_set_with_generators_and_verifiers(
+        k256::ProjectivePoint::GENERATOR,
+        *PEDERSEN_VSS_BLINDER_GENERATOR,
+        &verifiers,
+    )
+    .verify_share_and_blinder::<u64, (u64, Vec<u8>)>(
+        &(ss.meta.index, ss.share.0.to_vec()), // TODO: don't allocate
+        &(ss.meta.index, ss.blinder.0.to_vec()),
+    )
+    .map_err(|_| Error::BadRequest("invalid share or blinder".into()))?;
+
+    backend
+        .put_share(
+            ShareId {
                 identity: IdentityLocator {
                     chain,
                     registry,
                     id: identity,
                 },
+                secret_name: name,
                 version,
-            })
-        },
-        3,
-    )
-    .map_err(anyhow::Error::from)
-    .await?
-    .ok_or_else(|| Error::NotFound("share".into()))?;
+            },
+            crate::types::SecretShare {
+                meta: ss.meta,
+                share: Vec::from(ss.share.0).into(),
+                blinder: Vec::from(ss.blinder.0).into(),
+            },
+        )
+        .await?;
 
-    let (format, share) = match requester_pk {
-        Some(pk) => {
-            let cipher =
-                ephemeral_identity.derive_shared_cipher(*pk.0, identity::GET_SHARE_DOMAIN_SEP);
-            let mut nonce = aes_gcm_siv::Nonce::default();
-            rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
-            let mut enc_share = (*share).clone();
-            cipher
-                .encrypt_in_place(&nonce, &[], &mut enc_share)
-                .map_err(|e| Error::Unhandled(anyhow::anyhow!("encryption error: {e}")))?;
-            (
-                ShareResponseFormat::EncAes256GcmSiv {
-                    nonce: nonce.into(),
-                },
-                enc_share,
-            )
-        }
-        None => (ShareResponseFormat::Plain, (*share).clone()),
-    };
-
-    Ok(Json(ShareResponse {
-        format,
-        ss: WrappedSecretShare { index, share },
-    }))
+    Ok(StatusCode::CREATED)
 }
 
-async fn put_key<M: Middleware, S: Store>(
+async fn destroy_share<S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Query(GetShareQuery { version }): Query<GetShareQuery>,
+    State(AppState { backend, .. }): State<AppState<S>>,
+) -> Result<StatusCode, Error> {
+    backend
+        .delete_share(ShareId {
+            identity: IdentityLocator {
+                chain,
+                registry,
+                id: identity,
+            },
+            secret_name: name,
+            version,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn commit_share<S: Store>(
+    Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
+    Query(GetShareQuery { version }): Query<GetShareQuery>,
+    State(AppState { backend, .. }): State<AppState<S>>,
+) -> Result<StatusCode, Error> {
+    backend
+        .commit_share(ShareId {
+            identity: IdentityLocator {
+                chain,
+                registry,
+                id: identity,
+            },
+            secret_name: name,
+            version,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn put_secret<S: Store>(
     Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetKeyQuery { version }): Query<GetKeyQuery>,
-    State(AppState { store, .. }): State<AppState<M, S>>,
+    State(AppState { backend, .. }): State<AppState<S>>,
     Json(PutKeyRequest { key }): Json<PutKeyRequest>,
 ) -> Result<StatusCode, Error> {
-    let created = store
-        .put_key(
+    let created = backend
+        .put_secret(
             KeyId {
                 name,
                 identity: IdentityLocator {
@@ -366,13 +553,13 @@ async fn put_key<M: Middleware, S: Store>(
     })
 }
 
-async fn get_key<M: Middleware, S: Store>(
+async fn get_secret<S: Store>(
     Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetKeyQuery { version }): Query<GetKeyQuery>,
-    State(AppState { store, .. }): State<AppState<M, S>>,
+    State(AppState { backend, .. }): State<AppState<S>>,
 ) -> Result<Json<KeyResponse>, Error> {
-    let key = store
-        .get_key(KeyId {
+    let key = backend
+        .get_secret(KeyId {
             name,
             identity: IdentityLocator {
                 chain,
@@ -390,13 +577,13 @@ async fn get_key<M: Middleware, S: Store>(
     }
 }
 
-async fn delete_key<M: Middleware, S: Store>(
+async fn delete_secret<S: Store>(
     Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,
     Query(GetKeyQuery { version }): Query<GetKeyQuery>,
-    State(AppState { store, .. }): State<AppState<M, S>>,
+    State(AppState { backend, .. }): State<AppState<S>>,
 ) -> Result<StatusCode, Error> {
-    store
-        .delete_key_version(KeyId {
+    backend
+        .delete_secret(KeyId {
             name,
             identity: IdentityLocator {
                 chain,

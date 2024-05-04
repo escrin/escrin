@@ -49,86 +49,9 @@ resource "aws_dynamodb_table" "secrets" {
     type = "N"
   }
 
-  point_in_time_recovery {
-    enabled = terraform.workspace != "dev"
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_dynamodb_table" "permits" {
-  name         = "escrin-permits-${terraform.workspace}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "identity"
-  range_key    = "recipient"
-  tags         = local.tags
-
-  attribute {
-    name = "identity"
-    type = "S"
-  }
-
-  attribute {
-    name = "recipient"
-    type = "S"
-  }
-
   ttl {
     attribute_name = "expiry"
     enabled        = true
-  }
-
-  point_in_time_recovery {
-    enabled = terraform.workspace != "dev"
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_dynamodb_table" "nonces" {
-  name         = "escrin-nonces-${terraform.workspace}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "identity"
-  range_key    = "nonce"
-  tags         = local.tags
-
-  attribute {
-    name = "identity"
-    type = "S"
-  }
-
-  attribute {
-    name = "nonce"
-    type = "B"
-  }
-
-  ttl {
-    attribute_name = "expiry"
-    enabled        = true
-  }
-
-  point_in_time_recovery {
-    enabled = terraform.workspace != "dev"
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_dynamodb_table" "chain_state" {
-  name         = "escrin-chain-state-${terraform.workspace}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "chain"
-  tags         = local.tags
-
-  attribute {
-    name = "chain"
-    type = "N"
   }
 
   lifecycle {
@@ -153,10 +76,6 @@ resource "aws_dynamodb_table" "verifiers" {
     type = "S"
   }
 
-  point_in_time_recovery {
-    enabled = terraform.workspace != "dev"
-  }
-
   lifecycle {
     prevent_destroy = true
   }
@@ -175,10 +94,7 @@ data "aws_iam_policy_document" "policy" {
     ]
     resources = [
       "${aws_dynamodb_table.secrets.arn}",
-      "${aws_dynamodb_table.permits.arn}",
-      "${aws_dynamodb_table.nonces.arn}",
       "${aws_dynamodb_table.verifiers.arn}",
-      "${aws_dynamodb_table.chain_state.arn}",
     ]
   }
 }
