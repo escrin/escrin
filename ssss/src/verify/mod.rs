@@ -48,7 +48,7 @@ pub enum Error {
 pub struct Verification {
     pub nonce: Vec<u8>,
     pub public_key: Vec<u8>,
-    pub expiry: Option<u64>,
+    pub duration: Option<u64>,
 }
 
 pub async fn verify(
@@ -80,7 +80,7 @@ pub async fn verify(
                 nonce
             },
             public_key: vec![],
-            expiry: Some(
+            duration: Some(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()

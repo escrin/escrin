@@ -158,12 +158,12 @@ async fn main() -> Result<()> {
                 .map_err(|e| eyre::eyre!("vss error: {e}"))?
             };
 
-            let my_identity = ssss::identity::Identity::ephemeral();
-            my_identity.public_key();
+            let kp = ssss::identity::KeyPair::ephemeral();
+            kp.public_key();
 
             for (i, ssss_identity) in ssss_identities.into_iter().enumerate() {
-                let cipher = my_identity
-                    .derive_shared_cipher(ssss_identity, identity::DEAL_SHARES_DOMAIN_SEP);
+                let cipher =
+                    kp.derive_shared_cipher(ssss_identity, identity::DEAL_SHARES_DOMAIN_SEP);
                 cipher
                     .encrypt_in_place(&shares_nonce, &[], &mut shares[i])
                     .unwrap();
@@ -172,7 +172,7 @@ async fn main() -> Result<()> {
             ssss.deal_shares_sss(
                 (*identity).into(),
                 *version,
-                my_identity.public_key().to_sec1_bytes().into_vec(),
+                kp.public_key().to_sec1_bytes().into_vec(),
                 nonce,
                 shares.into_iter().map(Bytes::from).collect(),
             )

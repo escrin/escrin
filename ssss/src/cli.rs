@@ -22,7 +22,7 @@ pub struct Args {
     pub gateway: Vec<String>,
 
     #[arg(short, long, value_enum, default_value = "memory")]
-    pub store: crate::store::StoreKind,
+    pub store: crate::backend::StoreKind,
 
     /// The SsssPermitter address per chain.
     #[arg(short, long = "permitter", value_parser = permitters_parser(), action = Append, default_values = [
@@ -31,7 +31,7 @@ pub struct Args {
     pub permitter: Vec<(ChainId, Address)>,
 
     #[arg(short, long, value_enum, default_value = "dev")]
-    pub env: crate::store::Environment,
+    pub env: crate::backend::Environment,
 }
 
 impl Args {

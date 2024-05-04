@@ -3,11 +3,11 @@
 use super::*;
 
 #[derive(Clone, Default)]
-pub struct LocalStore {
+pub struct Local {
     connstr: String,
 }
 
-impl LocalStore {
+impl Local {
     pub fn open(connstr: String) -> Result<Self, Error> {
         let this = Self { connstr };
         // this.migrate()?;
@@ -34,7 +34,7 @@ impl LocalStore {
 
     pub fn with_tx<T>(
         &self,
-        f: impl FnOnce(&rusqlite::Transaction) -> Result<T, Error>,
+        f: impl FnOnce(&rusqlite::Transaction<'_>) -> Result<T, Error>,
     ) -> Result<T, Error> {
         self.with_conn(|mut conn| {
             let tx = conn.transaction()?;
@@ -49,8 +49,12 @@ impl LocalStore {
     }
 }
 
-impl Store for LocalStore {
+impl Store for Local {
     async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
+        todo!()
+    }
+
+    async fn commit_share(&self, id: ShareId) -> Result<bool, Error> {
         todo!()
     }
 
@@ -58,76 +62,44 @@ impl Store for LocalStore {
         todo!()
     }
 
-    async fn delete_share_version(&self, share: ShareId) -> Result<(), Error> {
-        todo!()
-    }
-
-    async fn put_key(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
-        todo!()
-    }
-
-    async fn get_key(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
-        todo!()
-    }
-
-    async fn delete_key_version(&self, id: KeyId) -> Result<(), Error> {
-        todo!()
-    }
-
-    async fn create_permit(
+    async fn get_current_share_version(
         &self,
         identity: IdentityLocator,
-        recipient: Address,
-        expiry: u64,
-        nonce: Nonce,
-    ) -> Result<Option<Permit>, Error> {
+        name: String,
+    ) -> Result<Option<(ShareVersion, bool /* pending */)>, Error> {
         todo!()
     }
 
-    async fn read_permit(
-        &self,
-        identity: IdentityLocator,
-        recipient: Address,
-    ) -> Result<Option<Permit>, Error> {
+    async fn delete_share(&self, share: ShareId) -> Result<(), Error> {
         todo!()
     }
 
-    async fn delete_permit(
+    async fn put_secret(&self, id: KeyId, key: WrappedKey) -> Result<bool, Error> {
+        todo!()
+    }
+
+    async fn get_secret(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
+        todo!()
+    }
+
+    async fn delete_secret(&self, id: KeyId) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn put_verifier(
         &self,
+        permitter: PermitterLocator,
         identity: IdentityLocator,
-        recipient: Address,
+        config: Vec<u8>,
     ) -> Result<(), Error> {
-        todo!()
-    }
-
-    async fn get_chain_state(&self, chain: u64) -> Result<Option<ChainState>, Error> {
-        todo!()
-    }
-
-    async fn update_chain_state(&self, chain: u64, update: ChainStateUpdate) -> Result<(), Error> {
-        todo!()
-    }
-
-    #[cfg(test)]
-    async fn clear_chain_state(&self, chain: u64) -> Result<(), Error> {
         todo!()
     }
 
     async fn get_verifier(
         &self,
         permitter: PermitterLocator,
-        identity: IdentityId,
+        identity: IdentityLocator,
     ) -> Result<Option<Vec<u8>>, Error> {
-        todo!()
-    }
-
-    async fn update_verifier(
-        &self,
-        permitter: PermitterLocator,
-        identity: IdentityId,
-        config: Vec<u8>,
-        version: EventIndex,
-    ) -> Result<(), Error> {
         todo!()
     }
 
@@ -135,8 +107,14 @@ impl Store for LocalStore {
     async fn clear_verifier(
         &self,
         permitter: PermitterLocator,
-        identity: IdentityId,
+        identity: IdentityLocator,
     ) -> Result<(), Error> {
+        todo!()
+    }
+}
+
+impl Signer for Local {
+    async fn sign(&self, hash: H256) -> Result<Signature, Error> {
         todo!()
     }
 }

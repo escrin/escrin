@@ -25,7 +25,6 @@ macro_rules! make_store_tests {
             used_nonce_permit,
             defresh_permit_fail,
             delete_defresh_permit,
-            roundtrip_chain_state,
             roundtrip_verifier,
         );
     };
@@ -57,6 +56,8 @@ fn make_share(identity: IdentityId, version: u64) -> (ShareId, SecretShare) {
         SecretShare {
             index: 1,
             share: share.into(),
+            blinder: todo!(),
+            commitments: todo!(),
         },
     )
 }
@@ -89,7 +90,7 @@ where
         "share not created due to duplicate or non-contiguous version"
     );
     let res = f(store, share_id.clone()).await;
-    store.delete_share_version(share_id.clone()).await?;
+    store.delete_share(share_id.clone()).await?;
     Ok(res)
 }
 
@@ -249,13 +250,13 @@ async fn with_key<'a, S: Store, Fut, T>(
 where
     Fut: std::future::Future<Output = T> + 'a,
 {
-    let created = store.put_key(key_id.clone(), key).await?;
+    let created = store.put_secret(key_id.clone(), key).await?;
     ensure!(
         created,
         "key not created due to duplicate or non-contiguous version"
     );
     let res = f(store, key_id.clone()).await;
-    store.delete_key_version(key_id).await?;
+    store.delete_secret(key_id).await?;
     Ok(res)
 }
 
@@ -269,8 +270,8 @@ pub async fn roundtrip_key(store: impl Store) {
         );
         ensure!(key_id.identity.id == identity, "unexpected key identity");
         ensure!(key_id.version == 1, "unexpected key version");
-        let key = store.get_key(key_id.clone()).await?;
-        let key2 = store.get_key(key_id).await?;
+        let key = store.get_secret(key_id.clone()).await?;
+        let key2 = store.get_secret(key_id).await?;
         ensure!(key == key2, "retrieved keys mismatched");
         Ok(())
     })
@@ -282,12 +283,12 @@ pub async fn roundtrip_key(store: impl Store) {
 pub async fn create_second_key_version(store: impl Store) {
     let identity = IdentityId::random();
     with_new_key(&store, identity, 1, |store, key_id1| async move {
-        let key1_1 = store.get_key(key_id1.clone()).await?;
+        let key1_1 = store.get_secret(key_id1.clone()).await?;
         with_new_key(store, identity, 2, |store, key_id2| async move {
             ensure!(key_id1.identity == key_id2.identity, "key identity changed");
             ensure!(key_id2.version == 2, "key version did not increment");
-            let key1_2 = store.get_key(key_id1).await?;
-            let key2 = store.get_key(key_id2).await?;
+            let key1_2 = store.get_secret(key_id1).await?;
+            let key2 = store.get_secret(key_id2).await?;
             ensure!(key1_1 == key1_2, "key changed");
             ensure!(key1_1 != key2, "wrong key returned");
             Ok(())
@@ -358,9 +359,9 @@ pub async fn create_second_key(store: impl Store) {
     let identity1 = IdentityId::random();
     let identity2 = IdentityId::random();
     with_new_key(&store, identity1, 1, |store, key_id1| async move {
-        let key1 = store.get_key(key_id1).await?;
+        let key1 = store.get_secret(key_id1).await?;
         with_new_key(store, identity2, 1, |store, key_id2| async move {
-            let key2 = store.get_key(key_id2).await?;
+            let key2 = store.get_secret(key_id2).await?;
             ensure!(key1 != key2, "wrong key returned");
             Ok(())
         })
@@ -589,44 +590,6 @@ pub async fn delete_defresh_permit(store: impl Store) {
     .expect("permit creation failed");
 }
 
-pub async fn roundtrip_chain_state(store: impl Store) {
-    let chain_id = (u32::max_value() as u64)
-        .checked_add(rand::random())
-        .unwrap();
-    let start_state = store.get_chain_state(chain_id).await.unwrap();
-    assert!(start_state.is_none());
-
-    store
-        .update_chain_state(chain_id, ChainStateUpdate { block: Some(42) })
-        .await
-        .unwrap();
-    let updated_state = store.get_chain_state(chain_id).await.unwrap();
-    assert_eq!(updated_state, Some(ChainState { block: 42 }));
-
-    store
-        .update_chain_state(chain_id, ChainStateUpdate { block: Some(41) })
-        .await
-        .unwrap();
-    let not_updated_state = store.get_chain_state(chain_id).await.unwrap();
-    assert_eq!(not_updated_state, Some(ChainState { block: 42 }));
-
-    store
-        .update_chain_state(chain_id, ChainStateUpdate { block: None })
-        .await
-        .unwrap();
-    let not_updated_state = store.get_chain_state(chain_id).await.unwrap();
-    assert_eq!(not_updated_state, Some(ChainState { block: 42 }));
-
-    store
-        .update_chain_state(chain_id, ChainStateUpdate { block: Some(43) })
-        .await
-        .unwrap();
-    let re_updated_state = store.get_chain_state(chain_id).await.unwrap();
-    assert_eq!(re_updated_state, Some(ChainState { block: 43 }));
-
-    store.clear_chain_state(chain_id).await.unwrap();
-}
-
 pub async fn roundtrip_verifier(store: impl Store) {
     let config1 = b"config1".as_slice();
     let config2 = b"config2".as_slice();
@@ -657,7 +620,7 @@ pub async fn roundtrip_verifier(store: impl Store) {
     let identity2 = rand::random();
 
     store
-        .update_verifier(
+        .put_verifier(
             chain2_permitter1,
             identity1,
             config4.to_vec(),
@@ -690,7 +653,7 @@ pub async fn roundtrip_verifier(store: impl Store) {
 
     // Assert no rollbacks
     store
-        .update_verifier(
+        .put_verifier(
             chain1_permitter1,
             identity1,
             config1.to_vec(),
@@ -707,7 +670,7 @@ pub async fn roundtrip_verifier(store: impl Store) {
         .unwrap();
     assert_eq!(updated_state.as_deref(), Some(config1));
     store
-        .update_verifier(
+        .put_verifier(
             chain1_permitter1,
             identity1,
             config2.to_vec(),
@@ -725,7 +688,7 @@ pub async fn roundtrip_verifier(store: impl Store) {
     assert_eq!(updated_state.as_deref(), Some(config1));
 
     store
-        .update_verifier(
+        .put_verifier(
             chain1_permitter1,
             identity1,
             config2.to_vec(),
@@ -743,7 +706,7 @@ pub async fn roundtrip_verifier(store: impl Store) {
     assert_eq!(updated_state.as_deref(), Some(config2));
 
     store
-        .update_verifier(
+        .put_verifier(
             chain1_permitter1,
             identity1,
             config3.to_vec(),
