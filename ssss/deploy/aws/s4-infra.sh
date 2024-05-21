@@ -131,7 +131,7 @@ ensure_tfstate() {
 	log "🔎 Detecting existing state..."
 	if tf import -var "bucket_name=$state_bucket" aws_s3_bucket.tf_state "$state_bucket" >/dev/null 2>&1; then
 		# Next, import the locks table. If it doesn't exist, continue to state application.
-		if tf import -var "bucket_name=$state_bucket" aws_dynamodb_table.tf_locks 'tflocks' >/dev/null 2>&1; then
+		if tf import -var "bucket_name=$state_bucket" aws_dynamodb_table.tf_locks 'escrin.tflocks' >/dev/null 2>&1; then
 			log "✅\n"
 			return 0
 		fi

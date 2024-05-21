@@ -55,7 +55,7 @@ resource "aws_dynamodb_table" "secrets" {
   }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -77,7 +77,7 @@ resource "aws_dynamodb_table" "verifiers" {
   }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -129,14 +129,9 @@ resource "aws_iam_role_policy_attachment" "attach_ec2_policy" {
   policy_arn = aws_iam_policy.policy.arn
 }
 
-resource "aws_iam_group" "dev" {
-  count = terraform.workspace == "dev" ? 1 : 0
-  name  = "dev"
-}
-
 resource "aws_iam_group_policy_attachment" "attach_dev_policy" {
   count      = terraform.workspace == "dev" ? 1 : 0
-  group      = aws_iam_group.dev[count.index].name
+  group      = "dev"
   policy_arn = aws_iam_policy.policy.arn
 }
 

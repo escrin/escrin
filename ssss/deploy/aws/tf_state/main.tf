@@ -15,7 +15,7 @@ resource "aws_s3_bucket" "tf_state" {
   force_destroy = true
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -60,7 +60,7 @@ resource "aws_s3_bucket_versioning" "tf_state" {
 }
 
 resource "aws_dynamodb_table" "tf_locks" {
-  name         = "tflocks"
+  name         = "escrin.tflocks"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
   tags         = local.tags
@@ -71,6 +71,6 @@ resource "aws_dynamodb_table" "tf_locks" {
   }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }

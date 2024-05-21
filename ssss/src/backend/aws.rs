@@ -27,7 +27,7 @@ macro_rules! naming_fn {
 
 impl Backend {
     pub async fn connect(env: Environment) -> Self {
-        let config = aws_config::load_defaults(aws_config::BehaviorVersion::v2023_11_09()).await;
+        let config = aws_config::load_defaults(aws_config::BehaviorVersion::v2024_03_28()).await;
         let kms = aws_sdk_kms::Client::new(&config);
         let db = aws_sdk_dynamodb::Client::new(&config);
         Self { kms, db, env }
@@ -124,14 +124,18 @@ impl Backend {
             .into_iter()
             .nth(0)
             .and_then(|v| {
-                let expiry = unpack_u64("expiry", &v);
+                let Some(expiry) = try_unpack_u64("expiry", &v) else {
+                    return Some(v);
+                };
                 (expiry > now()).then_some(v)
             })
         else {
             return Ok(None);
         };
-        let secret = unpack_blob("secret", &mut res).into_inner();
-        Ok(Some((secret, res)))
+        let Some(secret) = try_unpack_blob("secret", &mut res) else {
+            return Ok(None);
+        };
+        Ok(Some((secret.into_inner(), res)))
     }
 
     async fn delete_secret_version(
@@ -144,7 +148,7 @@ impl Backend {
             .table_name(self.secrets_table())
             .key("id", id.to_attribute_value())
             .key("version", N(version.to_string()))
-            .update_expression("REMOVE secret, REMOVE blinder")
+            .update_expression("REMOVE secret, blinder")
             .send()
             .await
             .map_err(aws_sdk_dynamodb::Error::from)?;
@@ -184,7 +188,7 @@ impl Store for Backend {
             .key("id", id.to_attribute_value())
             .key("version", N(id.version.to_string()))
             .condition_expression(
-                "attribute_exists(id) AND attribute_exists(version) AND attribute_exists(share)",
+                "attribute_exists(id) AND attribute_exists(version) AND attribute_exists(secret)",
             )
             .update_expression("REMOVE expiry")
             .send()
@@ -329,18 +333,19 @@ fn try_unpack_u64(key: &'static str, res: &HashMap<String, AttributeValue>) -> O
     res.get(key)?.as_n().ok()?.parse::<u64>().ok()
 }
 
+fn try_unpack_blob(key: &'static str, res: &mut HashMap<String, AttributeValue>) -> Option<Blob> {
+    let B(b) = res.remove(key)? else {
+        return None;
+    };
+    Some(b)
+}
+
 fn unpack_u64(key: &'static str, res: &HashMap<String, AttributeValue>) -> u64 {
     try_unpack_u64(key, res).expect(key)
 }
 
 fn unpack_blob(key: &'static str, res: &mut HashMap<String, AttributeValue>) -> Blob {
-    match res
-        .remove(key)
-        .unwrap_or_else(|| panic!("{key} not present"))
-    {
-        B(b) => b,
-        _ => panic!("{key} not blob"),
-    }
+    try_unpack_blob(key, res).expect(key)
 }
 
 fn unpack_blobs(key: &'static str, res: &mut HashMap<String, AttributeValue>) -> Vec<Blob> {
@@ -377,5 +382,5 @@ impl<T: ToKey> ToAttributeValue for T {
 mod tests {
     use super::*;
 
-    crate::make_store_tests!(Backend::connect(Environment::Dev));
+    crate::make_backend_tests!(Backend::connect(Environment::Dev));
 }
