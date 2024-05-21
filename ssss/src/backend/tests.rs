@@ -1,11 +1,12 @@
-use anyhow::ensure;
+use anyhow::{anyhow, ensure};
+use futures_util::StreamExt as _;
 
 use super::*;
 
 #[macro_export]
-macro_rules! make_store_tests {
+macro_rules! make_backend_tests {
     ($store_factory:expr) => {
-        $crate::make_store_tests!(
+        $crate::make_backend_tests!(
             $store_factory,
             roundtrip_share,
             create_second_share_version,
@@ -19,12 +20,6 @@ macro_rules! make_store_tests {
             create_discontinuous_key_version,
             create_delete_create_key_version,
             create_second_key,
-            roundtrip_permit,
-            refresh_permit,
-            expired_permit,
-            used_nonce_permit,
-            defresh_permit_fail,
-            delete_defresh_permit,
             roundtrip_verifier,
         );
     };
@@ -33,10 +28,16 @@ macro_rules! make_store_tests {
             #[tokio::test]
             async fn $test() {
                 let store = $store_factory.await;
-                $crate::store::tests::$test(store).await;
+                $crate::backend::tests::$test(store).await;
             }
         )+
     }
+}
+
+fn random_bytes() -> Vec<u8> {
+    let mut bytes = vec![0u8; 32];
+    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut bytes);
+    bytes
 }
 
 fn make_share(identity: IdentityId, version: u64) -> (ShareId, SecretShare) {
@@ -49,15 +50,18 @@ fn make_share(identity: IdentityId, version: u64) -> (ShareId, SecretShare) {
         },
         version,
     };
-    let mut share = vec![0u8; 32];
-    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut share);
     (
         share_id,
         SecretShare {
-            index: 1,
-            share: share.into(),
-            blinder: todo!(),
-            commitments: todo!(),
+            meta: SecretShareMeta {
+                index: 1,
+                commitments: std::iter::repeat(())
+                    .map(|_| random_bytes())
+                    .take(16)
+                    .collect(),
+            },
+            share: random_bytes().into(),
+            blinder: random_bytes().into(),
         },
     )
 }
@@ -89,6 +93,10 @@ where
         created,
         "share not created due to duplicate or non-contiguous version"
     );
+    ensure!(
+        store.commit_share(share_id.clone()).await?,
+        "share not committed"
+    );
     let res = f(store, share_id.clone()).await;
     store.delete_share(share_id.clone()).await?;
     Ok(res)
@@ -107,8 +115,14 @@ pub async fn roundtrip_share(store: impl Store) {
             "unexpected share identity"
         );
         ensure!(share_id.version == 1, "unexpected share version");
-        let share = store.get_share(share_id.clone()).await?;
-        let share2 = store.get_share(share_id.clone()).await?;
+        let share = store
+            .get_share(share_id.clone())
+            .await?
+            .ok_or_else(|| anyhow!("no share returned"))?;
+        let share2 = store
+            .get_share(share_id.clone())
+            .await?
+            .ok_or_else(|| anyhow!("no share returned"))?;
         ensure!(share == share2, "retrieved shares mismatched");
         Ok(())
     })
@@ -120,17 +134,19 @@ pub async fn roundtrip_share(store: impl Store) {
 pub async fn create_second_share_version(store: impl Store) {
     let identity = IdentityId::random();
     with_new_share(&store, identity, 1, |store, share_id1| async move {
-        let share1_1 = store.get_share(share_id1.clone()).await?;
+        let share1 = store.get_share(share_id1.clone()).await?;
         with_new_share(store, identity, 2, |store, share_id2| async move {
             ensure!(
                 share_id1.identity == share_id2.identity,
                 "share identity changed"
             );
             ensure!(share_id2.version == 2, "share version did not increment");
-            let share1_2 = store.get_share(share_id1).await?;
+            ensure!(
+                store.get_share(share_id1).await?.is_none(),
+                "old share not deleted"
+            );
             let share2 = store.get_share(share_id2).await?;
-            ensure!(share1_1 == share1_2, "share changed");
-            ensure!(share1_1 != share2, "wrong share returned");
+            ensure!(share1 != share2, "wrong share returned");
             Ok(())
         })
         .await
@@ -373,359 +389,96 @@ pub async fn create_second_key(store: impl Store) {
     .expect("second key creation failed");
 }
 
-async fn with_permit<'a, S: Store, Fut, T>(
-    store: &'a S,
-    share: ShareId,
-    recipient: Address,
-    expiry: u64,
-    f: impl FnOnce(&'a S, Permit) -> Fut,
-) -> Option<T>
-where
-    Fut: std::future::Future<Output = T> + 'a,
-{
-    let mut nonce = vec![0u8; 32];
-    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
-    with_permit_nonce(store, share, recipient, expiry, f, nonce).await
-}
-
-async fn with_permit_nonce<'a, S: Store, Fut, T>(
-    store: &'a S,
-    share: ShareId,
-    recipient: Address,
-    expiry: u64,
-    f: impl FnOnce(&'a S, Permit) -> Fut,
-    nonce: Vec<u8>,
-) -> Option<T>
-where
-    Fut: std::future::Future<Output = T> + 'a,
-{
-    let permit = store
-        .create_permit(share.identity, recipient, expiry, nonce)
-        .await
-        .expect("permit not created");
-    match permit {
-        Some(p) => {
-            let res = f(store, p).await;
-            store
-                .delete_permit(share.identity, recipient)
-                .await
-                .expect("permit not deleted");
-            Some(res)
-        }
-        None => None,
-    }
-}
-
-fn mock_share() -> ShareId {
-    ShareId {
-        secret_name: "test".into(),
-        identity: IdentityLocator {
-            chain: 31337,
-            registry: Address::repeat_byte(42),
-            id: IdentityId::random(),
-        },
-        version: 1,
-    }
-}
-
-pub async fn roundtrip_permit(store: impl Store) {
-    let share = mock_share();
-    let recipient = Address::random();
-    let expiry = now() + 30;
-    with_permit(
-        &store,
-        share.clone(),
-        recipient,
-        expiry,
-        |store, permit| async move {
-            let read_permit = store.read_permit(share.identity, recipient).await?;
-            ensure!(read_permit.is_some(), "permit not created");
-            ensure!(read_permit.unwrap() == permit, "permit mismatch");
-            Ok(())
-        },
-    )
-    .await
-    .expect("test failed")
-    .expect("permit creation failed");
-}
-
-pub async fn expired_permit(store: impl Store) {
-    let share = mock_share();
-    let recipient = Address::random();
-    let expiry = now() - 60;
-    with_permit(
-        &store,
-        share.clone(),
-        recipient,
-        expiry,
-        |store, _| async move {
-            let read_permit = store.read_permit(share.identity, recipient).await?;
-            ensure!(read_permit.is_none(), "permit not expired");
-            Ok(())
-        },
-    )
-    .await
-    .expect("test failed")
-    .expect("permit creation failed");
-}
-
-pub async fn used_nonce_permit(store: impl Store) {
-    let share = mock_share();
-    let recipient = Address::random();
-    let expiry = now() + 30;
-    let mut nonce = vec![0u8; 32];
-    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
-
-    with_permit_nonce(
-        &store,
-        share.clone(),
-        recipient,
-        expiry,
-        |_, _| async {},
-        nonce.clone(),
-    )
-    .await
-    .unwrap();
-
-    assert!(with_permit_nonce(
-        &store,
-        share.clone(),
-        recipient,
-        expiry,
-        |_, _| async {},
-        nonce
-    )
-    .await
-    .is_none());
-}
-
-pub async fn refresh_permit(store: impl Store) {
-    let share = mock_share();
-    let recipient = Address::random();
-    let expiry_soon = now() + 30;
-    let expiry_far = now() + 60;
-    with_permit(
-        &store,
-        share.clone(),
-        recipient,
-        expiry_soon,
-        |store, _| async move {
-            with_permit(
-                store,
-                share.clone(),
-                recipient,
-                expiry_far,
-                |store, _| async move {
-                    let read_permit = store.read_permit(share.identity, recipient).await?;
-                    ensure!(read_permit.is_some(), "permit not created");
-                    ensure!(
-                        read_permit.unwrap().expiry == expiry_far,
-                        "permit expiry not refreshed"
-                    );
-                    Ok(())
-                },
-            )
-            .await
-        },
-    )
-    .await
-    .expect("test failed")
-    .expect("first permit creation failed")
-    .expect("second permit creation failed");
-}
-
-pub async fn defresh_permit_fail(store: impl Store) {
-    let share = mock_share();
-    let recipient = Address::random();
-    let expiry_soon = now() + 30;
-    let expiry_far = now() + 60;
-    with_permit(
-        &store,
-        share.clone(),
-        recipient,
-        expiry_far,
-        |store, _| async move {
-            let outcome =
-                with_permit(store, share, recipient, expiry_soon, |_, _| async move {}).await;
-            ensure!(outcome.is_none(), "permit wrongly defreshed");
-            Ok(())
-        },
-    )
-    .await
-    .expect("test failed")
-    .expect("permit creation failed");
-}
-
-pub async fn delete_defresh_permit(store: impl Store) {
-    let share = mock_share();
-    let recipient = Address::random();
-    let expiry_soon = now() + 30;
-    let expiry_far = now() + 60;
-    with_permit(
-        &store,
-        share.clone(),
-        recipient,
-        expiry_far,
-        |store, _| async move {
-            store.delete_permit(share.identity, recipient).await?;
-            let outcome = with_permit(
-                store,
-                share.clone(),
-                recipient,
-                expiry_soon,
-                |store, permit| async move {
-                    let read_permit = store.read_permit(share.identity, recipient).await?;
-                    ensure!(read_permit.is_some(), "permit not re-created");
-                    ensure!(read_permit.unwrap() == permit, "permit mismatch");
-                    Ok(())
-                },
-            )
-            .await;
-            ensure!(outcome.is_some(), "permit wrongly defreshed");
-            Ok(())
-        },
-    )
-    .await
-    .expect("test failed")
-    .expect("permit creation failed");
-}
-
 pub async fn roundtrip_verifier(store: impl Store) {
-    let config1 = b"config1".as_slice();
-    let config2 = b"config2".as_slice();
-    let config3 = b"config3".as_slice();
-    let config4 = b"config4".as_slice();
+    let chains: [u64; 2] = rand::random();
+    let identity_ids: [IdentityId; 2] = rand::random();
+    let registries: [Address; 2] = rand::random();
+    let permitters: [Address; 2] = rand::random();
 
-    let chain1 = (u32::max_value() as u64)
-        .checked_add(rand::random())
-        .unwrap();
-    let chain2 = (u32::max_value() as u64)
-        .checked_add(rand::random())
-        .unwrap();
-
-    let chain1_permitter1 = PermitterLocator {
-        chain: chain1,
-        permitter: rand::random(),
-    };
-    let chain1_permitter2 = PermitterLocator {
-        chain: chain1,
-        permitter: rand::random(),
-    };
-    let chain2_permitter1 = PermitterLocator {
-        chain: chain2,
-        permitter: chain1_permitter2.permitter,
-    };
-
-    let identity1 = rand::random();
-    let identity2 = rand::random();
-
-    store
-        .put_verifier(
-            chain2_permitter1,
-            identity1,
-            config4.to_vec(),
-            EventIndex {
-                block: 1,
-                log_index: 1,
-            },
-        )
-        .await
-        .unwrap();
-    let updated_state = store
-        .get_verifier(chain2_permitter1, identity1)
-        .await
-        .unwrap();
-    assert_eq!(updated_state.as_deref(), Some(config4));
-
-    // Assert that identities on the same permitter do not interfere.
-    let start_config = store
-        .get_verifier(chain2_permitter1, identity2)
-        .await
-        .unwrap();
-    assert!(start_config.is_none());
-
-    // Assert that different permitters do not interfere
-    let start_config = store
-        .get_verifier(chain1_permitter1, identity1)
-        .await
-        .unwrap();
-    assert!(start_config.is_none());
-
-    // Assert no rollbacks
-    store
-        .put_verifier(
-            chain1_permitter1,
-            identity1,
-            config1.to_vec(),
-            EventIndex {
-                block: 1,
-                log_index: 1,
-            },
-        )
-        .await
-        .unwrap();
-    let updated_state = store
-        .get_verifier(chain1_permitter1, identity1)
-        .await
-        .unwrap();
-    assert_eq!(updated_state.as_deref(), Some(config1));
-    store
-        .put_verifier(
-            chain1_permitter1,
-            identity1,
-            config2.to_vec(),
-            EventIndex {
-                block: 1,
-                log_index: 1,
-            },
-        )
-        .await
-        .unwrap();
-    let updated_state = store
-        .get_verifier(chain1_permitter1, identity1)
-        .await
-        .unwrap();
-    assert_eq!(updated_state.as_deref(), Some(config1));
-
-    store
-        .put_verifier(
-            chain1_permitter1,
-            identity1,
-            config2.to_vec(),
-            EventIndex {
-                block: 1,
-                log_index: 2,
-            },
-        )
-        .await
-        .unwrap();
-    let updated_state = store
-        .get_verifier(chain1_permitter1, identity1)
-        .await
-        .unwrap();
-    assert_eq!(updated_state.as_deref(), Some(config2));
-
-    store
-        .put_verifier(
-            chain1_permitter1,
-            identity1,
-            config3.to_vec(),
-            EventIndex {
-                block: 2,
-                log_index: 0,
-            },
-        )
-        .await
-        .unwrap();
-    let updated_state = store
-        .get_verifier(chain1_permitter1, identity1)
-        .await
-        .unwrap();
-    assert_eq!(updated_state.as_deref(), Some(config3));
-
-    for permitter in [chain1_permitter1, chain1_permitter2, chain2_permitter1] {
-        for identity in [identity1, identity2] {
-            store.clear_verifier(permitter, identity).await.unwrap();
+    let mut configs = vec![];
+    for &pchain in chains.iter() {
+        for &ichain in chains.iter() {
+            for &identity in identity_ids.iter() {
+                for &registry in registries.iter() {
+                    for &permitter in permitters.iter() {
+                        let permitter_locator = PermitterLocator {
+                            chain: pchain,
+                            permitter,
+                        };
+                        let identity_locator = IdentityLocator {
+                            chain: ichain,
+                            registry,
+                            id: identity,
+                        };
+                        configs.push((permitter_locator, identity_locator));
+                    }
+                }
+            }
         }
     }
+
+    futures_util::stream::iter(configs.iter().copied())
+        .for_each_concurrent(None, |(permitter, identity)| {
+            let store = store.clone();
+            async move {
+                let config = store.get_verifier(permitter, identity).await.unwrap();
+                assert!(config.is_none());
+            }
+        })
+        .await;
+
+    futures_util::stream::iter(configs.iter().copied().enumerate())
+        .for_each_concurrent(None, |(i, (permitter, identity))| {
+            let store = store.clone();
+            async move {
+                store
+                    .put_verifier(permitter, identity, format!("config{i}").into_bytes())
+                    .await
+                    .unwrap();
+            }
+        })
+        .await;
+
+    futures_util::stream::iter(configs.iter().copied().enumerate())
+        .for_each_concurrent(None, |(i, (permitter, identity))| {
+            let store = store.clone();
+            async move {
+                let config = store.get_verifier(permitter, identity).await.unwrap();
+                assert_eq!(config.unwrap(), format!("config{i}").into_bytes())
+            }
+        })
+        .await;
+
+    futures_util::stream::iter(configs.iter().copied().enumerate())
+        .for_each_concurrent(None, |(i, (permitter, identity))| {
+            let store = store.clone();
+            async move {
+                store
+                    .put_verifier(permitter, identity, format!("config{i}-2").into_bytes())
+                    .await
+                    .unwrap();
+            }
+        })
+        .await;
+
+    futures_util::stream::iter(configs.iter().copied().enumerate())
+        .for_each_concurrent(None, |(i, (permitter, identity))| {
+            let store = store.clone();
+            async move {
+                let config = store.get_verifier(permitter, identity).await.unwrap();
+                assert_eq!(config.unwrap(), format!("config{i}-2").into_bytes())
+            }
+        })
+        .await;
+
+    futures_util::stream::iter(configs.iter().copied())
+        .for_each_concurrent(None, |(permitter, identity)| {
+            let store = store.clone();
+            async move {
+                store.clear_verifier(permitter, identity).await.unwrap();
+            }
+        })
+        .await;
 }
+
+// TODO: test for signer, share uncommitted

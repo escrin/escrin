@@ -131,16 +131,23 @@ impl Backend {
         else {
             return Ok(None);
         };
-        let s = self
+        let res = self
             .secrets
             .get(id.to_key())
             .version(&m.guid)
             .into_future()
-            .await?;
-        if !s.attributes.enabled {
-            return Ok(None);
+            .await;
+        match res {
+            Ok(s) => Ok(Some(s.value)),
+            Err(e) => {
+                if e.as_http_error().map(|e| e.status()) == Some(azure_core::StatusCode::Forbidden)
+                {
+                    Ok(None)
+                } else {
+                    Err(e.into())
+                }
+            }
         }
-        Ok(Some(s.value))
     }
 
     async fn delete_secret_version(&self, id: &impl ToKey, version: u64) -> Result<(), Error> {
@@ -185,7 +192,7 @@ impl Store for Backend {
             .entity_client(InvSortableInt(id.version).to_key())
             .merge(
                 serde_json::json!({
-                    "expiry": null
+                    "expiry": 0
                 }),
                 IfMatchCondition::Any,
             )?
@@ -380,7 +387,7 @@ struct PermitEntity {
 struct VerifierEntity {
     #[serde(rename = "PartitionKey", with = "serde_key")]
     permitter: PermitterLocator,
-    #[serde(rename = "RowKey")]
+    #[serde(rename = "RowKey", with = "serde_key")]
     identity: IdentityLocator,
     #[serde(with = "hex::serde")]
     config: Vec<u8>,
@@ -444,7 +451,7 @@ fn default_if_notfound<T: Default>(e: azure_core::Error) -> Result<T, Error> {
 mod tests {
     use super::*;
 
-    crate::make_store_tests!(async {
+    crate::make_backend_tests!(async {
         let ssss_host = std::env::var("SSSS_HOST").expect("SSSS_HOST must be set");
         Backend::connect(&Authority::try_from(ssss_host).unwrap(), Environment::Dev)
             .await

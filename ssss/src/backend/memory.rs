@@ -46,7 +46,9 @@ impl Signer for Backend {
 impl Store for Backend {
     async fn put_share(&self, id: ShareId, share: SecretShare) -> Result<bool, Error> {
         let mut shares = self.state.shares.write().unwrap();
-        let versions = shares.entry((id.identity, id.secret_name)).or_default();
+        let versions = shares
+            .entry((id.identity, id.secret_name.clone()))
+            .or_default();
         let current_version = versions
             .last_key_value()
             .map(|(k, _)| *k)
@@ -62,7 +64,7 @@ impl Store for Backend {
     }
 
     async fn commit_share(&self, id: ShareId) -> Result<bool, Error> {
-        {
+        let delete_version = {
             let mut shares = self.state.shares.write().unwrap();
             let Some(Some((_, expiry))) = shares
                 .get_mut(&(id.identity, id.secret_name.clone()))
@@ -72,12 +74,21 @@ impl Store for Backend {
             };
             if let Some(expiry) = expiry.take() {
                 if expiry > Instant::now() {
-                    return Ok(true);
+                    (id.version > 0).then_some(id.version - 1)
+                } else {
+                    None
                 }
+            } else {
+                Some(id.version)
             }
-        }
-        self.delete_share(id).await?;
-        Ok(false)
+        };
+        Ok(match delete_version {
+            Some(version) => {
+                self.delete_share(ShareId { version, ..id }).await?;
+                true
+            }
+            None => false,
+        })
     }
 
     async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
@@ -92,13 +103,12 @@ impl Store for Backend {
         else {
             return Ok(None);
         };
-        Ok(if let Some(expiry) = expiry {
-            if expiry >= Instant::now() {
+        Ok(match expiry {
+            Some(expiry) if expiry <= Instant::now() => {
                 self.delete_share(id).await?;
+                None
             }
-            None
-        } else {
-            Some(ss)
+            _ => Some(ss),
         })
     }
 
@@ -228,5 +238,5 @@ impl Store for Backend {
 mod tests {
     use super::*;
 
-    crate::make_store_tests!(async { Backend::default() });
+    crate::make_backend_tests!(async { Backend::generate() });
 }
