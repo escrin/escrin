@@ -214,6 +214,9 @@ impl Store for Backend {
         let Some((share, mut items)) = self.get_secret(&id, id.version).await? else {
             return Ok(None);
         };
+        if items.contains_key("expiry") {
+            return Ok(None); // the share is uncommitted
+        }
         Ok(Some(SecretShare {
             meta: unpack_secret_meta(&mut items),
             share: share.into(),

@@ -127,13 +127,23 @@ impl Backend {
         Ok(true)
     }
 
-    async fn get_secret(&self, id: &impl ToKey, version: u64) -> Result<Option<String>, Error> {
+    async fn get_secret(
+        &self,
+        id: &impl ToKey,
+        version: u64,
+    ) -> Result<Option<(String, Option<u64> /* expiry */)>, Error> {
         let Some(m) = self
             .get_secret_meta(id, SecretVersion::Numbered(version))
             .await?
         else {
             return Ok(None);
         };
+        if let Some(expiry) = m.expiry {
+            if expiry != 0 && expiry <= now() {
+                self.delete_secret_version(id, version).await?;
+                return Ok(None);
+            }
+        }
         let res = self
             .secrets
             .get(id.to_key())
@@ -141,7 +151,7 @@ impl Backend {
             .into_future()
             .await;
         match res {
-            Ok(s) => Ok(Some(s.value)),
+            Ok(s) => Ok(Some((s.value, m.expiry))),
             Err(e) => {
                 if e.as_http_error().map(|e| e.status()) == Some(azure_core::StatusCode::Forbidden)
                 {
@@ -205,9 +215,12 @@ impl Store for Backend {
     }
 
     async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {
-        let Some(s) = self.get_secret(&id, id.version).await? else {
+        let Some((s, expiry)) = self.get_secret(&id, id.version).await? else {
             return Ok(None);
         };
+        if !matches!(expiry, Some(0) | None) {
+            return Ok(None); // uncommitted
+        }
         Ok(serde_json::from_str::<EncodableSecretShare>(&s)
             .ok()
             .map(Into::into))
@@ -240,7 +253,7 @@ impl Store for Backend {
     }
 
     async fn get_secret(&self, id: KeyId) -> Result<Option<WrappedKey>, Error> {
-        let Some(k) = self.get_secret(&id, id.version).await? else {
+        let Some((k, _)) = self.get_secret(&id, id.version).await? else {
             return Ok(None);
         };
         Ok(Some(hex::decode(k)?.into()))

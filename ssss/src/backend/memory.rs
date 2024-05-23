@@ -108,8 +108,10 @@ impl Store for Backend {
             return Ok(None);
         };
         Ok(match expiry {
-            Some(expiry) if expiry <= Instant::now() => {
-                self.delete_share(id).await?;
+            Some(expiry) => {
+                if expiry <= Instant::now() {
+                    self.delete_share(id).await?;
+                }
                 None
             }
             _ => Some(ss),

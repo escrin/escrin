@@ -14,6 +14,9 @@ macro_rules! make_backend_tests {
             create_discontinuous_share_version,
             create_delete_create_share_version,
             create_second_share,
+            get_uncommitted_share,
+            overwrite_uncommitted_share,
+            commit_share_twice,
             roundtrip_key,
             create_second_key_version,
             create_duplicate_key_version,
@@ -71,7 +74,7 @@ async fn with_new_share<'a, S: Store, Fut, T>(
     store: &'a S,
     identity: IdentityId,
     version: ShareVersion,
-    f: impl FnOnce(&'a S, ShareId) -> Fut,
+    f: impl FnOnce(&'a S, ShareId) -> Fut + 'a,
 ) -> Result<T, Error>
 where
     Fut: std::future::Future<Output = T> + 'a,
@@ -84,6 +87,25 @@ async fn with_share<'a, S: Store, Fut, T>(
     store: &'a S,
     share_id: ShareId,
     share: SecretShare,
+    f: impl FnOnce(&'a S, ShareId) -> Fut + 'a,
+) -> Result<T, Error>
+where
+    Fut: std::future::Future<Output = T> + 'a,
+{
+    with_share_no_commit(store, share_id, share, |store, share_id| async move {
+        ensure!(
+            store.commit_share(share_id.clone()).await?,
+            "share not committed"
+        );
+        Ok(f(store, share_id).await)
+    })
+    .await?
+}
+
+async fn with_share_no_commit<'a, S: Store, Fut, T>(
+    store: &'a S,
+    share_id: ShareId,
+    share: SecretShare,
     f: impl FnOnce(&'a S, ShareId) -> Fut,
 ) -> Result<T, Error>
 where
@@ -93,10 +115,6 @@ where
     ensure!(
         created,
         "share not created due to duplicate or non-contiguous version"
-    );
-    ensure!(
-        store.commit_share(share_id.clone()).await?,
-        "share not committed"
     );
     let res = f(store, share_id.clone()).await;
     store.delete_share(share_id.clone()).await?;
@@ -156,6 +174,54 @@ pub async fn create_second_share_version(store: impl Store) {
     .expect("test failed")
     .expect("first share creation failed")
     .expect("second share creation failed");
+}
+
+pub async fn get_uncommitted_share(store: impl Store) {
+    let identity = IdentityId::random();
+    let (share_id, share) = make_share(identity, 1);
+    with_share_no_commit(&store, share_id, share, |store, share_id| async {
+        ensure!(
+            store.get_share(share_id).await?.is_none(),
+            "uncommitted share visible"
+        );
+        Ok(())
+    })
+    .await
+    .expect("test failed")
+    .expect("share not created");
+}
+
+pub async fn overwrite_uncommitted_share(store: impl Store) {
+    let identity = IdentityId::random();
+    let (share_id, share) = make_share(identity, 1);
+    with_share_no_commit(
+        &store,
+        share_id,
+        share.clone(),
+        |store, share_id| async move {
+            ensure!(
+                !store.put_share(share_id, share).await?,
+                "overwrote uncommitted share"
+            );
+            Ok(())
+        },
+    )
+    .await
+    .expect("test failed")
+    .expect("share not created");
+}
+
+pub async fn commit_share_twice(store: impl Store) {
+    let identity = IdentityId::random();
+    let (share_id, share) = make_share(identity, 1);
+    with_share_no_commit(&store, share_id, share, |store, share_id| async {
+        ensure!(store.commit_share(share_id.clone()).await?, "not committed");
+        ensure!(store.commit_share(share_id).await?, "commit not idempotent");
+        Ok(())
+    })
+    .await
+    .expect("test failed")
+    .expect("share not created");
 }
 
 pub async fn create_duplicate_share_version(store: impl Store) {
@@ -493,5 +559,3 @@ pub async fn roundtrip_signer(signer: impl Signer) {
         })
         .await;
 }
-
-// TODO: share uncommitted
