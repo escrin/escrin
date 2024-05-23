@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
+use anyhow::anyhow;
 use aws_sdk_dynamodb::{
     primitives::Blob,
     types::AttributeValue::{self, Bs, B, N, S},
 };
+use futures_util::TryFutureExt as _;
+use p384::pkcs8::DecodePublicKey as _;
 
 use super::*;
 
@@ -12,6 +15,7 @@ pub struct Backend {
     db: aws_sdk_dynamodb::Client,
     kms: aws_sdk_kms::Client,
     env: Environment,
+    signer_address: tokio::sync::OnceCell<Address>,
 }
 
 macro_rules! naming_fn {
@@ -30,7 +34,12 @@ impl Backend {
         let config = aws_config::load_defaults(aws_config::BehaviorVersion::v2024_03_28()).await;
         let kms = aws_sdk_kms::Client::new(&config);
         let db = aws_sdk_dynamodb::Client::new(&config);
-        Self { kms, db, env }
+        Self {
+            kms,
+            db,
+            env,
+            signer_address: Default::default(),
+        }
     }
 
     naming_fn!(secrets_table, "escrin-secrets");
@@ -310,22 +319,49 @@ impl Store for Backend {
 
 impl Signer for Backend {
     async fn sign(&self, hash: H256) -> Result<Signature, Error> {
-        let sig_bytes = self
+        let signer_addr_fut = self.signer_address();
+
+        let sig_fut = self
             .kms
             .sign()
             .key_id(self.kms_key())
             .message_type(aws_sdk_kms::types::MessageType::Digest)
-            .signing_algorithm(aws_sdk_kms::types::SigningAlgorithmSpec::from(
-                "ECC_SECG_P256K1",
-            ))
-            .message(Blob::new(hash.0.to_vec()))
+            .signing_algorithm(aws_sdk_kms::types::SigningAlgorithmSpec::EcdsaSha256)
+            .message(Blob::new(hash.as_bytes().to_vec()))
             .send()
-            .await
-            .map_err(aws_sdk_kms::Error::from)?
-            .signature
-            .ok_or_else(|| anyhow::anyhow!("failed to sign"))?
-            .into_inner();
-        Signature::try_from(sig_bytes.as_slice()).map_err(Error::from)
+            .map_err(|e| Error::from(aws_sdk_kms::Error::from(e)))
+            .and_then(|res| async {
+                Ok(ecdsa::Signature::from_der(
+                    &res.signature
+                        .ok_or_else(|| anyhow!("failed to sign"))?
+                        .into_inner(),
+                )?)
+            });
+
+        let (signer_addr, sig) = tokio::try_join!(signer_addr_fut, sig_fut)?;
+
+        Ok(signature_to_rsv(hash, signer_addr, sig))
+    }
+
+    async fn signer_address(&self) -> Result<Address, Error> {
+        Ok(*self
+            .signer_address
+            .get_or_try_init(|| async {
+                let pk_der = self
+                    .kms
+                    .get_public_key()
+                    .key_id(self.kms_key())
+                    .send()
+                    .await
+                    .map_err(aws_sdk_kms::Error::from)?
+                    .public_key
+                    .ok_or_else(|| anyhow!("failed to get public key"))?
+                    .into_inner();
+                let pk = ecdsa::VerifyingKey::from_public_key_der(&pk_der)
+                    .map_err(|e| anyhow!("failed to parse public key: {e}"))?;
+                Ok::<_, Error>(ethers::core::utils::public_key_to_address(&pk))
+            })
+            .await?)
     }
 }
 

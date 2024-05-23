@@ -15,7 +15,7 @@ resource "aws_s3_bucket" "tf_state" {
   force_destroy = true
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -71,6 +71,6 @@ resource "aws_dynamodb_table" "tf_locks" {
   }
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }

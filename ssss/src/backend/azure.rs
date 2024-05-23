@@ -4,7 +4,7 @@ use azure_core::Etag;
 use azure_data_tables::prelude::*;
 use azure_security_keyvault::prelude::*;
 use base64::prelude::*;
-use futures_util::TryStreamExt as _;
+use futures_util::{TryFutureExt as _, TryStreamExt as _};
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -14,10 +14,12 @@ pub struct Backend {
     secrets: Arc<SecretClient>,
     signer: Arc<KeyClient>,
     db: Arc<TableServiceClient>,
+    signer_address: tokio::sync::OnceCell<Address>,
 }
 
 static SECRET_VERSIONS_TABLE: &str = "secretversions";
 static VERIFIERS_TABLE: &str = "verifiers";
+static KMS_KEY: &str = "escrin-signer";
 
 impl Backend {
     pub async fn connect(host: &Authority, env: Environment) -> Result<Self, Error> {
@@ -35,6 +37,7 @@ impl Backend {
             secrets,
             signer,
             db,
+            signer_address: Default::default(),
         })
     }
 
@@ -298,18 +301,37 @@ impl Store for Backend {
 
 impl Signer for Backend {
     async fn sign(&self, hash: H256) -> Result<Signature, Error> {
-        Ok(self
+        let signer_addr_fut = self.signer_address();
+
+        let sig_fut = self
             .signer
             .sign(
-                "escrin-signer",
+                KMS_KEY,
                 SignatureAlgorithm::ES256K,
                 BASE64_STANDARD.encode(hash),
             )
             .into_future()
-            .await?
-            .signature
-            .as_slice()
-            .try_into()?)
+            .map_err(Error::from)
+            .and_then(|res| async move { Ok(ecdsa::Signature::from_slice(&res.signature)?) });
+
+        let (signer_addr, sig) = tokio::try_join!(signer_addr_fut, sig_fut)?;
+
+        Ok(signature_to_rsv(hash, signer_addr, sig))
+    }
+
+    async fn signer_address(&self) -> Result<Address, Error> {
+        Ok(*self
+            .signer_address
+            .get_or_try_init(|| async {
+                let pk_jwk = self.signer.get(KMS_KEY).into_future().await?.key;
+                let mut pk_sec1_bytes = [0u8; 65];
+                pk_sec1_bytes[0] = 0x04;
+                pk_sec1_bytes[1..33].copy_from_slice(&pk_jwk.x.unwrap());
+                pk_sec1_bytes[33..65].copy_from_slice(&pk_jwk.y.unwrap());
+                let pk = ecdsa::VerifyingKey::from_sec1_bytes(&pk_sec1_bytes)?;
+                Ok::<_, Error>(ethers::utils::public_key_to_address(&pk))
+            })
+            .await?)
     }
 }
 

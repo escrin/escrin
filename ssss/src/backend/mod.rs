@@ -11,7 +11,10 @@ mod tests;
 use std::{future::Future, time::Duration};
 
 use axum::http::uri::Authority;
-use ethers::types::{Address, Signature, H256};
+use ethers::{
+    core::k256::ecdsa,
+    types::{Address, Signature, H256},
+};
 
 use crate::{types::*, utils::now};
 
@@ -75,6 +78,8 @@ pub trait Store: Clone + Send + Sync + 'static {
 
 pub trait Signer: Clone + Send + Sync + 'static {
     fn sign(&self, hash: H256) -> impl Future<Output = Result<Signature, Error>> + Send;
+
+    fn signer_address(&self) -> impl Future<Output = Result<Address, Error>> + Send;
 }
 
 #[derive(Clone)]
@@ -253,6 +258,18 @@ impl Signer for DynBackend {
             DynBackendKind::Azure(s) => s.sign(hash).await,
             #[cfg(feature = "local")]
             DynBackendKind::Local(s) => s.sign(hash).await,
+        }
+    }
+
+    async fn signer_address(&self) -> Result<Address, Error> {
+        match &self.inner {
+            DynBackendKind::Memory(s) => s.signer_address().await,
+            #[cfg(feature = "aws")]
+            DynBackendKind::Aws(s) => s.signer_address().await,
+            #[cfg(feature = "azure")]
+            DynBackendKind::Azure(s) => s.signer_address().await,
+            #[cfg(feature = "local")]
+            DynBackendKind::Local(s) => s.signer_address().await,
         }
     }
 }
@@ -450,4 +467,17 @@ mod serde_key {
     pub fn serialize<T: ToKey, S: Serializer>(t: &T, s: S) -> Result<S::Ok, S::Error> {
         t.to_key().serialize(s)
     }
+}
+
+fn signature_to_rsv(hash: H256, signer: Address, sig: ecdsa::Signature) -> Signature {
+    let eth_sig = Signature {
+        r: <[u8; 32]>::from(sig.r().to_bytes()).into(),
+        s: <[u8; 32]>::from(sig.s().to_bytes()).into(),
+        v: 27,
+    };
+
+    eth_sig
+        .verify(hash, signer)
+        .map(|_| eth_sig)
+        .unwrap_or_else(|_| Signature { v: 28, ..eth_sig })
 }

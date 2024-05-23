@@ -117,6 +117,10 @@ impl Signer for Local {
     async fn sign(&self, hash: H256) -> Result<Signature, Error> {
         todo!()
     }
+
+    async fn signer_address(&self) -> Result<Address, Error> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

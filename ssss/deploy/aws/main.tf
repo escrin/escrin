@@ -32,6 +32,23 @@ locals {
   }
 }
 
+resource "aws_kms_key" "signer" {
+  description              = "Escrin SSSS permit signer (${terraform.workspace})"
+  key_usage                = "SIGN_VERIFY"
+  customer_master_key_spec = "ECC_SECG_P256K1"
+  deletion_window_in_days  = 7
+  tags                     = local.tags
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "aws_kms_alias" "signer" {
+  name          = "alias/escrin-signer-${terraform.workspace}"
+  target_key_id = aws_kms_key.signer.key_id
+}
+
 resource "aws_dynamodb_table" "secrets" {
   name         = "escrin-secrets-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
@@ -82,6 +99,17 @@ resource "aws_dynamodb_table" "verifiers" {
 }
 
 data "aws_iam_policy_document" "policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:GetPublicKey",
+      "kms:Sign",
+    ]
+    resources = [
+      "${aws_kms_key.signer.arn}",
+    ]
+  }
+
   statement {
     effect = "Allow"
     actions = [
