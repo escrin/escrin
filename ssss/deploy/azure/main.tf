@@ -149,21 +149,31 @@ resource "azurerm_key_vault" "kv" {
   }
 }
 
+locals {
+  kv_key_permissions = [
+    "Get",
+    "List",
+    "Sign",
+  ]
+  kv_secret_permissions = [
+    "Backup",
+    "Delete",
+    "Get",
+    "List",
+    "Purge",
+    "Recover",
+    "Restore",
+    "Set",
+  ]
+}
+
 resource "azurerm_key_vault_access_policy" "instance" {
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = azurerm_user_assigned_identity.uai.tenant_id
   object_id    = azurerm_user_assigned_identity.uai.principal_id
 
-  secret_permissions = [
-    "Get",
-    "List",
-    "Set",
-    "Delete",
-    "Purge",
-    "Recover",
-    "Backup",
-    "Restore"
-  ]
+  key_permissions    = local.kv_key_permissions
+  secret_permissions = local.kv_secret_permissions
 
   lifecycle {
     prevent_destroy = true
@@ -171,22 +181,36 @@ resource "azurerm_key_vault_access_policy" "instance" {
 }
 
 resource "azurerm_key_vault_access_policy" "client" {
-  count = terraform.workspace == "dev" ? 1 : 0
-
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = data.azurerm_client_config.current.object_id
 
-  secret_permissions = [
-    "Get",
-    "List",
-    "Set",
+  key_permissions = concat(terraform.workspace == "dev" ? local.kv_key_permissions : [], [
+    "Backup",
+    "Create",
     "Delete",
+    "Get",
+    "GetRotationPolicy",
+    "List",
     "Purge",
     "Recover",
-    "Backup",
-    "Restore"
-  ]
+    "SetRotationPolicy",
+    "Update",
+  ])
+  secret_permissions = terraform.workspace == "dev" ? local.kv_secret_permissions : []
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "azurerm_key_vault_key" "signer" {
+  name         = "escrin-signer"
+  key_vault_id = azurerm_key_vault.kv.id
+  key_type     = "EC"
+  curve        = "P-256K"
+  key_opts     = ["sign"]
+  tags         = local.tags
 
   lifecycle {
     prevent_destroy = true

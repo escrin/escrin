@@ -21,6 +21,7 @@ macro_rules! make_backend_tests {
             create_delete_create_key_version,
             create_second_key,
             roundtrip_verifier,
+            roundtrip_signer,
         );
     };
     ($store_factory:expr, $($test:ident),+ $(,)?) => {
@@ -481,4 +482,16 @@ pub async fn roundtrip_verifier(store: impl Store) {
         .await;
 }
 
-// TODO: test for signer, share uncommitted
+pub async fn roundtrip_signer(signer: impl Signer) {
+    let addr = signer.signer_address().await.unwrap();
+    futures_util::stream::repeat(())
+        .take(10)
+        .for_each_concurrent(None, |_| async {
+            let message = H256::random();
+            let sig = signer.sign(message).await.unwrap();
+            sig.verify(message, addr).unwrap();
+        })
+        .await;
+}
+
+// TODO: share uncommitted

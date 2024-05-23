@@ -7,7 +7,7 @@ use std::{
     time::Instant,
 };
 
-use ethers::signers::LocalWallet;
+use ethers::signers::{LocalWallet, Signer as _};
 
 use super::*;
 
@@ -40,6 +40,10 @@ impl Backend {
 impl Signer for Backend {
     async fn sign(&self, hash: H256) -> Result<Signature, Error> {
         Ok(self.wallet.sign_hash(hash)?)
+    }
+
+    async fn signer_address(&self) -> Result<Address, Error> {
+        Ok(self.wallet.address())
     }
 }
 

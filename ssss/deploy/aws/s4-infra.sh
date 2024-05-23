@@ -223,7 +223,7 @@ lock() {
 	"-h" | "--help")
 		die "${0} lock"
 		;;
-	"*")
+	*)
 		ensure_locked "$script_dir"
 		ensure_locked "$script_dir/tf_state"
 		;;
