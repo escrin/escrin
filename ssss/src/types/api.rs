@@ -7,6 +7,12 @@ use super::{SsssPermit, WrappedKey};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdentityResponse {
+    pub ephemeral: EphemeralKey,
+    pub signer: Address,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EphemeralKey {
     pub key_id: String,
     pub pk: p384::PublicKey,
 }
