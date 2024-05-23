@@ -20,6 +20,7 @@ use ethers::{
     providers::Middleware,
     types::{transaction::eip712::Eip712 as _, Address},
 };
+use futures_util::TryFutureExt as _;
 use once_cell::sync::Lazy;
 use ssss::keypair::{self, KeyPair, RotatingKeyPairProvider};
 use tower_http::cors;
@@ -201,13 +202,15 @@ async fn root() -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-async fn get_ssss_identity<S: Store>(
-    State(AppState { kps, .. }): State<AppState<S>>,
+async fn get_ssss_identity<S: Store + Signer>(
+    State(AppState { backend, kps, .. }): State<AppState<S>>,
 ) -> Result<Json<IdentityResponse>, Error> {
-    let (key_id, pk) = kps
+    let latest_key_fut = kps
         .with_latest_key(|id, kp| (id.to_string(), *kp.public_key()))
-        .await?;
-    Ok(Json(IdentityResponse { key_id, pk }))
+        .map_ok(|(key_id, pk)| EphemeralKey { key_id, pk });
+    let signer_addr_fut = backend.signer_address();
+    let (ephemeral, signer) = tokio::try_join!(latest_key_fut, signer_addr_fut)?;
+    Ok(Json(IdentityResponse { ephemeral, signer }))
 }
 
 async fn set_policy<S: Store>(
