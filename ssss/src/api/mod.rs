@@ -14,14 +14,14 @@ use axum::{
 use axum_extra::{either::Either, headers::Header as _, TypedHeader};
 use ethers::{
     core::{
-        k256, k256::elliptic_curve::sec1::FromEncodedPoint as _, types::transaction::eip712,
+        k256::{self, elliptic_curve::sec1::FromEncodedPoint as _},
+        types::transaction::eip712,
         utils::keccak256,
     },
     providers::Middleware,
     types::{transaction::eip712::Eip712 as _, Address},
 };
 use futures_util::TryFutureExt as _;
-use once_cell::sync::Lazy;
 use ssss::keypair::{self, KeyPair, RotatingKeyPairProvider};
 use tower_http::cors;
 use vsss_rs::PedersenVerifierSet;
@@ -118,6 +118,10 @@ fn make_router<S: Store + Signer>(state: AppState<S>) -> Router {
                         .route("/", post(acqrel_identity))
                         .route("/", delete(acqrel_identity))
                         .layer(axum::middleware::from_fn_with_state(
+                            state.host.clone(),
+                            middleware::escrin1,
+                        ))
+                        .layer(axum::middleware::from_fn_with_state(
                             state.providers.clone(),
                             middleware::ensure_supported_chain,
                         )),
@@ -206,8 +210,14 @@ async fn get_ssss_identity<S: Store + Signer>(
     State(AppState { backend, kps, .. }): State<AppState<S>>,
 ) -> Result<Json<IdentityResponse>, Error> {
     let latest_key_fut = kps
-        .with_latest_key(|id, kp| (id.to_string(), *kp.public_key()))
-        .map_ok(|(key_id, pk)| EphemeralKey { key_id, pk });
+        .with_latest_key(|id, kp, expiry| {
+            (
+                id.to_string(),
+                *kp.public_key(),
+                (expiry.duration_since(std::time::UNIX_EPOCH)).unwrap().as_secs(),
+            )
+        })
+        .map_ok(|(key_id, pk, expiry)| EphemeralKey { key_id, pk, expiry });
     let signer_addr_fut = backend.signer_address();
     let (ephemeral, signer) = tokio::try_join!(latest_key_fut, signer_addr_fut)?;
     Ok(Json(IdentityResponse { ephemeral, signer }))
@@ -408,14 +418,6 @@ async fn get_share<S: Store>(
         payload: payload.into(),
     })))
 }
-
-static PEDERSEN_VSS_BLINDER_GENERATOR: Lazy<k256::ProjectivePoint> = Lazy::new(|| {
-    let generator: k256::EncodedPoint =
-        "036f579b345d53115deb10137c9fdc633ed4abddfe8bd2ac36f3e5351bccf37808"
-            .parse()
-            .unwrap();
-    k256::ProjectivePoint::from_encoded_point(&generator).unwrap()
-});
 
 async fn deal_share<S: Store>(
     Path((name, chain, registry, identity)): Path<(String, ChainId, Address, IdentityId)>,

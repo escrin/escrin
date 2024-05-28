@@ -6,8 +6,10 @@ use aws_sdk_dynamodb::{
     types::AttributeValue::{self, Bs, B, N, S},
 };
 use futures_util::TryFutureExt as _;
+use ethers::core::k256::ecdsa;
 use p384::pkcs8::DecodePublicKey as _;
 
+use crate::utils::now;
 use super::*;
 
 #[derive(Clone)]

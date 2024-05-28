@@ -20,7 +20,7 @@ pub struct NitroEnclaveVerifier;
 impl Verifier for NitroEnclaveVerifier {
     async fn verify(
         &self,
-        policy_bytes: &[u8],
+        raw_policy: serde_json::Value,
         req: RequestKind,
         identity: IdentityLocator,
         recipient: Address,
@@ -28,7 +28,7 @@ impl Verifier for NitroEnclaveVerifier {
         _context: &[u8],
         relayer: Option<Address>,
     ) -> Result<Verification, Error> {
-        let policy: Policy = ciborium::de::from_reader_with_recursion_limit(policy_bytes, 10)
+        let policy: Policy = serde_json::from_value(raw_policy)
             .map_err(|e| Error::PolicyDecode(anyhow::Error::from(e)))?;
 
         if policy.version != 1 {

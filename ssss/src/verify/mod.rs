@@ -2,7 +2,7 @@ mod nitro;
 
 use ethers::types::Address;
 
-use crate::types::{IdentityLocator, PolicyPreamble};
+use crate::types::{IdentityLocator, PolicyDocument};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RequestKind {
@@ -14,7 +14,7 @@ pub trait Verifier {
     #[allow(clippy::too_many_arguments)]
     async fn verify(
         &self,
-        policy_bytes: &[u8],
+        raw_policy: serde_json::Value,
         req: RequestKind,
         identity: IdentityLocator,
         recipient: Address,
@@ -60,16 +60,15 @@ pub async fn verify(
     ctx: &[u8],
     relayer: Option<Address>,
 ) -> Result<Verification, Error> {
-    let PolicyPreamble {
+    let PolicyDocument {
         verifier,
-        policy: policy_bytes,
-    } = ciborium::de::from_reader_with_recursion_limit(policy_bytes, 3)
-        .map_err(|e| Error::PolicyDecode(e.into()))?;
+        policy: raw_policy,
+    } = serde_json::from_slice(policy_bytes).map_err(|e| Error::PolicyDecode(e.into()))?;
 
     match verifier.as_str() {
         "nitro" => {
             nitro::NitroEnclaveVerifier
-                .verify(&policy_bytes, req, identity, recipient, auth, ctx, relayer)
+                .verify(raw_policy, req, identity, recipient, auth, ctx, relayer)
                 .await
         }
         #[cfg(debug_assertions)]

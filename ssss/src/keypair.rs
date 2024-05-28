@@ -1,6 +1,6 @@
 use std::{
     sync::{Arc, RwLock},
-    time::{Duration, Instant},
+    time::{Duration, SystemTime},
 };
 
 use aes_gcm_siv::{Aes256GcmSiv, KeyInit as _};
@@ -55,7 +55,7 @@ pub fn derive_shared_cipher(
 struct RotatedKeyPair {
     id: String,
     kp: KeyPair,
-    expiry: Instant,
+    expiry: SystemTime,
 }
 
 impl RotatedKeyPair {
@@ -66,7 +66,7 @@ impl RotatedKeyPair {
         Self {
             id,
             kp,
-            expiry: Instant::now() + lifetime,
+            expiry: SystemTime::now() + lifetime,
         }
     }
 }
@@ -102,7 +102,7 @@ impl<S: Store> RotatingKeyPairProvider<S> {
 
     pub async fn with_latest_key<T>(
         &self,
-        f: impl FnOnce(&str, &KeyPair) -> T,
+        f: impl FnOnce(&str, &KeyPair, SystemTime) -> T,
     ) -> Result<T, crate::backend::Error> {
         self.do_with_key(None, f).await.transpose().unwrap()
     }
@@ -112,21 +112,21 @@ impl<S: Store> RotatingKeyPairProvider<S> {
         id: &str,
         f: impl FnOnce(&KeyPair) -> T,
     ) -> Result<Option<T>, crate::backend::Error> {
-        self.do_with_key(Some(id), |_id, key| f(key)).await
+        self.do_with_key(Some(id), |_id, key, _expiry| f(key)).await
     }
 
     async fn do_with_key<T>(
         &self,
         id: Option<&str>,
-        f: impl FnOnce(&str, &KeyPair) -> T,
+        f: impl FnOnce(&str, &KeyPair, SystemTime) -> T,
     ) -> Result<Option<T>, crate::backend::Error> {
         let needs_refresh = {
             let keys = self.keys.read().unwrap();
-            let now = Instant::now();
+            let now = SystemTime::now();
             now > keys.0.expiry || (now + self.swap_time > keys.0.expiry && keys.1.is_none())
         };
         if needs_refresh {
-            let now = Instant::now();
+            let now = SystemTime::now();
             let mut keys = self.keys.write().unwrap();
             if now + self.swap_time > keys.0.expiry && keys.1.is_none() {
                 keys.1 = Some(RotatedKeyPair::generate(self.key_lifetime));
@@ -139,10 +139,10 @@ impl<S: Store> RotatingKeyPairProvider<S> {
         Ok(Some(match id {
             Some(id) => {
                 if keys.0.id == id {
-                    f(&keys.0.id, &keys.0.kp)
+                    f(&keys.0.id, &keys.0.kp, keys.0.expiry)
                 } else if let Some(key1) = keys.1.as_ref() {
                     if key1.id == id {
-                        f(&key1.id, &key1.kp)
+                        f(&key1.id, &key1.kp, key1.expiry)
                     } else {
                         return Ok(None);
                     }
@@ -152,7 +152,7 @@ impl<S: Store> RotatingKeyPairProvider<S> {
             }
             None => {
                 let key = keys.1.as_ref().unwrap_or(&keys.0);
-                f(&key.id, &key.kp)
+                f(&key.id, &key.kp, key.expiry)
             }
         }))
     }

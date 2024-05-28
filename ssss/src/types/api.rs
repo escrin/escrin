@@ -1,20 +1,33 @@
 use axum::http::header;
 use axum_extra::headers;
-use ethers::types::{Address, Bytes, Signature};
+use ethers::{
+    core::k256::{self, elliptic_curve::sec1::FromEncodedPoint as _},
+    types::{Address, Bytes, Signature},
+};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use super::{SsssPermit, WrappedKey};
 
-#[derive(Debug, Serialize, Deserialize)]
+pub static PEDERSEN_VSS_BLINDER_GENERATOR: Lazy<k256::ProjectivePoint> = Lazy::new(|| {
+    let generator: k256::EncodedPoint =
+        "036f579b345d53115deb10137c9fdc633ed4abddfe8bd2ac36f3e5351bccf37808"
+            .parse()
+            .unwrap();
+    k256::ProjectivePoint::from_encoded_point(&generator).unwrap()
+});
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IdentityResponse {
     pub ephemeral: EphemeralKey,
     pub signer: Address,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EphemeralKey {
     pub key_id: String,
     pub pk: p384::PublicKey,
+    pub expiry: u64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -117,6 +130,16 @@ impl From<crate::types::SecretShare> for SecretShare {
             meta: ss.meta,
             share: (*ss.share).clone().into(),
             blinder: (*ss.blinder).clone().into(),
+        }
+    }
+}
+
+impl From<SecretShare> for crate::types::SecretShare {
+    fn from(ss: SecretShare) -> Self {
+        Self {
+            meta: ss.meta,
+            share: Vec::from(ss.share.0).into(),
+            blinder: Vec::from(ss.blinder.0).into(),
         }
     }
 }

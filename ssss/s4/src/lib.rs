@@ -1,19 +1,24 @@
-use aes_gcm_siv::AeadInPlace;
+use std::sync::{Arc, Mutex};
+
+use aes_gcm_siv::AeadInPlace as _;
 use ethers::{
     core::utils::keccak256,
     signers::{LocalWallet, Signer as _},
-    types::transaction::eip712::Eip712 as _,
+    types::{transaction::eip712::Eip712 as _, Address, Signature},
 };
-use eyre::Result;
-use futures_util::TryFutureExt as _;
+use eyre::{ensure, Result};
 use headers::Header as _;
-use reqwest::StatusCode;
+use rand::RngCore as _;
+use reqwest::{RequestBuilder, Response, StatusCode};
 use ssss::types::{api::*, *};
+use tokio::sync::OnceCell;
 
 #[derive(Clone, Debug)]
 pub struct SsssClient {
     client: reqwest::Client,
     url: url::Url,
+    remote_signer: OnceCell<Address>,
+    remote_ek: Arc<Mutex<Option<EphemeralKey>>>,
 }
 
 impl SsssClient {
@@ -21,39 +26,231 @@ impl SsssClient {
         Self {
             client: Default::default(),
             url: ssss,
+            remote_signer: Default::default(),
+            remote_ek: Default::default(),
         }
     }
 
-    // TODO: cache this
-    pub async fn get_ssss_identity(&self) -> Result<IdentityResponse> {
-        Ok(reqwest::get(self.url.join("/v1/identity").unwrap())
+    pub async fn signer(&self) -> Result<Address> {
+        self.remote_signer
+            .get_or_try_init(|| async {
+                let identity = self.fetch_remote_identity().await?;
+                let mut remote_ek = self.remote_ek.lock().unwrap();
+                if identity.ephemeral.expiry
+                    > remote_ek.as_ref().map(|k| k.expiry).unwrap_or_default()
+                {
+                    *remote_ek = Some(identity.ephemeral);
+                }
+                Ok(identity.signer)
+            })
+            .await
+            .copied()
+    }
+
+    async fn fetch_remote_identity(&self) -> Result<IdentityResponse> {
+        Ok(send_request(self.client.get(self.url("/v1/identity")))
             .await?
-            .error_for_status()?
             .json()
             .await?)
     }
 
-    /// Returns whether the SSSS optimistically granted the permit.
-    pub async fn acquire_identity(
-        &self,
-        il: IdentityLocator,
-        params: &AcqRelIdentityRequest,
-        signer: Option<&LocalWallet>,
-    ) -> Result<bool> {
-        Ok(self.acqrel_identity(il, params, signer, true).await? == StatusCode::CREATED)
+    async fn ephemeral_key(&self) -> Result<EphemeralKey> {
+        {
+            let remote_ek = self.remote_ek.lock().unwrap();
+            match &*remote_ek {
+                Some(ek) if ek.expiry > ssss::utils::now() + 5 * 60 => return Ok(ek.clone()),
+                _ => {}
+            }
+        }
+        let identity = self.fetch_remote_identity().await?;
+        let mut remote_ek = self.remote_ek.lock().unwrap();
+        if identity.ephemeral.expiry > remote_ek.as_ref().map(|k| k.expiry).unwrap_or_default() {
+            *remote_ek = Some(identity.ephemeral.clone());
+        }
+        Ok(identity.ephemeral)
     }
 
-    pub async fn release_identity(
+    pub async fn set_policy(
         &self,
-        il: IdentityLocator,
-        params: &AcqRelIdentityRequest,
-        signer: Option<&LocalWallet>,
+        IdentityLocator {
+            chain,
+            registry,
+            id,
+        }: IdentityLocator,
+        policy: &PolicyDocument,
     ) -> Result<()> {
-        self.acqrel_identity(il, params, signer, false).await?;
+        ensure!(
+            send_request(
+                self.client
+                    .post(self.url(format!("/v1/policies/{chain}/{registry}/{id}")))
+                    .json(policy),
+            )
+            .await?
+            .status()
+                != StatusCode::NO_CONTENT,
+            "failed to set policy: received unexpected response status"
+        );
         Ok(())
     }
 
-    async fn acqrel_identity(
+    pub async fn deal_share(
+        &self,
+        id: &ShareId,
+        share: api::SecretShare,
+        signer: &LocalWallet,
+    ) -> Result<()> {
+        let mut payload = serde_json::to_vec(&ShareBody { share })?;
+
+        let kp = ssss::keypair::KeyPair::ephemeral();
+
+        let mut nonce = [0u8; 12];
+        rand::thread_rng().fill_bytes(&mut nonce);
+
+        let ssss_key = self.ephemeral_key().await?;
+
+        let cipher = kp.derive_shared_cipher(ssss_key.pk, ssss::keypair::DEAL_SHARES_DOMAIN_SEP);
+        cipher
+            .encrypt_in_place(&nonce.into(), &[], &mut payload)
+            .unwrap();
+
+        let body = serde_json::to_vec(&EncryptedPayload {
+            format: EncryptedPayloadFormat::P384EcdhAes256GcmSiv {
+                curve: CurveP384,
+                pk: *kp.public_key(),
+                nonce,
+                recipient_key_id: ssss_key.key_id,
+            },
+            payload: payload.into(),
+        })?;
+
+        let ShareId {
+            identity:
+                IdentityLocator {
+                    chain,
+                    registry,
+                    id: identity,
+                },
+            secret_name,
+            version,
+        } = id;
+        let url = self.url(format!(
+            "/shares/{secret_name}/{chain}/{registry}/{identity}?version={version}"
+        ));
+
+        let ssss_req = SsssRequest {
+            method: "POST".into(),
+            url: url.to_string(),
+            body: keccak256(&body).into(),
+        };
+
+        send_request(
+            Self::attach_escrin1_sig(
+                self.client
+                    .post(url)
+                    .header("content-type", "application/json"),
+                ssss_req,
+                signer,
+            )?
+            .body(body),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn commit_share(&self, id: &ShareId, signer: &LocalWallet) -> Result<()> {
+        let ShareId {
+            identity:
+                IdentityLocator {
+                    chain,
+                    registry,
+                    id: identity,
+                },
+            secret_name,
+            version,
+        } = id;
+        let url = self.url(format!(
+            "/shares/{secret_name}/{chain}/{registry}/{identity}/commit?version={version}"
+        ));
+
+        let ssss_req = SsssRequest {
+            method: "POST".into(),
+            url: url.to_string(),
+            body: keccak256(b"").into(),
+        };
+
+        send_request(Self::attach_escrin1_sig(
+            self.client.post(url),
+            ssss_req,
+            signer,
+        )?)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_share(
+        &self,
+        id: &ShareId,
+        signer: &LocalWallet,
+    ) -> Result<ssss::types::api::SecretShare> {
+        let kp = ssss::keypair::KeyPair::ephemeral();
+
+        let ShareId {
+            identity:
+                IdentityLocator {
+                    chain,
+                    registry,
+                    id: identity,
+                },
+            secret_name,
+            version,
+        } = id;
+        let url = self.url(format!(
+            "/shares/{secret_name}/{chain}/{registry}/{identity}/commit?version={version}&pk={}",
+            kp.fingerprint() // bind the requester public key to the request
+        ));
+
+        let ssss_req = SsssRequest {
+            method: "GET".into(),
+            url: url.to_string(),
+            body: Default::default(),
+        };
+
+        let res = send_request(Self::attach_escrin1_sig(
+            self.client.get(url).header(
+                RequesterPublicKeyHeader::name().as_str(),
+                RequesterPublicKeyHeader(*kp.public_key()).to_string(),
+            ),
+            ssss_req,
+            signer,
+        )?)
+        .await?;
+
+        Ok(decrypt_enc_payload::<ShareBody>(res.json().await?, kp)?.share)
+    }
+
+    /// Returns whether the SSSS optimistically granted the permit.
+    pub async fn request_acquire_identity_permit(
+        &self,
+        il: IdentityLocator,
+        params: &AcqRelIdentityRequest,
+        signer: Option<&LocalWallet>,
+    ) -> Result<(Address, Signature)> {
+        self.request_identity_permit(il, params, signer, true).await
+    }
+
+    pub async fn request_release_identity_permit(
+        &self,
+        il: IdentityLocator,
+        params: &AcqRelIdentityRequest,
+        signer: Option<&LocalWallet>,
+    ) -> Result<(Address, Signature)> {
+        self.request_identity_permit(il, params, signer, false)
+            .await
+    }
+
+    async fn request_identity_permit(
         &self,
         IdentityLocator {
             chain,
@@ -63,9 +260,8 @@ impl SsssClient {
         params: &AcqRelIdentityRequest,
         signer: Option<&LocalWallet>,
         acquire: bool,
-    ) -> Result<StatusCode> {
-        let paq = format!("/v1/permits/{chain}/{registry:x}/{identity:x}");
-        let url = self.url.join(&paq)?;
+    ) -> Result<(Address, Signature)> {
+        let url = self.url(format!("/v1/permits/{chain}/{registry:x}/{identity:x}"));
         let body = serde_json::to_vec(&params)?;
         let method = if acquire {
             reqwest::Method::POST
@@ -73,111 +269,39 @@ impl SsssClient {
             reqwest::Method::DELETE
         };
 
-        let req = self.client.request(method.clone(), url.clone());
-        let res = match signer {
+        let kp = ssss::keypair::KeyPair::ephemeral();
+
+        let req = self
+            .client
+            .request(method.clone(), url.clone())
+            .header(
+                RequesterPublicKeyHeader::name().as_str(),
+                RequesterPublicKeyHeader(*kp.public_key()).to_string(),
+            )
+            .header("content-type", "application/json");
+        let req = match signer {
             Some(signer) => Self::attach_escrin1_sig(
                 req,
                 SsssRequest {
+                    url: url.to_string(),
                     method: method.to_string(),
-                    host: url.authority().to_string(),
-                    path_and_query: paq,
                     body: keccak256(&body).into(),
                 },
                 signer,
             )?,
             None => req,
         }
-        .header("content-type", "application/json")
-        .body(body)
-        .send()
-        .await?;
+        .body(body);
+        let res = send_request(req).await?;
 
-        if !res.status().is_success() {
-            let res_text = res.text().await?;
-            let ErrorResponse { error } =
-                serde_json::from_str(&res_text).unwrap_or(ErrorResponse { error: res_text });
-            return Err(eyre::eyre!("failed to acquire identity: {error}"));
-        }
-
-        Ok(res.status())
-    }
-
-    pub async fn get_share(
-        &self,
-        name: &str,
-        IdentityLocator {
-            chain,
-            registry,
-            id: IdentityId(identity),
-        }: IdentityLocator,
-        version: u64,
-        signer: &LocalWallet,
-        sk: Option<&p384::SecretKey>,
-    ) -> Result<(u64, Vec<u8>)> {
-        let paq = format!("/v1/shares/{name}/{chain}/{registry:x}/{identity:x}?version={version}");
-        let url = self.url.join(&paq)?;
-
-        let sk: std::borrow::Cow<p384::SecretKey> = match sk {
-            Some(sk) => std::borrow::Cow::Borrowed(sk),
-            None => std::borrow::Cow::Owned(p384::SecretKey::random(&mut rand::thread_rng())),
-        };
-
-        let shares_req = Self::attach_escrin1_sig(
-            self.client.get(url.clone()),
-            SsssRequest {
-                method: "GET".into(),
-                host: url.authority().to_string(),
-                path_and_query: paq,
-                body: Default::default(),
-            },
-            signer,
-        )?
-        .header(
-            RequesterPublicKeyHeader::name().as_str(),
-            RequesterPublicKeyHeader(sk.public_key()).to_string(),
-        )
-        .send()
-        .map_err(eyre::Error::from);
-
-        let (shares_res, ssss_identity) = tokio::try_join!(shares_req, self.get_ssss_identity())?;
-
-        if !shares_res.status().is_success() {
-            let res_text = shares_res.text().await?;
-            let ErrorResponse { error } =
-                serde_json::from_str(&res_text).unwrap_or(ErrorResponse { error: res_text });
-            return Err(eyre::eyre!(
-                "failed to get shares from {}: {error}",
-                self.url
-            ));
-        }
-
-        let res: ShareBody = shares_res.error_for_status()?.json().await?;
-
-        let share = match res.format {
-            ShareResponseFormat::Plain => res.ss.share,
-            ShareResponseFormat::EncAes256GcmSiv { nonce } => {
-                let mut share = res.ss.share;
-                let ssss_pk = p384::PublicKey::from_jwk(&ssss_identity.ephemeral)?;
-                let cipher = ssss::identity::derive_shared_cipher(
-                    &sk.to_nonzero_scalar(),
-                    &ssss_pk,
-                    ssss::identity::GET_SHARE_DOMAIN_SEP,
-                );
-                cipher
-                    .decrypt_in_place(&nonce.into(), &[], &mut share)
-                    .map_err(|_| eyre::eyre!("share decryption failed"))?;
-                share
-            }
-        };
-
-        Ok((res.ss.index, share))
+        decrypt_enc_payload(res.json().await?, kp)
     }
 
     fn attach_escrin1_sig(
-        req: reqwest::RequestBuilder,
+        req: RequestBuilder,
         req721: SsssRequest,
         signer: &LocalWallet,
-    ) -> Result<reqwest::RequestBuilder> {
+    ) -> Result<RequestBuilder> {
         let req_hash = req721.encode_eip712()?;
         let sig = signer.sign_hash(req_hash.into())?;
         Ok(req
@@ -189,5 +313,45 @@ impl SsssClient {
                 RequesterHeader::name().as_str(),
                 RequesterHeader(signer.address()).to_string(),
             ))
+    }
+
+    fn url(&self, u: impl AsRef<str>) -> url::Url {
+        self.url.join(u.as_ref()).unwrap()
+    }
+}
+
+fn decrypt_enc_payload<T: serde::de::DeserializeOwned>(
+    enc_payload: EncryptedPayload,
+    kp: ssss::keypair::KeyPair,
+) -> Result<T> {
+    let EncryptedPayloadFormat::P384EcdhAes256GcmSiv {
+        curve: CurveP384,
+        pk: ppk,
+        nonce,
+        ..
+    } = enc_payload.format
+    else {
+        unreachable!("unsupported encrypted response format");
+    };
+    let mut payload: Vec<u8> = enc_payload.payload.0.into();
+
+    let cipher = kp.derive_shared_cipher(ppk, ssss::keypair::GET_SHARE_DOMAIN_SEP);
+    cipher
+        .decrypt_in_place(&nonce.into(), &[], &mut payload)
+        .unwrap();
+
+    Ok(serde_json::from_slice(&payload)?)
+}
+
+async fn send_request(req: RequestBuilder) -> Result<Response> {
+    let res = req.send().await?;
+
+    if !res.status().is_success() {
+        let res_text = res.text().await?;
+        let ErrorResponse { error } =
+            serde_json::from_str(&res_text).unwrap_or(ErrorResponse { error: res_text });
+        Err(eyre::eyre!("request failed: {error}"))
+    } else {
+        Ok(res)
     }
 }
