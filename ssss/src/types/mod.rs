@@ -21,6 +21,12 @@ impl From<H256> for IdentityId {
     }
 }
 
+impl std::fmt::Display for IdentityId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:x}", self.0)
+    }
+}
+
 #[cfg(test)]
 impl rand::distributions::Distribution<IdentityId> for rand::distributions::Standard {
     fn sample<R: rand::prelude::Rng + ?Sized>(&self, rng: &mut R) -> IdentityId {
@@ -142,10 +148,10 @@ pub struct SsssRequest {
     pub body: H256,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PolicyPreamble {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PolicyDocument {
     pub verifier: String,
-    pub policy: Vec<u8>,
+    pub policy: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Default, EthAbiType, Eip712, Serialize, Deserialize)]

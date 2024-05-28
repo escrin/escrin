@@ -11,12 +11,9 @@ mod tests;
 use std::{future::Future, time::Duration};
 
 use axum::http::uri::Authority;
-use ethers::{
-    core::k256::ecdsa,
-    types::{Address, Signature, H256},
-};
+use ethers::types::{Address, Signature, H256};
 
-use crate::{types::*, utils::now};
+use crate::types::*;
 
 const PRE_COMMIT_EXPIRY: Duration = Duration::from_secs(10 * 60); // 10 minutes
 
@@ -451,6 +448,7 @@ impl ToKey for &[u8] {
     }
 }
 
+#[cfg(any(feature = "aws", feature = "azure"))]
 mod serde_key {
     use serde::{
         de::{self, Deserialize, Deserializer},
@@ -469,7 +467,12 @@ mod serde_key {
     }
 }
 
-fn signature_to_rsv(hash: H256, signer: Address, sig: ecdsa::Signature) -> Signature {
+#[cfg(any(feature = "aws", feature = "azure"))]
+fn signature_to_rsv(
+    hash: H256,
+    signer: Address,
+    sig: ethers::core::k256::ecdsa::Signature,
+) -> Signature {
     let eth_sig = Signature {
         r: <[u8; 32]>::from(sig.r().to_bytes()).into(),
         s: <[u8; 32]>::from(sig.s().to_bytes()).into(),

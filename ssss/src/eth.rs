@@ -2,7 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use ethers::{
     providers::{self, JsonRpcClient as _},
-    types::{Address, H256, U64},
+    contract::ContractCall,
+    types::{Address, H256, U64, TxHash},
 };
 use futures_util::TryStreamExt as _;
 
@@ -61,6 +62,18 @@ impl<M: providers::Middleware> SsssPermitter<M> {
         }
     }
 
+    pub async fn set_policy_hash(
+        &self,
+        identity: IdentityId,
+        policy_hash: impl Into<[u8; 32]>,
+    ) -> Result<TxHash, Error<M>> {
+        self.send_tx(
+            self.contract
+                .set_policy_hash(identity.0.into(), policy_hash.into()),
+        )
+        .await
+    }
+
     pub async fn policy_hash(&self, identity: IdentityId) -> Result<H256, Error<M>> {
         Ok(self
             .contract
@@ -68,6 +81,22 @@ impl<M: providers::Middleware> SsssPermitter<M> {
             .call()
             .await?
             .into())
+    }
+
+    async fn send_tx(&self, call: ContractCall<M, ()>) -> Result<TxHash, Error<M>> {
+        let receipt = call
+            .send()
+            .await?
+            // .interval(match self.chain {
+            //     1337 | 31337 => providers::DEFAULT_LOCAL_POLL_INTERVAL,
+            //     _ => providers::DEFAULT_POLL_INTERVAL,
+            // })
+            .await?
+            .unwrap();
+        match receipt.status.map(|s| s.as_u64()) {
+            Some(1) => Ok(receipt.transaction_hash),
+            _ => Err(ethers::contract::ContractError::Revert(Default::default()).into()),
+        }
     }
 }
 
