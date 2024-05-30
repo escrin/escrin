@@ -1,15 +1,18 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    io::Write as _,
+    sync::{Arc, Mutex},
+};
 
 use aes_gcm_siv::AeadInPlace as _;
 use ethers::{
     core::utils::keccak256,
     signers::{LocalWallet, Signer as _},
-    types::{transaction::eip712::Eip712 as _, Address, Signature},
+    types::{transaction::eip712::Eip712 as _, Address, H256},
 };
 use eyre::{ensure, Result};
 use headers::Header as _;
 use rand::RngCore as _;
-use reqwest::{RequestBuilder, Response, StatusCode};
+use reqwest::{Method, RequestBuilder, Response, StatusCode};
 use ssss::types::{api::*, *};
 use tokio::sync::OnceCell;
 
@@ -77,18 +80,24 @@ impl SsssClient {
             registry,
             id,
         }: IdentityLocator,
+        permitter: Address,
         policy: &PolicyDocument,
     ) -> Result<()> {
+        let res = send_request(
+            self.client
+                .post(self.url(format!("/v1/policies/{chain}/{registry:x}/{id}")))
+                .json(&SetPolicyRequest {
+                    permitter,
+                    policy: serde_json::value::RawValue::from_string(serde_json::to_string(
+                        &policy,
+                    )?)?,
+                }),
+        )
+        .await?;
         ensure!(
-            send_request(
-                self.client
-                    .post(self.url(format!("/v1/policies/{chain}/{registry}/{id}")))
-                    .json(policy),
-            )
-            .await?
-            .status()
-                != StatusCode::NO_CONTENT,
-            "failed to set policy: received unexpected response status"
+            res.status() == StatusCode::NO_CONTENT,
+            "failed to set policy: received unexpected response status: {}",
+            res.status()
         );
         Ok(())
     }
@@ -133,27 +142,10 @@ impl SsssClient {
             secret_name,
             version,
         } = id;
-        let url = self.url(format!(
-            "/shares/{secret_name}/{chain}/{registry}/{identity}?version={version}"
-        ));
+        let paq =
+            format!("/shares/{secret_name}/{chain}/{registry:x}/{identity}?version={version}");
 
-        let ssss_req = SsssRequest {
-            method: "POST".into(),
-            url: url.to_string(),
-            body: keccak256(&body).into(),
-        };
-
-        send_request(
-            Self::attach_escrin1_sig(
-                self.client
-                    .post(url)
-                    .header("content-type", "application/json"),
-                ssss_req,
-                signer,
-            )?
-            .body(body),
-        )
-        .await?;
+        send_request(self.make_escrin1_req(Method::POST, paq, &body, signer)?).await?;
 
         Ok(())
     }
@@ -169,22 +161,11 @@ impl SsssClient {
             secret_name,
             version,
         } = id;
-        let url = self.url(format!(
-            "/shares/{secret_name}/{chain}/{registry}/{identity}/commit?version={version}"
-        ));
+        let paq = format!(
+            "/shares/{secret_name}/{chain}/{registry:x}/{identity}/commit?version={version}"
+        );
 
-        let ssss_req = SsssRequest {
-            method: "POST".into(),
-            url: url.to_string(),
-            body: keccak256(b"").into(),
-        };
-
-        send_request(Self::attach_escrin1_sig(
-            self.client.post(url),
-            ssss_req,
-            signer,
-        )?)
-        .await?;
+        send_request(self.make_escrin1_req(Method::POST, paq, &(), signer)?).await?;
 
         Ok(())
     }
@@ -206,26 +187,12 @@ impl SsssClient {
             secret_name,
             version,
         } = id;
-        let url = self.url(format!(
-            "/shares/{secret_name}/{chain}/{registry}/{identity}/commit?version={version}&pk={}",
+        let paq = format!(
+            "/shares/{secret_name}/{chain}/{registry:x}/{identity}/commit?version={version}&pk={}",
             kp.fingerprint() // bind the requester public key to the request
-        ));
+        );
 
-        let ssss_req = SsssRequest {
-            method: "GET".into(),
-            url: url.to_string(),
-            body: Default::default(),
-        };
-
-        let res = send_request(Self::attach_escrin1_sig(
-            self.client.get(url).header(
-                RequesterPublicKeyHeader::name().as_str(),
-                RequesterPublicKeyHeader(*kp.public_key()).to_string(),
-            ),
-            ssss_req,
-            signer,
-        )?)
-        .await?;
+        let res = send_request(self.make_escrin1_req(Method::GET, paq, &(), signer)?).await?;
 
         Ok(decrypt_enc_payload::<ShareBody>(res.json().await?, kp)?.share)
     }
@@ -236,7 +203,7 @@ impl SsssClient {
         il: IdentityLocator,
         params: &AcqRelIdentityRequest,
         signer: Option<&LocalWallet>,
-    ) -> Result<(Address, Signature)> {
+    ) -> Result<PermitResponse> {
         self.request_identity_permit(il, params, signer, true).await
     }
 
@@ -245,7 +212,7 @@ impl SsssClient {
         il: IdentityLocator,
         params: &AcqRelIdentityRequest,
         signer: Option<&LocalWallet>,
-    ) -> Result<(Address, Signature)> {
+    ) -> Result<PermitResponse> {
         self.request_identity_permit(il, params, signer, false)
             .await
     }
@@ -260,41 +227,45 @@ impl SsssClient {
         params: &AcqRelIdentityRequest,
         signer: Option<&LocalWallet>,
         acquire: bool,
-    ) -> Result<(Address, Signature)> {
-        let url = self.url(format!("/v1/permits/{chain}/{registry:x}/{identity:x}"));
-        let body = serde_json::to_vec(&params)?;
+    ) -> Result<PermitResponse> {
+        let paq = format!("/v1/permits/{chain}/{registry:x}/{identity:x}");
         let method = if acquire {
-            reqwest::Method::POST
+            Method::POST
         } else {
-            reqwest::Method::DELETE
+            Method::DELETE
         };
 
-        let kp = ssss::keypair::KeyPair::ephemeral();
-
-        let req = self
-            .client
-            .request(method.clone(), url.clone())
-            .header(
-                RequesterPublicKeyHeader::name().as_str(),
-                RequesterPublicKeyHeader(*kp.public_key()).to_string(),
-            )
-            .header("content-type", "application/json");
         let req = match signer {
-            Some(signer) => Self::attach_escrin1_sig(
-                req,
-                SsssRequest {
-                    url: url.to_string(),
-                    method: method.to_string(),
-                    body: keccak256(&body).into(),
-                },
-                signer,
-            )?,
-            None => req,
-        }
-        .body(body);
-        let res = send_request(req).await?;
+            Some(signer) => self.make_escrin1_req(method, paq, &params, signer)?,
+            None => self
+                .client
+                .request(method.clone(), self.url(paq))
+                .json(&params),
+        };
 
-        decrypt_enc_payload(res.json().await?, kp)
+        Ok(send_request(req).await?.json().await?)
+    }
+
+    fn make_escrin1_req(
+        &self,
+        method: Method,
+        paq: impl AsRef<str>,
+        body: &impl serde::Serialize,
+        signer: &LocalWallet,
+    ) -> Result<RequestBuilder> {
+        let req = self.client.request(method.clone(), self.url(paq.as_ref()));
+        let (body_hash, req) = if matches!(method, Method::GET | Method::HEAD) {
+            (Default::default(), req)
+        } else {
+            let body_bytes = serde_json::to_vec(&body)?;
+            (keccak256(body_bytes).into(), req.json(body))
+        };
+        let req721 = SsssRequest {
+            method: method.to_string(),
+            url: format!("{}{}", self.url.authority(), paq.as_ref()),
+            body: body_hash,
+        };
+        Self::attach_escrin1_sig(req, req721, signer)
     }
 
     fn attach_escrin1_sig(
@@ -354,4 +325,66 @@ async fn send_request(req: RequestBuilder) -> Result<Response> {
     } else {
         Ok(res)
     }
+}
+
+pub fn calculate_threshold(num_sssss: u64, threshold: f64) -> u64 {
+    if threshold > 1.0 {
+        threshold as u64
+    } else {
+        (threshold * (num_sssss as f64)).ceil() as u64
+    }
+}
+
+static OZ_MERKLE_TREE_JS: &[u8] = include_bytes!(env!("OZ_MERKLE_TREE_JS"));
+static PROOF_GENERATOR_JS: &[u8] = include_bytes!("./generate-proof.cjs");
+
+pub fn generate_signer_proof(
+    signers: &[Address],
+    signatories: &[Address],
+) -> Result<(Vec<H256>, Vec<bool>, Vec<Address>)> {
+    let tempdir = tempfile::tempdir()?;
+
+    static GENERATE_PROOF_CJS: &str = "generate-proof.cjs";
+
+    std::fs::write(tempdir.path().join("merkle-tree.cjs"), OZ_MERKLE_TREE_JS)?;
+    std::fs::write(tempdir.path().join(GENERATE_PROOF_CJS), PROOF_GENERATOR_JS)?;
+
+    let mut cp = std::process::Command::new("node")
+        .arg(GENERATE_PROOF_CJS)
+        .current_dir(tempdir.path())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    cp.stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&serde_json::to_vec(&serde_json::json!({
+            "signers": signers,
+            "signatories": signatories,
+        }))?)?;
+    let output = cp.wait_with_output()?;
+    ensure!(
+        output.status.success(),
+        "proof generation failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    #[derive(Debug, serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ProofGeneratorOutput {
+        proof: Vec<H256>,
+        proof_flags: Vec<bool>,
+        leaves: Vec<(Address,)>,
+    }
+    let ProofGeneratorOutput {
+        proof,
+        proof_flags,
+        leaves,
+    } = serde_json::from_slice(&output.stdout)?;
+    Ok((
+        proof,
+        proof_flags,
+        leaves.into_iter().map(|l| l.0).collect(),
+    ))
 }

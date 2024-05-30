@@ -135,7 +135,7 @@ impl AsRef<[u8]> for WrappedKey {
     }
 }
 
-#[derive(Clone, Default, EthAbiType, Eip712)]
+#[derive(Clone, Debug, Default, EthAbiType, Eip712)]
 #[eip712(
     name = "SsssRequest",
     version = "1",
@@ -155,7 +155,6 @@ pub struct PolicyDocument {
 }
 
 #[derive(Clone, Debug, Default, EthAbiType, Eip712, Serialize, Deserialize)]
-#[eip712(name = "SsssPermit", version = "1")]
 pub struct SsssPermit {
     pub registry: Address,
     pub identity: H256,
@@ -164,5 +163,5 @@ pub struct SsssPermit {
     pub duration: u64,
     pub nonce: Bytes,
     pub pk: Bytes,
-    pub base_block: U256,
+    pub baseblock: U256,
 }

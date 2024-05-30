@@ -52,6 +52,7 @@ pub struct AcqRelIdentityRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PermitResponse {
     pub permit: SsssPermit,
+    pub signer: Address,
     pub signature: Signature,
 }
 
