@@ -14,5 +14,8 @@
   },
   "scripts": {
     "build": "make build"
+  },
+  "devDependencies": {
+    "@tufjs/canonical-json": "^2.0.0"
   }
 }
