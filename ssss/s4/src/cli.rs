@@ -45,6 +45,19 @@ pub enum Command {
         #[command(flatten)]
         sssss: Sssss,
     },
+    SetApprovers {
+        #[command(flatten)]
+        wp: WritePermitterArgs,
+
+        #[command(flatten)]
+        identity: IdentityId,
+
+        #[command(flatten)]
+        sssss: Sssss,
+
+        #[command(flatten)]
+        threshold: Threshold,
+    },
     /// Acquire an Escrin identity from a quorum of SSSSs and post the approvals to the permitter.
     AcquireIdentity {
         #[command(flatten)]
@@ -67,6 +80,9 @@ pub enum Command {
 
         #[arg(short, long, required = true)]
         recipient: Address,
+
+        #[command(flatten)]
+        threshold: Threshold,
     },
     /// Split a secret into shares and deal it to the requested SSSSs.
     Deal {
@@ -203,9 +219,6 @@ pub struct WritePermitterArgs {
 
     #[command(flatten)]
     pub permitter: Permitter,
-
-    #[command(flatten)]
-    pub identity: IdentityId,
 
     #[command(flatten)]
     pub wallet: Wallet,

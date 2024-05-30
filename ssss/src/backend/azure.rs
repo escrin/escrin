@@ -8,8 +8,8 @@ use ethers::core::k256::ecdsa;
 use futures_util::{TryFutureExt as _, TryStreamExt as _};
 use serde::{Deserialize, Serialize};
 
-use crate::utils::now;
 use super::*;
+use crate::utils::now;
 
 #[derive(Clone)]
 pub struct Backend {

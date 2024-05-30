@@ -214,7 +214,9 @@ async fn get_ssss_identity<S: Store + Signer>(
             (
                 id.to_string(),
                 *kp.public_key(),
-                (expiry.duration_since(std::time::UNIX_EPOCH)).unwrap().as_secs(),
+                (expiry.duration_since(std::time::UNIX_EPOCH))
+                    .unwrap()
+                    .as_secs(),
             )
         })
         .map_ok(|(key_id, pk, expiry)| EphemeralKey { key_id, pk, expiry });
@@ -347,12 +349,12 @@ async fn acqrel_identity<S: Store + Signer>(
         duration: duration.unwrap_or_default(),
         nonce: nonce.into(),
         pk: public_key.into(),
-        base_block: base_block.into(),
+        baseblock: base_block.into(),
     };
 
     let permit_hash = eip712::EIP712WithDomain {
         domain: eip712::EIP712Domain {
-            name: Some("SsssPermit".into()),
+            name: Some("SsssPermitter".into()),
             version: Some("1".into()),
             chain_id: Some(chain.into()),
             verifying_contract: Some(permitter),
@@ -360,15 +362,17 @@ async fn acqrel_identity<S: Store + Signer>(
         },
         inner: permit.clone(),
     }
-    .struct_hash()
+    .encode_eip712()
     .map_err(|e| Error::Unhandled(e.into()))?;
 
+    let (signer, signature) = tokio::try_join!(
+        backend.signer_address().map_err(Error::Unhandled),
+        backend.sign(permit_hash.into()).map_err(Error::Unhandled)
+    )?;
     Ok(Json(PermitResponse {
         permit,
-        signature: backend
-            .sign(permit_hash.into())
-            .await
-            .map_err(Error::Unhandled)?,
+        signer,
+        signature,
     }))
 }
 
