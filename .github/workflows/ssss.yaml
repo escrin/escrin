@@ -49,7 +49,10 @@ jobs:
           rustup component add rustfmt clippy
 
       - name: Run rustfmt
-        run: cargo fmt --check
+        run: |
+          rustup toolchain add nightly-2024-05-30
+          rustup component add --toolchain nightly-2024-05-30 rustfmt
+          cargo +nightly-2024-05-30 fmt --check
 
       - name: Run cargo clippy
         run: cargo clippy --all --profile test -- -D clippy::dbg_macro
