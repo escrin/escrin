@@ -73,11 +73,10 @@ pub async fn verify(
         }
         #[cfg(debug_assertions)]
         "mock" => Ok(Verification {
-            nonce: {
-                let mut nonce = vec![0u8; 32];
-                rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut nonce);
-                nonce
-            },
+            nonce: ethers::utils::keccak256(ethers::types::H256::from_low_u64_ne(
+                (ssss::utils::now() >> 1) << 1, // permit up to 2s drift
+            ))
+            .into(),
             public_key: vec![],
             duration: Some(
                 std::time::SystemTime::now()

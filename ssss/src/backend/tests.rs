@@ -215,8 +215,16 @@ pub async fn commit_share_twice(store: impl Store) {
     let identity = IdentityId::random();
     let (share_id, share) = make_share(identity, 1);
     with_share_no_commit(&store, share_id, share, |store, share_id| async {
-        ensure!(store.commit_share(share_id.clone()).await?, "not committed");
-        ensure!(store.commit_share(share_id).await?, "commit not idempotent");
+        ensure!(store.commit_share(share_id.clone()).await?, "commit failed");
+        ensure!(
+            store.get_share(share_id.clone()).await?.is_some(),
+            "not committed"
+        );
+        ensure!(
+            store.commit_share(share_id.clone()).await?,
+            "commit not idempotent"
+        );
+        ensure!(store.get_share(share_id).await?.is_some(), "lost share");
         Ok(())
     })
     .await

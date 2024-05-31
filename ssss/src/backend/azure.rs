@@ -489,7 +489,7 @@ mod tests {
     use super::*;
 
     crate::make_backend_tests!(async {
-        let ssss_host = std::env::var("SSSS_HOST").expect("SSSS_HOST must be set");
+        let ssss_host = std::env::var("SSSS_HOST").unwrap_or("ssss.example.org".into());
         Backend::connect(&Authority::try_from(ssss_host).unwrap(), Environment::Dev)
             .await
             .unwrap()

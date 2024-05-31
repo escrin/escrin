@@ -68,7 +68,7 @@ impl Store for Backend {
     }
 
     async fn commit_share(&self, id: ShareId) -> Result<bool, Error> {
-        let delete_version = {
+        let (committed, to_delete) = {
             let mut shares = self.state.shares.write().unwrap();
             let Some(Some((_, expiry))) = shares
                 .get_mut(&(id.identity, id.secret_name.clone()))
@@ -77,22 +77,21 @@ impl Store for Backend {
                 return Ok(false);
             };
             if let Some(expiry) = expiry.take() {
-                if expiry > Instant::now() {
-                    (id.version > 0).then_some(id.version - 1)
-                } else {
-                    None
-                }
+                let current = expiry > Instant::now();
+                (
+                    current,
+                    current
+                        .then_some(())
+                        .and((id.version > 1).then_some(id.version - 1)),
+                )
             } else {
-                Some(id.version)
+                (true, None)
             }
         };
-        Ok(match delete_version {
-            Some(version) => {
-                self.delete_share(ShareId { version, ..id }).await?;
-                true
-            }
-            None => false,
-        })
+        if let Some(version) = to_delete {
+            self.delete_share(ShareId { version, ..id }).await?;
+        }
+        Ok(committed)
     }
 
     async fn get_share(&self, id: ShareId) -> Result<Option<SecretShare>, Error> {

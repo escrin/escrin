@@ -113,7 +113,7 @@ impl<M: providers::Middleware> SsssPermitter<M> {
                 let s = match v {
                     27 => s,
                     28 => s | U256::one() << 255,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
                 (addr, r, s)
             })

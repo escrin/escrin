@@ -173,7 +173,7 @@ mod tests {
         macro_rules! latest_key {
             () => {
                 provider
-                    .with_latest_key(|id, _kp| id.to_string())
+                    .with_latest_key(|id, _kp, _expiry| id.to_string())
                     .await
                     .unwrap()
             };
