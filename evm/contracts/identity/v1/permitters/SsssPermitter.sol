@@ -76,9 +76,9 @@ contract SsssPermitter is Permitter, EIP712 {
         bytes calldata context,
         bytes calldata authorization
     ) private {
+        // TODO: decode into calldata arrays to save a few thousand gas
         (uint256 threshold, bytes memory nonce, bytes memory pk, uint256 baseBlock) =
             abi.decode(context, (uint256, bytes, bytes, uint256));
-
         (bytes32[] memory proof, bool[] memory proofFlags, Signature[] memory signatures) =
             abi.decode(authorization, (bytes32[], bool[], Signature[]));
 

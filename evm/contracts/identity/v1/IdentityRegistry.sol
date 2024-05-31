@@ -4,14 +4,11 @@ pragma solidity ^0.8.18;
 import {Sapphire} from "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import {IdentityId, IIdentityRegistry} from "./IIdentityRegistry.sol";
 import {IPermitter} from "./IPermitter.sol";
 
 contract IdentityRegistry is IIdentityRegistry, ERC165 {
-    using EnumerableSet for EnumerableSet.AddressSet;
-
     struct Registration {
         bool registered;
         address registrant;
@@ -19,11 +16,9 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
 
     mapping(IdentityId => Registration) private registrations;
     mapping(IdentityId => address) private proposedRegistrants;
-
     mapping(IdentityId => IPermitter) private permitters;
-
-    mapping(IdentityId => EnumerableSet.AddressSet) private permittedAccounts;
     mapping(address => mapping(IdentityId => Permit)) private permits;
+    mapping(IdentityId => bool) private destroyed;
 
     modifier onlyRegistrant(IdentityId id) {
         if (msg.sender != registrations[id].registrant) revert Unauthorized();
@@ -52,12 +47,7 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
         delete registrations[id].registrant;
         delete proposedRegistrants[id];
         delete permitters[id];
-        EnumerableSet.AddressSet storage permitted = permittedAccounts[id];
-        for (uint256 i; i < permitted.length(); i++) {
-            address account = permitted.at(i);
-            delete permits[account][id];
-            permitted.remove(account);
-        }
+        destroyed[id] = true;
         _whenIdentityDestroyed(id);
         emit IdentityDestroyed(id);
     }
@@ -89,13 +79,11 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
         onlyPermitter(id)
     {
         permits[to][id] = Permit({expiry: expiry});
-        permittedAccounts[id].add(to);
         emit IdentityGranted(id, to);
     }
 
     function revokeIdentity(IdentityId id, address from) external override onlyPermitter(id) {
         delete permits[from][id];
-        permittedAccounts[id].remove(from);
         emit IdentityRevoked(id, from);
     }
 
@@ -109,6 +97,7 @@ contract IdentityRegistry is IIdentityRegistry, ERC165 {
         override
         returns (Permit memory)
     {
+        if (destroyed[id]) return Permit({expiry: 0});
         return permits[holder][id];
     }
 
