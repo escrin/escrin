@@ -148,7 +148,7 @@ pub struct ShareVersion {
 pub struct Threshold {
     /// The threshold of SSSSs that must return correct shares for the secret to be reconstructed.
     /// If between 0 and 1, represents a percentage. Greater than 1 represents an absolute number.
-    #[arg(short, long, default_value_t = 0.67)]
+    #[arg(short, long, default_value_t = 0.666666)]
     pub threshold: f64,
 }
 

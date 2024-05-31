@@ -136,12 +136,7 @@ impl AsRef<[u8]> for WrappedKey {
 }
 
 #[derive(Clone, Debug, Default, EthAbiType, Eip712)]
-#[eip712(
-    name = "SsssRequest",
-    version = "1",
-    chain_id = 0,
-    verifying_contract = "0x0000000000000000000000000000000000000000"
-)]
+#[eip712(name = "SSSS", version = "1")]
 pub struct SsssRequest {
     pub method: String,
     pub url: String,

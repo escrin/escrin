@@ -475,7 +475,7 @@ async fn deal_share<S: Store>(
     )
     .map_err(|_| Error::BadRequest("invalid share or blinder".into()))?;
 
-    backend
+    let share_put = backend
         .put_share(
             ShareId {
                 identity: IdentityLocator {
@@ -494,7 +494,9 @@ async fn deal_share<S: Store>(
         )
         .await?;
 
-    Ok(StatusCode::CREATED)
+    share_put
+        .then_some(StatusCode::CREATED)
+        .ok_or_else(|| Error::BadRequest("incorrect version".into()))
 }
 
 async fn destroy_share<S: Store>(

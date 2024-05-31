@@ -10,7 +10,7 @@ use ethers::{
     middleware::MiddlewareBuilder,
     providers::{Http, Middleware, Provider},
     signers::Signer as _,
-    types::{transaction::eip712::Eip712 as _, Address, Bytes, Signature, H256},
+    types::{transaction::eip712::Eip712 as _, Address, Signature, H256},
 };
 use eyre::{ensure, Result, WrapErr as _};
 use futures_util::future::{join_all, try_join_all};
@@ -225,19 +225,15 @@ async fn main() -> Result<()> {
             let mut rng = rand::thread_rng();
 
             const SECRET_SIZE: usize = 32;
-            let secret = match secret {
+            let (secret, print_secret) = match secret {
                 Some(secret) => {
                     ensure!(
                         secret.len() == SECRET_SIZE,
                         "invalid secret size. expected exactly {SECRET_SIZE} bytes"
                     );
-                    k256::NonZeroScalar::try_from(secret.as_ref())?
+                    (k256::NonZeroScalar::try_from(secret.as_ref())?, false)
                 }
-                None => {
-                    let s = k256::NonZeroScalar::random(&mut rng);
-                    debug!("the secret is {:x}", s);
-                    s
-                }
+                None => (k256::NonZeroScalar::random(&mut rng), true),
             };
 
             let shares: Vec<api::SecretShare> = {
@@ -262,6 +258,7 @@ async fn main() -> Result<()> {
                             commitments: res
                                 .pedersen_verifier_set()
                                 .iter()
+                                .skip(2) // the library adds the generators as the first two elements
                                 .map(|p| p.to_bytes().to_vec())
                                 .collect(),
                         },
@@ -292,6 +289,10 @@ async fn main() -> Result<()> {
                     .map(|ssss| ssss.commit_share(&share_id, &wallet)),
             )
             .await?;
+
+            if print_secret {
+                debug!("the secret is {:x}", secret);
+            }
         }
         cli::Command::Reconstruct {
             il,
@@ -319,7 +320,7 @@ async fn main() -> Result<()> {
             )
             .map_err(|_| eyre::eyre!("failed to reconstruct shares"))?;
 
-            println!("{:x}", Bytes::from(secret.to_bytes().to_vec()))
+            println!("{:x}", k256::NonZeroScalar::new(secret).unwrap());
         }
     }
 

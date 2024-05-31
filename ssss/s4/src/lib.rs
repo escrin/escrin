@@ -18,8 +18,8 @@ use tokio::sync::OnceCell;
 
 #[derive(Clone, Debug)]
 pub struct SsssClient {
+    pub url: url::Url,
     client: reqwest::Client,
-    url: url::Url,
     remote_signer: OnceCell<Address>,
     remote_ek: Arc<Mutex<Option<EphemeralKey>>>,
 }
@@ -51,7 +51,7 @@ impl SsssClient {
     }
 
     async fn fetch_remote_identity(&self) -> Result<IdentityResponse> {
-        Ok(send_request(self.client.get(self.url("/v1/identity")))
+        Ok(send_request(self.client.get(self.url("v1/identity")))
             .await?
             .json()
             .await?)
@@ -85,7 +85,7 @@ impl SsssClient {
     ) -> Result<()> {
         let res = send_request(
             self.client
-                .post(self.url(format!("/v1/policies/{chain}/{registry:x}/{id}")))
+                .post(self.url(format!("v1/policies/{chain}/{registry:x}/{id}")))
                 .json(&SetPolicyRequest {
                     permitter,
                     policy: serde_json::value::RawValue::from_string(serde_json::to_string(
@@ -108,7 +108,7 @@ impl SsssClient {
         share: api::SecretShare,
         signer: &LocalWallet,
     ) -> Result<()> {
-        let mut payload = serde_json::to_vec(&ShareBody { share })?;
+        let mut payload = serde_json::to_vec(&share)?;
 
         let kp = ssss::keypair::KeyPair::ephemeral();
 
@@ -122,7 +122,7 @@ impl SsssClient {
             .encrypt_in_place(&nonce.into(), &[], &mut payload)
             .unwrap();
 
-        let body = serde_json::to_vec(&EncryptedPayload {
+        let body = EncryptedPayload {
             format: EncryptedPayloadFormat::P384EcdhAes256GcmSiv {
                 curve: CurveP384,
                 pk: *kp.public_key(),
@@ -130,7 +130,7 @@ impl SsssClient {
                 recipient_key_id: ssss_key.key_id,
             },
             payload: payload.into(),
-        })?;
+        };
 
         let ShareId {
             identity:
@@ -143,9 +143,10 @@ impl SsssClient {
             version,
         } = id;
         let paq =
-            format!("/shares/{secret_name}/{chain}/{registry:x}/{identity}?version={version}");
+            format!("v1/shares/{secret_name}/{chain}/{registry:x}/{identity}?version={version}");
 
-        send_request(self.make_escrin1_req(Method::POST, paq, &body, signer)?).await?;
+        let res = send_request(self.make_escrin1_req(Method::POST, paq, &body, signer)?).await?;
+        ensure!(res.status() == StatusCode::CREATED, "share not dealt");
 
         Ok(())
     }
@@ -162,7 +163,7 @@ impl SsssClient {
             version,
         } = id;
         let paq = format!(
-            "/shares/{secret_name}/{chain}/{registry:x}/{identity}/commit?version={version}"
+            "v1/shares/{secret_name}/{chain}/{registry:x}/{identity}/commit?version={version}"
         );
 
         send_request(self.make_escrin1_req(Method::POST, paq, &(), signer)?).await?;
@@ -188,11 +189,18 @@ impl SsssClient {
             version,
         } = id;
         let paq = format!(
-            "/shares/{secret_name}/{chain}/{registry:x}/{identity}/commit?version={version}&pk={}",
+            "v1/shares/{secret_name}/{chain}/{registry:x}/{identity}?version={version}&pk={}",
             kp.fingerprint() // bind the requester public key to the request
         );
 
-        let res = send_request(self.make_escrin1_req(Method::GET, paq, &(), signer)?).await?;
+        let res = send_request(
+            self.make_escrin1_req(Method::GET, paq, &(), signer)?
+                .header(
+                    RequesterPublicKeyHeader::name().as_str(),
+                    RequesterPublicKeyHeader(*kp.public_key()).to_string(),
+                ),
+        )
+        .await?;
 
         Ok(decrypt_enc_payload::<ShareBody>(res.json().await?, kp)?.share)
     }
@@ -228,7 +236,7 @@ impl SsssClient {
         signer: Option<&LocalWallet>,
         acquire: bool,
     ) -> Result<PermitResponse> {
-        let paq = format!("/v1/permits/{chain}/{registry:x}/{identity:x}");
+        let paq = format!("v1/permits/{chain}/{registry:x}/{identity:x}");
         let method = if acquire {
             Method::POST
         } else {
@@ -262,7 +270,7 @@ impl SsssClient {
         };
         let req721 = SsssRequest {
             method: method.to_string(),
-            url: format!("{}{}", self.url.authority(), paq.as_ref()),
+            url: format!("{}/{}", self.url.authority(), paq.as_ref()),
             body: body_hash,
         };
         Self::attach_escrin1_sig(req, req721, signer)
