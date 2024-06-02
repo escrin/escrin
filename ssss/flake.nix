@@ -62,14 +62,29 @@
                 ]
                 else [ ];
             };
+          cargoOverride = attrs: {
+            CARGO = "${pkgs.rust-toolchain}/bin/cargo";
+          };
           cargoNix = generatedCargoNix.override {
             defaultCrateOverrides =
               pkgs.defaultCrateOverrides
               // {
-                scale-info = attrs: {
-                  CARGO = "${pkgs.rust-toolchain}/bin/cargo";
-                };
-                ssss = darwinFrameworks;
+                # scale-info is a proc macro that generates code requiring cargo in the env
+                scale-info = cargoOverride;
+                ethbloom = cargoOverride;
+                primitive-types = cargoOverride;
+                ethereum-types = cargoOverride;
+                ssss = attrs:
+                  let
+                    abis = builtins.path { path = ../evm/abi; };
+                  in
+                  (darwinFrameworks attrs) // {
+                    prePatch = ''
+                      export ABI_DIR="$TMPDIR/abi"
+                      mkdir -p $ABI_DIR
+                      cp -R ${abis}/* $ABI_DIR
+                    '';
+                  };
                 s4 = darwinFrameworks;
               };
           };

@@ -10,8 +10,8 @@ use futures_util::TryStreamExt as _;
 
 use crate::types::*;
 
-ethers::contract::abigen!(IdentityRegistryContract, "../evm/abi/IdentityRegistry.json");
-ethers::contract::abigen!(SsssPermitterContract, "../evm/abi/SsssPermitter.json");
+ethers::contract::abigen!(IdentityRegistryContract, "$ABI_DIR/IdentityRegistry.json");
+ethers::contract::abigen!(SsssPermitterContract, "$ABI_DIR/SsssPermitter.json");
 
 #[derive(Clone)]
 pub struct IdentityRegistry<M> {

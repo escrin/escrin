@@ -9,7 +9,7 @@ use ethers::{
     signers::{LocalWallet, Signer as _},
     types::{transaction::eip712::Eip712 as _, Address, H256},
 };
-use eyre::{ensure, Result};
+use eyre::{ensure, Context, Result};
 use headers::Header as _;
 use rand::RngCore as _;
 use reqwest::{Method, RequestBuilder, Response, StatusCode};
@@ -343,27 +343,57 @@ pub fn calculate_threshold(num_sssss: u64, threshold: f64) -> u64 {
     }
 }
 
-static OZ_MERKLE_TREE_JS: &[u8] = include_bytes!(env!("OZ_MERKLE_TREE_JS"));
-static PROOF_GENERATOR_JS: &[u8] = include_bytes!("./generate-proof.cjs");
-
 pub fn generate_signer_proof(
     signers: &[Address],
     signatories: &[Address],
 ) -> Result<(Vec<H256>, Vec<bool>, Vec<Address>)> {
     let tempdir = tempfile::tempdir()?;
 
+    ensure!(
+        std::process::Command::new("npm")
+            .args(["install", "@openzeppelin/merkle-tree@1"])
+            .current_dir(tempdir.path())
+            .output()
+            .wrap_err("npm install @openzeppelin/merkle-tree@1")?
+            .status
+            .success(),
+        "`npm install @openzeppelin/merkle-tree` failed"
+    );
+
+    static PROOF_GENERATOR_CJS: &str = r#"
+        const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
+
+        let chunks = [];
+        process.stdin.on('readable', () => {
+          let chunk;
+          while ((chunk = process.stdin.read()) !== null) chunks.push(chunk);
+        });
+
+        process.stdin.on('end', () => {
+          let { signers, signatories } = JSON.parse(Buffer.concat(chunks));
+          const tree = StandardMerkleTree.of(
+            signers.map((s) => [s]),
+            ['address'],
+          );
+          process.stdout.write(
+            JSON.stringify(
+              signatories.length > 0
+                ? tree.getMultiProof(signatories.map((s) => [s]))
+                : { proof: [tree.root], proofFlags: [], leaves: [] },
+            ),
+          );
+        });
+    "#;
     static GENERATE_PROOF_CJS: &str = "generate-proof.cjs";
-
-    std::fs::write(tempdir.path().join("merkle-tree.cjs"), OZ_MERKLE_TREE_JS)?;
-    std::fs::write(tempdir.path().join(GENERATE_PROOF_CJS), PROOF_GENERATOR_JS)?;
-
+    std::fs::write(tempdir.path().join(GENERATE_PROOF_CJS), PROOF_GENERATOR_CJS)?;
     let mut cp = std::process::Command::new("node")
         .arg(GENERATE_PROOF_CJS)
         .current_dir(tempdir.path())
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .spawn()?;
+        .spawn()
+        .wrap_err("node generate-proof.cjs")?;
     cp.stdin
         .as_mut()
         .unwrap()
