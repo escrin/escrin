@@ -54,8 +54,8 @@ export class Pedersen {
     for (let i = 0; i < numShares; i++) {
       shares.push({
         index: i + 1,
-        secret: numberToHex(s.shares[i]),
-        blinder: numberToHex(b.shares[i]),
+        secret: numberToHex(s.shares[i], { size: 32 }),
+        blinder: numberToHex(b.shares[i], { size: 32 }),
       });
     }
 
@@ -84,7 +84,7 @@ export class Pedersen {
     if (secretShares.length < verifiers.length)
       throw new Error(`vss: too few valid shares to reconstruct`);
 
-    return numberToHex(this.combine(secretShares));
+    return numberToHex(this.combine(secretShares), { size: 32 });
   }
 
   private verifyShare(share: Share, commitments: Point[]): { x: bigint; si: bigint; bi: bigint } {

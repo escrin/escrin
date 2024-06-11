@@ -3,7 +3,7 @@ import { isHash } from 'viem';
 import { ApiError, decodeRequest, wrapFetch } from '../../rpc.js';
 
 import * as identity from './identity.js';
-import { handleGetKey } from './key.js';
+import { handleGetSecret } from './key.js';
 import * as types from './types.js';
 
 export type Env = Partial<{
@@ -30,8 +30,8 @@ export default new (class {
       );
     }
 
-    if (method === ('get-key' satisfies types.GetKeyRequest['method'])) {
-      return handleGetKey(requester, types.parseGetKeyParams(params));
+    if (method === ('get-secret' satisfies types.GetSecretRequest['method'])) {
+      return handleGetSecret(requester, types.parseGetSecretParams(params));
     }
 
     throw new ApiError(404, `unknown method: ${method}`);

@@ -1,67 +1,51 @@
 import * as secp256k1 from '@noble/curves/secp256k1';
-import { SetRequired } from 'type-fest';
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree';
+import type { SetRequired } from 'type-fest';
 import {
   Address,
-  Hash,
   Hex,
   PrivateKeyAccount,
   PublicClient,
+  Signature,
   Transport,
   WalletClient,
   bytesToHex,
+  encodeAbiParameters,
   hexToBytes,
+  signatureToCompactSignature,
 } from 'viem';
 import { Account } from 'viem/accounts';
 import { Chain } from 'viem/chains';
 
-import { ExperimentalSsssHub as SsssHubAbi } from '@escrin/evm/abi';
+import { SsssPermitter as SsssPermitterAbi } from '@escrin/evm/abi';
 
-import { AcquireIdentityParams, EvmKeyStoreParams } from '../env/iam/types.js';
-
+import { SsssAcquireIdentityParams, SsssSecretStoreParams } from '../env/iam/types.js';
 import * as ssssCrypto from './crypto.js';
+import {
+  AcquireIdentityRequest,
+  IdentityResponse,
+  Operation,
+  Permit,
+  SecretShare,
+} from './types.js';
 import { escrin1, fetchAll, throwErrorResponse } from './utils.js';
 import * as vss from './vss.js';
 
 const VSS = new vss.Pedersen(secp256k1.secp256k1, secp256k1.hashToCurve);
 
-export async function getSecretVersion(
-  publicClient: PublicClient<Transport, Chain>,
-  ssssHub: Address,
-  identityId: Hash,
-  secretName: string,
-): Promise<number> {
-  return Number(
-    await publicClient.readContract({
-      address: ssssHub,
-      abi: SsssHubAbi,
-      functionName: 'versions',
-      args: [identityId, secretName],
-    }),
-  );
-}
-
 export async function getSecret(
-  name: string,
-  version: number,
-  params: SetRequired<EvmKeyStoreParams, 'ssss'>,
+  params: SsssSecretStoreParams,
   requesterAccount: PrivateKeyAccount,
 ): Promise<Hex> {
   const {
     network: { chainId },
     identity: { registry, id: identityIdHex },
     ssss,
+    secretName,
+    secretVersion,
   } = params;
 
-  const { sk: esk, pk: epk } = ssssCrypto.generateEphemeralIdentity();
-
-  type EncSsssResponse = {
-    format: { [EncResponseFormat.EncEcdhAes256GcmSiv]: { pk: JsonWebKey; nonce: Hex } };
-    data: Hex;
-  };
-
-  enum EncResponseFormat {
-    EncEcdhAes256GcmSiv = 'enc-ecdh-aes-256-gcm-siv',
-  }
+  const eid = ssssCrypto.generateEphemeralIdentity();
 
   type ShareResponse = {
     share: { index: number; secret: Hex; blinder: Hex };
@@ -69,28 +53,21 @@ export async function getSecret(
   };
 
   const results: ShareResponse[] = await fetchAll(
-    ssss.urls,
+    ssss.sssss.map((s) => (typeof s === 'string' ? s : s.url)),
     async (ssssUrl) => {
-      const url = `${ssssUrl}/shares/${name}/${chainId}/${registry}/${identityIdHex}?version=${version}`;
+      const url = `${ssssUrl}/shares/${secretName}/${chainId}/${registry}/${identityIdHex}?version=${secretVersion}`;
       return {
         url,
         method: 'GET',
         headers: {
           ...(await escrin1(requesterAccount, 'GET', url)),
-          'requester-pk': bytesToHex(epk),
+          'requester-pk': bytesToHex(eid.pk),
         },
       };
     },
     async (res) => {
       if (!res.ok) await throwErrorResponse(res);
-      const { format, data } = await res.json<EncSsssResponse>();
-
-      if (!(EncResponseFormat.EncEcdhAes256GcmSiv in format))
-        throw new Error(`ssss: unsupported share response format`);
-
-      const { pk: ppk, nonce } = format[EncResponseFormat.EncEcdhAes256GcmSiv];
-      const cipher = ssssCrypto.deriveSharedCipher(ssssCrypto.Operation.GetShare, esk, ppk, nonce);
-      return JSON.parse(new TextDecoder().decode(cipher.decrypt(hexToBytes(data))));
+      return ssssCrypto.decryptResponse(res, Operation.GetShare, eid);
     },
   );
 
@@ -116,19 +93,21 @@ export async function getSecret(
 }
 
 export async function dealNewSecret(
-  secretName: string,
-  params: SetRequired<EvmKeyStoreParams, 'ssss'>,
-  publicClient: PublicClient<Transport, Chain>,
-  walletClient: WalletClient<Transport, Chain, Account>,
+  params: SsssSecretStoreParams,
+  requesterAccount: PrivateKeyAccount,
 ): Promise<Hex> {
-  const { identity, ssss } = params;
+  const {
+    network: { chainId },
+    identity: { registry, id: identityIdHex },
+    ssss,
+    secretName,
+    secretVersion,
+  } = params;
 
-  const { sk: esk, pk: epk } = ssssCrypto.generateEphemeralIdentity();
+  const eid = ssssCrypto.generateEphemeralIdentity();
 
-  const nonce = crypto.getRandomValues(new Uint8Array(32));
-
-  const ssssCiphers = await fetchAll(
-    ssss.urls,
+  const ssssPublicKeys = await fetchAll(
+    ssss.sssss,
     async (ssssUrl) => {
       return {
         url: `${ssssUrl}/identity`,
@@ -137,50 +116,58 @@ export async function dealNewSecret(
     },
     async (res) => {
       if (!res.ok) await throwErrorResponse(res);
-      const { ephemeral: pk } = await res.json<{ ephemeral: JsonWebKey }>();
-      if (pk.crv !== 'P-384') throw new Error(`unsupported remote ${pk.crv} PK`);
-      return ssssCrypto.deriveSharedCipher(ssssCrypto.Operation.DealShares, esk, pk, nonce);
+      const { ephemeral } = await res.json<IdentityResponse>();
+      return ephemeral;
     },
   );
 
-  const { secret, shares: plainShares, commitments } = VSS.generate(ssss.quorum, ssss.urls.length);
-  const encShares: Hex[] = [];
-  if (ssssCiphers.length !== ssss.urls.length) throw new Error('SSSS and shares mismatch');
-  for (let i = 0; i < ssssCiphers.length; i++) {
-    const { secret, blinder } = plainShares[i];
-    const secretBytes = hexToBytes(secret);
-    const blinderBytes = hexToBytes(blinder);
-    const shareBytes = new Uint8Array(secretBytes.length + blinderBytes.length);
-    shareBytes.set(shareBytes);
-    shareBytes.set(blinderBytes, shareBytes.length);
-    const cipher = ssssCiphers[i];
-    encShares.push(bytesToHex(cipher.encrypt(shareBytes)));
-  }
+  const { secret, shares, commitments } = VSS.generate(ssss.quorum, ssss.sssss.length);
 
-  const hash = await walletClient.writeContract({
-    address: ssss.hub,
-    abi: SsssHubAbi,
-    functionName: 'dealShares',
-    args: [
-      identity.id,
-      secretName,
-      1n, // version
-      bytesToHex(epk),
-      bytesToHex(nonce),
-      encShares,
-      commitments,
-      '0x', // userdata
-    ],
+  const encReqs = shares.map(({ index, secret, blinder }, i) => {
+    const { pk: peerPk, key_id: recipientKeyId } = ssssPublicKeys[i];
+    return ssssCrypto.encryptPayload(
+      {
+        meta: {
+          index,
+          commitments,
+        },
+        share: secret,
+        blinder,
+      } satisfies SecretShare,
+      Operation.DealShares,
+      eid,
+      hexToBytes(peerPk),
+      recipientKeyId,
+    );
   });
-  const { status } = await publicClient.waitForTransactionReceipt({ hash, confirmations: 2 });
-  if (status !== 'success') throw new Error(`failed to deal shares in ${hash}`);
+
+  await fetchAll(
+    ssss.sssss,
+    async (ssssUrl, i) => {
+      const url = `${ssssUrl}/shares/${secretName}/${chainId}/${registry}/${identityIdHex}?version=${secretVersion}`;
+      return {
+        url,
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(await escrin1(requesterAccount, 'POST', url)),
+        },
+        body: JSON.stringify(encReqs[i]),
+      };
+    },
+    async (res) => {
+      if (!res.ok) await throwErrorResponse(res);
+    },
+  );
 
   return secret;
 }
 
 export async function acquireIdentity(
-  params: SetRequired<AcquireIdentityParams, 'ssss' | 'recipient' | 'permitTtl'>,
-): Promise<{ grants: number; optimisticGrants: number }> {
+  params: SetRequired<SsssAcquireIdentityParams, 'permitter' | 'recipient' | 'permitTtl'>,
+  publicClient: PublicClient<Transport, Chain>,
+  walletClient: WalletClient<Transport, Chain, Account>,
+): Promise<{ duration: number }> {
   const {
     network: { chainId },
     identity: { registry, id: identityIdHex },
@@ -192,47 +179,103 @@ export async function acquireIdentity(
     ssss,
   } = params;
 
-  const grants = await fetchAll(
-    ssss.urls,
-    (ssssUrl) => {
+  const signersP = [];
+  for (const s of ssss.sssss) {
+    signersP.push(
+      typeof s === 'string'
+        ? fetch(`${s}/identity`).then(async (res) => {
+            if (!res.ok) await throwErrorResponse(res);
+            return (await res.json<IdentityResponse>()).signer;
+          })
+        : s.signer,
+    );
+  }
+  const signers = await Promise.all(signersP);
+
+  const nonce = params.nonce ?? bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  const pk = params.pk ?? '0x';
+
+  const baseBlock = Number(await publicClient.getBlockNumber());
+
+  const permits = await fetchAll(
+    ssss.sssss,
+    async (ssssUrl) => {
+      const url = `${ssssUrl}/permits/${chainId}/${registry}/${identityIdHex}`;
       return {
-        url: `${ssssUrl}/permits/${chainId}/${registry}/${identityIdHex}`,
+        url,
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          ...(await escrin1(walletClient, 'GET', url)),
         },
         body: JSON.stringify({
-          recipient,
           permitter,
+          recipient,
+          base_block: baseBlock,
           duration: permitTtl,
-          authorization,
           context,
-        } satisfies {
-          recipient: Address;
-          duration: number;
-          permitter?: Address;
-          authorization?: Hex;
-          context?: Hex;
-        }),
+          authorization,
+        } satisfies AcquireIdentityRequest),
       };
     },
     async (res) => {
-      if (res.status === 201) return true;
-      if (res.status === 202) return false;
-      await throwErrorResponse(res);
+      if (!res.ok) await throwErrorResponse(res);
+      return res.json<{
+        permit: Permit;
+        signer: Address;
+        signature: Signature;
+      }>();
     },
   );
 
-  if (grants.length < params.ssss.quorum)
-    throw new Error('ssss: failed to acquire identity as quorum was not reached');
+  if (permits.length < ssss.quorum) throw new Error('quorum not reached');
 
-  let optimisticGrants = 0;
-  for (const issued of grants) {
-    if (issued) optimisticGrants++;
+  const tree = StandardMerkleTree.of(
+    signers.map((s) => [s]),
+    ['address'],
+  );
+  const proof = tree.getMultiProof(permits.map((p) => [p.signer]));
+
+  const permitsBySigner = new Map<Address, Signature>();
+  for (const permit of permits) {
+    permitsBySigner.set(permit.signer, permit.signature);
   }
+  const signatures = proof.leaves.map(([signer]) => {
+    const permit = permitsBySigner.get(signer as `0x${string}`) as Signature;
+    const { r, yParityAndS } = signatureToCompactSignature(permit);
+    return [signer, r, yParityAndS];
+  });
 
-  return {
-    grants: grants.length,
-    optimisticGrants,
-  };
+  const hash = await walletClient.writeContract({
+    address: permitter,
+    abi: SsssPermitterAbi,
+    functionName: 'acquireIdentity',
+    args: [
+      identityIdHex,
+      walletClient.account.address,
+      BigInt(permitTtl),
+      encodeAbiParameters(
+        [
+          { name: 'threshold', type: 'uint256' },
+          { name: 'nonce', type: 'bytes' },
+          { name: 'pk', type: 'bytes' },
+          { name: 'baseBlock', type: 'uin256' },
+        ],
+        [BigInt(ssss.quorum), nonce, pk, baseBlock],
+      ),
+      encodeAbiParameters(
+        [
+          { name: 'proof', type: 'bytes32[]' },
+          { name: 'proofFlags', type: 'bool[]' },
+          { name: 'signatures', type: '(address, bytes32, bytes32)[]' },
+        ],
+        [proof.proof as Array<`0x${string}`>, proof.proofFlags, signatures],
+      ),
+    ],
+  });
+
+  const { status } = await publicClient.waitForTransactionReceipt({ hash });
+  if (status !== 'success') throw new Error(`failed to acquire identity in ${hash}`);
+
+  return { duration: permits[0].permit.duration };
 }

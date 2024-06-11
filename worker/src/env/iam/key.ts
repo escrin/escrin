@@ -1,5 +1,4 @@
 import { wrapPublicClient } from '@oasisprotocol/sapphire-paratime/compat/viem';
-import type { SetRequired } from 'type-fest';
 import { Hex, PrivateKeyAccount } from 'viem';
 
 import { OmniKeyStore as OmniKeyStoreAbi } from '@escrin/evm/abi';
@@ -7,58 +6,45 @@ import { OmniKeyStore as OmniKeyStoreAbi } from '@escrin/evm/abi';
 import * as ssss from '../../ssss/index.js';
 
 import { allocateAccount, allocateAccountKey } from './account.js';
-import { getPublicClient, getWalletClient } from './chains.js';
+import { getPublicClient } from './chains.js';
 import * as types from './types.js';
 
-export async function handleGetKey(
+export async function handleGetSecret(
   requesterService: string,
-  params: types.GetKeyRequest['params'],
-): Promise<types.GetKeyRequest['response']> {
-  if (params.keyId === 'omni') {
-    if (!params.ssss && !isSapphire(params.network)) {
+  params: types.GetSecretRequest['params'],
+): Promise<types.GetSecretRequest['response']> {
+  if (params.secretName === 'omni') {
+    if (!('ssss' in params) && !isSapphire(params.network)) {
       throw new Error('no secret storage backend configured');
     }
     const requesterAccount = allocateAccount(requesterService);
 
     if (isSapphire(params.network)) {
-      return { key: await getSapphireOmniKey(params, requesterAccount) };
+      return { secret: await getSapphireOmniSecret(params, requesterAccount) };
     }
 
     return {
-      key: await getSsssOmniKey(
-        params as SetRequired<types.EvmKeyStoreParams, 'ssss'>,
-        requesterAccount,
-      ),
+      secret: await getSsssOmniSecret(params as types.SsssSecretStoreParams, requesterAccount),
     };
   }
 
-  if (params.keyId === 'ephemeral-account') {
-    return { key: allocateAccountKey(requesterService) };
+  if (params.secretName === 'ephemeral-account') {
+    return { secret: allocateAccountKey(requesterService) };
   }
 
   const _exhaustiveCheck: never = params;
   return _exhaustiveCheck;
 }
 
-async function getSsssOmniKey(
-  params: SetRequired<types.EvmKeyStoreParams, 'ssss'>,
+async function getSsssOmniSecret(
+  params: types.SsssSecretStoreParams,
   requesterAccount: PrivateKeyAccount,
 ): Promise<Hex> {
-  const { network, identity, ssss: ssssParams } = params;
-  const publicClient = getPublicClient(network.chainId, network.rpcUrl);
-  const currentVersion = await ssss.getSecretVersion(
-    publicClient,
-    ssssParams.hub,
-    identity.id,
-    'omni',
-  );
-  if (currentVersion > 0) return ssss.getSecret('omni', currentVersion, params, requesterAccount);
-  const walletClient = getWalletClient(requesterAccount, network.chainId, network.rpcUrl);
-  return ssss.dealNewSecret('omni', params, publicClient, walletClient);
+  return ssss.dealNewSecret(params, requesterAccount);
 }
 
-async function getSapphireOmniKey(
-  params: types.EvmKeyStoreParams,
+async function getSapphireOmniSecret(
+  params: types.EvmSecretStoreParams,
   requesterAccount: PrivateKeyAccount,
 ): Promise<Hex> {
   const { network, identity } = params;

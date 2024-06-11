@@ -5,7 +5,6 @@ import {
   IPermitter as PermitterAbi,
 } from '@escrin/evm/abi';
 
-import { ApiError } from '../../rpc.js';
 import * as ssss from '../../ssss/index.js';
 import { allocateAccount } from './account.js';
 import { getPublicClient, getWalletClient } from './chains.js';
@@ -23,27 +22,43 @@ export async function handleGetAccount(
 export async function handleAcquireIdentity(
   gasKey: Hash,
   requesterService: string,
-  opts: types.AcquireIdentityParams,
+  params: types.AcquireIdentityParams,
 ): Promise<void> {
-  if (opts.ssss) return acquireIdentitySsss(requesterService, opts);
-  return acquireIdentitySapphire(gasKey, requesterService, opts);
+  if ('ssss' in params) return acquireIdentitySsss(requesterService, params);
+  return acquireIdentitySapphire(gasKey, requesterService, params);
 }
 
 async function acquireIdentitySsss(
   requesterService: string,
-  params: types.AcquireIdentityParams,
+  params: types.SsssAcquireIdentityParams,
 ): Promise<void> {
-  if (params.ssss === undefined) throw new TypeError('ssss not provided');
-
-  const { optimisticGrants } = await ssss.acquireIdentity({
-    ...params,
-    recipient: params.recipient ?? allocateAccount(requesterService).address,
-    permitTtl: params.permitTtl ?? 24 * 60 * 60,
-    ssss: params.ssss,
-  });
-
-  if (optimisticGrants < params.ssss.quorum)
-    throw new ApiError(403, `optimistic quorum not reached`);
+  const {
+    network: { chainId, rpcUrl },
+    identity,
+  } = params;
+  const publicClient = getPublicClient(chainId, rpcUrl);
+  const requesterAccount = allocateAccount(requesterService);
+  const walletClient = getWalletClient(requesterAccount, chainId, rpcUrl);
+  const permitter =
+    params.permitter ??
+    (await publicClient.readContract({
+      address: identity.registry,
+      abi: IdentityRegistryAbi,
+      functionName: 'getPermitter',
+      args: [identity.id],
+    }));
+  await ssss.acquireIdentity(
+    {
+      ...params,
+      permitter,
+      recipient: params.recipient ?? allocateAccount(requesterService).address,
+      permitTtl: params.permitTtl ?? 24 * 60 * 60,
+      ssss: params.ssss,
+    },
+    publicClient,
+    walletClient,
+  );
+  // TODO: consider rethrowing as 403
 }
 
 async function acquireIdentitySapphire(
