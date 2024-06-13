@@ -174,7 +174,7 @@ pub struct IdentityId {
 
 #[derive(Clone, Debug, clap::Args)]
 pub struct Permitter {
-    /// The address of the SsssPermitter (or SsssHub).
+    /// The address of the SsssPermitter.
     #[arg(
         short,
         long,
