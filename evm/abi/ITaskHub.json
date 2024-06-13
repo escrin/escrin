@@ -1,1 +1,214 @@
-{"abi":[{"inputs":[{"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"notify","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"notify","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"generator","type":"address"},{"indexed":true,"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"TasksAvailable","type":"event"}],"bytecode":{"linkReferences":{},"object":"0x","sourceMap":""},"deployedBytecode":{"linkReferences":{},"object":"0x","sourceMap":""},"id":13,"metadata":{"compiler":{"version":"0.8.23+commit.f704f362"},"language":"Solidity","output":{"abi":[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"generator","type":"address"},{"indexed":true,"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"TasksAvailable","type":"event"},{"inputs":[{"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"notify","stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"notify","stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}],"devdoc":{"kind":"dev","methods":{"notify(bytes32)":{"params":{"context":"Some indexed data to be emitted with the event for listeners to filter on."}},"supportsInterface(bytes4)":{"details":"Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas."}},"version":1},"userdoc":{"kind":"user","methods":{"notify()":{"notice":"Alerts any listening task runners that there are new tasks available."},"notify(bytes32)":{"notice":"Alerts any listening task runners that there are new tasks available."}},"version":1}},"settings":{"compilationTarget":{"contracts/tasks/v1/hub/ITaskHub.sol":"ITaskHub"},"evmVersion":"paris","libraries":{},"metadata":{"bytecodeHash":"ipfs"},"optimizer":{"enabled":false,"runs":200},"remappings":["@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/","@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/","ds-test/=lib/forge-std/lib/ds-test/src/","erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/","forge-std/=lib/forge-std/src/","openzeppelin-contracts/=lib/openzeppelin-contracts/","sapphire-paratime/=lib/sapphire-paratime/"],"viaIR":true},"sources":{"contracts/tasks/v1/hub/ITaskHub.sol":{"keccak256":"0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10","license":"MIT","urls":["bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c","dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL"]},"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol":{"keccak256":"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c","license":"MIT","urls":["bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e","dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX"]}},"version":1},"methodIdentifiers":{"notify()":"899f5898","notify(bytes32)":"138b1084","supportsInterface(bytes4)":"01ffc9a7"},"rawMetadata":"{\"compiler\":{\"version\":\"0.8.23+commit.f704f362\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"generator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"TasksAvailable\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"notify(bytes32)\":{\"params\":{\"context\":\"Some indexed data to be emitted with the event for listeners to filter on.\"}},\"supportsInterface(bytes4)\":{\"details\":\"Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas.\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"notify()\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"},\"notify(bytes32)\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/tasks/v1/hub/ITaskHub.sol\":\"ITaskHub\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[\":@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/\",\":@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-std/=lib/forge-std/src/\",\":openzeppelin-contracts/=lib/openzeppelin-contracts/\",\":sapphire-paratime/=lib/sapphire-paratime/\"],\"viaIR\":true},\"sources\":{\"contracts/tasks/v1/hub/ITaskHub.sol\":{\"keccak256\":\"0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c\",\"dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol\":{\"keccak256\":\"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e\",\"dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX\"]}},\"version\":1}"}
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "context",
+          "type": "bytes32"
+        }
+      ],
+      "name": "notify",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "notify",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "generator",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "context",
+          "type": "bytes32"
+        }
+      ],
+      "name": "TasksAvailable",
+      "type": "event"
+    }
+  ],
+  "bytecode": {
+    "linkReferences": {},
+    "object": "0x",
+    "sourceMap": ""
+  },
+  "deployedBytecode": {
+    "linkReferences": {},
+    "object": "0x",
+    "sourceMap": ""
+  },
+  "id": 13,
+  "metadata": {
+    "compiler": {
+      "version": "0.8.23+commit.f704f362"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "generator",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "context",
+              "type": "bytes32"
+            }
+          ],
+          "name": "TasksAvailable",
+          "type": "event"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "context",
+              "type": "bytes32"
+            }
+          ],
+          "name": "notify",
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "notify",
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes4",
+              "name": "interfaceId",
+              "type": "bytes4"
+            }
+          ],
+          "name": "supportsInterface",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {
+          "notify(bytes32)": {
+            "params": {
+              "context": "Some indexed data to be emitted with the event for listeners to filter on."
+            }
+          },
+          "supportsInterface(bytes4)": {
+            "details": "Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas."
+          }
+        },
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {
+          "notify()": {
+            "notice": "Alerts any listening task runners that there are new tasks available."
+          },
+          "notify(bytes32)": {
+            "notice": "Alerts any listening task runners that there are new tasks available."
+          }
+        },
+        "version": 1
+      }
+    },
+    "settings": {
+      "compilationTarget": {
+        "contracts/tasks/v1/hub/ITaskHub.sol": "ITaskHub"
+      },
+      "evmVersion": "paris",
+      "libraries": {},
+      "metadata": {
+        "bytecodeHash": "ipfs"
+      },
+      "optimizer": {
+        "enabled": true,
+        "runs": 4294967295
+      },
+      "remappings": [
+        "@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/",
+        "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+        "ds-test/=lib/forge-std/lib/ds-test/src/",
+        "erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+        "forge-std/=lib/forge-std/src/",
+        "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+        "sapphire-paratime/=lib/sapphire-paratime/"
+      ],
+      "viaIR": true
+    },
+    "sources": {
+      "contracts/tasks/v1/hub/ITaskHub.sol": {
+        "keccak256": "0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c",
+          "dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL"
+        ]
+      },
+      "lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol": {
+        "keccak256": "0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e",
+          "dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX"
+        ]
+      }
+    },
+    "version": 1
+  },
+  "methodIdentifiers": {
+    "notify()": "899f5898",
+    "notify(bytes32)": "138b1084",
+    "supportsInterface(bytes4)": "01ffc9a7"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.23+commit.f704f362\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"generator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"TasksAvailable\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"notify(bytes32)\":{\"params\":{\"context\":\"Some indexed data to be emitted with the event for listeners to filter on.\"}},\"supportsInterface(bytes4)\":{\"details\":\"Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas.\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"notify()\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"},\"notify(bytes32)\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/tasks/v1/hub/ITaskHub.sol\":\"ITaskHub\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":4294967295},\"remappings\":[\":@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/\",\":@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-std/=lib/forge-std/src/\",\":openzeppelin-contracts/=lib/openzeppelin-contracts/\",\":sapphire-paratime/=lib/sapphire-paratime/\"],\"viaIR\":true},\"sources\":{\"contracts/tasks/v1/hub/ITaskHub.sol\":{\"keccak256\":\"0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c\",\"dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol\":{\"keccak256\":\"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e\",\"dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX\"]}},\"version\":1}"
+}

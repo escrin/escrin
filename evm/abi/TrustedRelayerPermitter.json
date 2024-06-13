@@ -1,1 +1,399 @@
-{"abi":[{"inputs":[{"internalType":"IdentityId","name":"identity","type":"bytes32"},{"internalType":"address","name":"requester","type":"address"},{"internalType":"uint64","name":"duration","type":"uint64"},{"internalType":"bytes","name":"context","type":"bytes"},{"internalType":"bytes","name":"authorization","type":"bytes"}],"name":"acquireIdentity","outputs":[{"internalType":"uint64","name":"expiry","type":"uint64"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getTrustedRelayer","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"IdentityId","name":"identity","type":"bytes32"},{"internalType":"address","name":"requester","type":"address"},{"internalType":"bytes","name":"context","type":"bytes"},{"internalType":"bytes","name":"authorization","type":"bytes"}],"name":"releaseIdentity","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"upstream","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DurationTooLong","type":"error"},{"inputs":[],"name":"InterfaceUnsupported","type":"error"},{"inputs":[],"name":"Unauthorized","type":"error"}],"bytecode":{"linkReferences":{},"object":"0x","sourceMap":""},"deployedBytecode":{"linkReferences":{},"object":"0x","sourceMap":""},"id":7,"metadata":{"compiler":{"version":"0.8.23+commit.f704f362"},"language":"Solidity","output":{"abi":[{"inputs":[],"name":"DurationTooLong","type":"error"},{"inputs":[],"name":"InterfaceUnsupported","type":"error"},{"inputs":[],"name":"Unauthorized","type":"error"},{"inputs":[{"internalType":"IdentityId","name":"identity","type":"bytes32"},{"internalType":"address","name":"requester","type":"address"},{"internalType":"uint64","name":"duration","type":"uint64"},{"internalType":"bytes","name":"context","type":"bytes"},{"internalType":"bytes","name":"authorization","type":"bytes"}],"name":"acquireIdentity","outputs":[{"internalType":"uint64","name":"expiry","type":"uint64"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getTrustedRelayer","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"IdentityId","name":"identity","type":"bytes32"},{"internalType":"address","name":"requester","type":"address"},{"internalType":"bytes","name":"context","type":"bytes"},{"internalType":"bytes","name":"authorization","type":"bytes"}],"name":"releaseIdentity","stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"upstream","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}],"devdoc":{"kind":"dev","methods":{"acquireIdentity(bytes32,address,uint64,bytes,bytes)":{"params":{"authorization":"Authentication data provided to the permitter to make its decision.","context":"Non-authentication data provided to the permitter to make its decision.","duration":"The requested lifetime of the permit, which may be different from lifetime actually granted.","identity":"The identity that the requester wishes to acquire.","requester":"The account to which the identity permit will be issued."},"returns":{"expiry":"The timestamp at which the permit expires, which may be different from the request timestamp plus the requested duration."}}},"version":1},"userdoc":{"kind":"user","methods":{"acquireIdentity(bytes32,address,uint64,bytes,bytes)":{"notice":"Requests that the permitter trigger the upstream identity registry to grant an identity."},"upstream()":{"notice":"Returns the the upstream permitter or identity registry called upon successful identity acquisition/release."}},"version":1}},"settings":{"compilationTarget":{"contracts/identity/v1/permitters/TrustedRelayerPermitter.sol":"TrustedRelayerPermitter"},"evmVersion":"paris","libraries":{},"metadata":{"bytecodeHash":"ipfs"},"optimizer":{"enabled":false,"runs":200},"remappings":["@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/","@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/","ds-test/=lib/forge-std/lib/ds-test/src/","erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/","forge-std/=lib/forge-std/src/","openzeppelin-contracts/=lib/openzeppelin-contracts/","sapphire-paratime/=lib/sapphire-paratime/"],"viaIR":true},"sources":{"contracts/identity/v1/IIdentityRegistry.sol":{"keccak256":"0x14d726acf6b8c8662a133b50d7cf2752fdd3498ebe58611f6e51973b6f433045","license":"MIT","urls":["bzz-raw://fcc91fcbe6157223121feb70c8339961594bb7be1eb6e7d323bad179df1b8691","dweb:/ipfs/QmP8r5srCyyE3qVgrHYqBkQ4KyZ5TdZNAqfsEGvkdUcdjB"]},"contracts/identity/v1/IPermitter.sol":{"keccak256":"0xb5e0e909c5fa4c244210f4daba3ce092c5eb7f735ceb1069d4ec2876b07ec84e","license":"MIT","urls":["bzz-raw://89a8d49192638441aac4d421f474601022415cc1e40c066fb38dd9575c7e7d1c","dweb:/ipfs/QmRaHd8D7EJG9npNCew2BRWwoatMNTBJYei9fvFvMPGB7n"]},"contracts/identity/v1/permitters/Permitter.sol":{"keccak256":"0x1ea203a68e00b02d12d5aa371124f6694928ac2d58e24ed26f8880c864b22270","license":"MIT","urls":["bzz-raw://42ad7db954e0eee51ceb9b8148440cf6f1c4dec821f95a6ef115b4e51c4e38ff","dweb:/ipfs/QmX8VVvN5dgHkx8qsmimwfmoS3PbKp2R9y9JGc35b46rbN"]},"contracts/identity/v1/permitters/TrustedRelayerPermitter.sol":{"keccak256":"0x185cabbc6b27262d1bf203cc5ab4318334d709b21d2cccfad0e2908c39e534a9","license":"MIT","urls":["bzz-raw://cb409dc81566b37c481ee170ee6cedfef43e8a730e1fe31552707e60867eb57b","dweb:/ipfs/QmYeSxBQC6VeytxgQXcwRqb3STjUxhjc9oJ6pukj4Lnk2b"]},"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol":{"keccak256":"0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e","license":"MIT","urls":["bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9","dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf"]},"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165Checker.sol":{"keccak256":"0xa2a74d4098651d8729e7a83556077e0597d1ee6e2f03b7c94fe87cb5a3a9ee54","license":"MIT","urls":["bzz-raw://e389d1cd8e06a8885ca04033dc8008a4268b59aa6841db75349fb736ff227f2f","dweb:/ipfs/QmfFp3Lmvv2d5qGhgTMW5v5msj6dq9rdcK4Yst4GrjFZ9b"]},"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol":{"keccak256":"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c","license":"MIT","urls":["bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e","dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX"]}},"version":1},"methodIdentifiers":{"acquireIdentity(bytes32,address,uint64,bytes,bytes)":"8320790c","getTrustedRelayer()":"e2e08827","releaseIdentity(bytes32,address,bytes,bytes)":"f58ac325","supportsInterface(bytes4)":"01ffc9a7","upstream()":"6a99a523"},"rawMetadata":"{\"compiler\":{\"version\":\"0.8.23+commit.f704f362\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"DurationTooLong\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InterfaceUnsupported\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Unauthorized\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"IdentityId\",\"name\":\"identity\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"internalType\":\"uint64\",\"name\":\"duration\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"context\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"authorization\",\"type\":\"bytes\"}],\"name\":\"acquireIdentity\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"expiry\",\"type\":\"uint64\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTrustedRelayer\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"IdentityId\",\"name\":\"identity\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"context\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"authorization\",\"type\":\"bytes\"}],\"name\":\"releaseIdentity\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"upstream\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"acquireIdentity(bytes32,address,uint64,bytes,bytes)\":{\"params\":{\"authorization\":\"Authentication data provided to the permitter to make its decision.\",\"context\":\"Non-authentication data provided to the permitter to make its decision.\",\"duration\":\"The requested lifetime of the permit, which may be different from lifetime actually granted.\",\"identity\":\"The identity that the requester wishes to acquire.\",\"requester\":\"The account to which the identity permit will be issued.\"},\"returns\":{\"expiry\":\"The timestamp at which the permit expires, which may be different from the request timestamp plus the requested duration.\"}}},\"version\":1},\"userdoc\":{\"errors\":{\"DurationTooLong()\":[{\"notice\":\"The requested duration of the permit was too long.\"}],\"InterfaceUnsupported()\":[{\"notice\":\"The provided contract address does not support the correct interface.\"}],\"Unauthorized()\":[{\"notice\":\"The action is disallowed.\"}]},\"kind\":\"user\",\"methods\":{\"acquireIdentity(bytes32,address,uint64,bytes,bytes)\":{\"notice\":\"Requests that the permitter trigger the upstream identity registry to grant an identity.\"},\"upstream()\":{\"notice\":\"Returns the the upstream permitter or identity registry called upon successful identity acquisition/release.\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/identity/v1/permitters/TrustedRelayerPermitter.sol\":\"TrustedRelayerPermitter\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[\":@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/\",\":@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-std/=lib/forge-std/src/\",\":openzeppelin-contracts/=lib/openzeppelin-contracts/\",\":sapphire-paratime/=lib/sapphire-paratime/\"],\"viaIR\":true},\"sources\":{\"contracts/identity/v1/IIdentityRegistry.sol\":{\"keccak256\":\"0x14d726acf6b8c8662a133b50d7cf2752fdd3498ebe58611f6e51973b6f433045\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc91fcbe6157223121feb70c8339961594bb7be1eb6e7d323bad179df1b8691\",\"dweb:/ipfs/QmP8r5srCyyE3qVgrHYqBkQ4KyZ5TdZNAqfsEGvkdUcdjB\"]},\"contracts/identity/v1/IPermitter.sol\":{\"keccak256\":\"0xb5e0e909c5fa4c244210f4daba3ce092c5eb7f735ceb1069d4ec2876b07ec84e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://89a8d49192638441aac4d421f474601022415cc1e40c066fb38dd9575c7e7d1c\",\"dweb:/ipfs/QmRaHd8D7EJG9npNCew2BRWwoatMNTBJYei9fvFvMPGB7n\"]},\"contracts/identity/v1/permitters/Permitter.sol\":{\"keccak256\":\"0x1ea203a68e00b02d12d5aa371124f6694928ac2d58e24ed26f8880c864b22270\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://42ad7db954e0eee51ceb9b8148440cf6f1c4dec821f95a6ef115b4e51c4e38ff\",\"dweb:/ipfs/QmX8VVvN5dgHkx8qsmimwfmoS3PbKp2R9y9JGc35b46rbN\"]},\"contracts/identity/v1/permitters/TrustedRelayerPermitter.sol\":{\"keccak256\":\"0x185cabbc6b27262d1bf203cc5ab4318334d709b21d2cccfad0e2908c39e534a9\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cb409dc81566b37c481ee170ee6cedfef43e8a730e1fe31552707e60867eb57b\",\"dweb:/ipfs/QmYeSxBQC6VeytxgQXcwRqb3STjUxhjc9oJ6pukj4Lnk2b\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol\":{\"keccak256\":\"0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9\",\"dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165Checker.sol\":{\"keccak256\":\"0xa2a74d4098651d8729e7a83556077e0597d1ee6e2f03b7c94fe87cb5a3a9ee54\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e389d1cd8e06a8885ca04033dc8008a4268b59aa6841db75349fb736ff227f2f\",\"dweb:/ipfs/QmfFp3Lmvv2d5qGhgTMW5v5msj6dq9rdcK4Yst4GrjFZ9b\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol\":{\"keccak256\":\"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e\",\"dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX\"]}},\"version\":1}"}
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "IdentityId",
+          "name": "identity",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "requester",
+          "type": "address"
+        },
+        {
+          "internalType": "uint64",
+          "name": "duration",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes",
+          "name": "context",
+          "type": "bytes"
+        },
+        {
+          "internalType": "bytes",
+          "name": "authorization",
+          "type": "bytes"
+        }
+      ],
+      "name": "acquireIdentity",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "expiry",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getTrustedRelayer",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "IdentityId",
+          "name": "identity",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "requester",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "context",
+          "type": "bytes"
+        },
+        {
+          "internalType": "bytes",
+          "name": "authorization",
+          "type": "bytes"
+        }
+      ],
+      "name": "releaseIdentity",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "upstream",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "DurationTooLong",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InterfaceUnsupported",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Unauthorized",
+      "type": "error"
+    }
+  ],
+  "bytecode": {
+    "linkReferences": {},
+    "object": "0x",
+    "sourceMap": ""
+  },
+  "deployedBytecode": {
+    "linkReferences": {},
+    "object": "0x",
+    "sourceMap": ""
+  },
+  "id": 7,
+  "metadata": {
+    "compiler": {
+      "version": "0.8.23+commit.f704f362"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [],
+          "name": "DurationTooLong",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InterfaceUnsupported",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "Unauthorized",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "IdentityId",
+              "name": "identity",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "requester",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "duration",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes",
+              "name": "context",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "authorization",
+              "type": "bytes"
+            }
+          ],
+          "name": "acquireIdentity",
+          "outputs": [
+            {
+              "internalType": "uint64",
+              "name": "expiry",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getTrustedRelayer",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "IdentityId",
+              "name": "identity",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "requester",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "context",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "authorization",
+              "type": "bytes"
+            }
+          ],
+          "name": "releaseIdentity",
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes4",
+              "name": "interfaceId",
+              "type": "bytes4"
+            }
+          ],
+          "name": "supportsInterface",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "upstream",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {
+          "acquireIdentity(bytes32,address,uint64,bytes,bytes)": {
+            "params": {
+              "authorization": "Authentication data provided to the permitter to make its decision.",
+              "context": "Non-authentication data provided to the permitter to make its decision.",
+              "duration": "The requested lifetime of the permit, which may be different from lifetime actually granted.",
+              "identity": "The identity that the requester wishes to acquire.",
+              "requester": "The account to which the identity permit will be issued."
+            },
+            "returns": {
+              "expiry": "The timestamp at which the permit expires, which may be different from the request timestamp plus the requested duration."
+            }
+          }
+        },
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {
+          "acquireIdentity(bytes32,address,uint64,bytes,bytes)": {
+            "notice": "Requests that the permitter trigger the upstream identity registry to grant an identity."
+          },
+          "upstream()": {
+            "notice": "Returns the the upstream permitter or identity registry called upon successful identity acquisition/release."
+          }
+        },
+        "version": 1
+      }
+    },
+    "settings": {
+      "compilationTarget": {
+        "contracts/identity/v1/permitters/TrustedRelayerPermitter.sol": "TrustedRelayerPermitter"
+      },
+      "evmVersion": "paris",
+      "libraries": {},
+      "metadata": {
+        "bytecodeHash": "ipfs"
+      },
+      "optimizer": {
+        "enabled": true,
+        "runs": 4294967295
+      },
+      "remappings": [
+        "@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/",
+        "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+        "ds-test/=lib/forge-std/lib/ds-test/src/",
+        "erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+        "forge-std/=lib/forge-std/src/",
+        "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+        "sapphire-paratime/=lib/sapphire-paratime/"
+      ],
+      "viaIR": true
+    },
+    "sources": {
+      "contracts/identity/v1/IIdentityRegistry.sol": {
+        "keccak256": "0x14d726acf6b8c8662a133b50d7cf2752fdd3498ebe58611f6e51973b6f433045",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://fcc91fcbe6157223121feb70c8339961594bb7be1eb6e7d323bad179df1b8691",
+          "dweb:/ipfs/QmP8r5srCyyE3qVgrHYqBkQ4KyZ5TdZNAqfsEGvkdUcdjB"
+        ]
+      },
+      "contracts/identity/v1/IPermitter.sol": {
+        "keccak256": "0xb5e0e909c5fa4c244210f4daba3ce092c5eb7f735ceb1069d4ec2876b07ec84e",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://89a8d49192638441aac4d421f474601022415cc1e40c066fb38dd9575c7e7d1c",
+          "dweb:/ipfs/QmRaHd8D7EJG9npNCew2BRWwoatMNTBJYei9fvFvMPGB7n"
+        ]
+      },
+      "contracts/identity/v1/permitters/Permitter.sol": {
+        "keccak256": "0x1ea203a68e00b02d12d5aa371124f6694928ac2d58e24ed26f8880c864b22270",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://42ad7db954e0eee51ceb9b8148440cf6f1c4dec821f95a6ef115b4e51c4e38ff",
+          "dweb:/ipfs/QmX8VVvN5dgHkx8qsmimwfmoS3PbKp2R9y9JGc35b46rbN"
+        ]
+      },
+      "contracts/identity/v1/permitters/TrustedRelayerPermitter.sol": {
+        "keccak256": "0x185cabbc6b27262d1bf203cc5ab4318334d709b21d2cccfad0e2908c39e534a9",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://cb409dc81566b37c481ee170ee6cedfef43e8a730e1fe31552707e60867eb57b",
+          "dweb:/ipfs/QmYeSxBQC6VeytxgQXcwRqb3STjUxhjc9oJ6pukj4Lnk2b"
+        ]
+      },
+      "lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol": {
+        "keccak256": "0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9",
+          "dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf"
+        ]
+      },
+      "lib/openzeppelin-contracts/contracts/utils/introspection/ERC165Checker.sol": {
+        "keccak256": "0xa2a74d4098651d8729e7a83556077e0597d1ee6e2f03b7c94fe87cb5a3a9ee54",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://e389d1cd8e06a8885ca04033dc8008a4268b59aa6841db75349fb736ff227f2f",
+          "dweb:/ipfs/QmfFp3Lmvv2d5qGhgTMW5v5msj6dq9rdcK4Yst4GrjFZ9b"
+        ]
+      },
+      "lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol": {
+        "keccak256": "0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e",
+          "dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX"
+        ]
+      }
+    },
+    "version": 1
+  },
+  "methodIdentifiers": {
+    "acquireIdentity(bytes32,address,uint64,bytes,bytes)": "8320790c",
+    "getTrustedRelayer()": "e2e08827",
+    "releaseIdentity(bytes32,address,bytes,bytes)": "f58ac325",
+    "supportsInterface(bytes4)": "01ffc9a7",
+    "upstream()": "6a99a523"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.23+commit.f704f362\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"name\":\"DurationTooLong\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InterfaceUnsupported\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Unauthorized\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"IdentityId\",\"name\":\"identity\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"internalType\":\"uint64\",\"name\":\"duration\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"context\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"authorization\",\"type\":\"bytes\"}],\"name\":\"acquireIdentity\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"expiry\",\"type\":\"uint64\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getTrustedRelayer\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"IdentityId\",\"name\":\"identity\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"context\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"authorization\",\"type\":\"bytes\"}],\"name\":\"releaseIdentity\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"upstream\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"acquireIdentity(bytes32,address,uint64,bytes,bytes)\":{\"params\":{\"authorization\":\"Authentication data provided to the permitter to make its decision.\",\"context\":\"Non-authentication data provided to the permitter to make its decision.\",\"duration\":\"The requested lifetime of the permit, which may be different from lifetime actually granted.\",\"identity\":\"The identity that the requester wishes to acquire.\",\"requester\":\"The account to which the identity permit will be issued.\"},\"returns\":{\"expiry\":\"The timestamp at which the permit expires, which may be different from the request timestamp plus the requested duration.\"}}},\"version\":1},\"userdoc\":{\"errors\":{\"DurationTooLong()\":[{\"notice\":\"The requested duration of the permit was too long.\"}],\"InterfaceUnsupported()\":[{\"notice\":\"The provided contract address does not support the correct interface.\"}],\"Unauthorized()\":[{\"notice\":\"The action is disallowed.\"}]},\"kind\":\"user\",\"methods\":{\"acquireIdentity(bytes32,address,uint64,bytes,bytes)\":{\"notice\":\"Requests that the permitter trigger the upstream identity registry to grant an identity.\"},\"upstream()\":{\"notice\":\"Returns the the upstream permitter or identity registry called upon successful identity acquisition/release.\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/identity/v1/permitters/TrustedRelayerPermitter.sol\":\"TrustedRelayerPermitter\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":4294967295},\"remappings\":[\":@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/\",\":@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-std/=lib/forge-std/src/\",\":openzeppelin-contracts/=lib/openzeppelin-contracts/\",\":sapphire-paratime/=lib/sapphire-paratime/\"],\"viaIR\":true},\"sources\":{\"contracts/identity/v1/IIdentityRegistry.sol\":{\"keccak256\":\"0x14d726acf6b8c8662a133b50d7cf2752fdd3498ebe58611f6e51973b6f433045\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fcc91fcbe6157223121feb70c8339961594bb7be1eb6e7d323bad179df1b8691\",\"dweb:/ipfs/QmP8r5srCyyE3qVgrHYqBkQ4KyZ5TdZNAqfsEGvkdUcdjB\"]},\"contracts/identity/v1/IPermitter.sol\":{\"keccak256\":\"0xb5e0e909c5fa4c244210f4daba3ce092c5eb7f735ceb1069d4ec2876b07ec84e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://89a8d49192638441aac4d421f474601022415cc1e40c066fb38dd9575c7e7d1c\",\"dweb:/ipfs/QmRaHd8D7EJG9npNCew2BRWwoatMNTBJYei9fvFvMPGB7n\"]},\"contracts/identity/v1/permitters/Permitter.sol\":{\"keccak256\":\"0x1ea203a68e00b02d12d5aa371124f6694928ac2d58e24ed26f8880c864b22270\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://42ad7db954e0eee51ceb9b8148440cf6f1c4dec821f95a6ef115b4e51c4e38ff\",\"dweb:/ipfs/QmX8VVvN5dgHkx8qsmimwfmoS3PbKp2R9y9JGc35b46rbN\"]},\"contracts/identity/v1/permitters/TrustedRelayerPermitter.sol\":{\"keccak256\":\"0x185cabbc6b27262d1bf203cc5ab4318334d709b21d2cccfad0e2908c39e534a9\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://cb409dc81566b37c481ee170ee6cedfef43e8a730e1fe31552707e60867eb57b\",\"dweb:/ipfs/QmYeSxBQC6VeytxgQXcwRqb3STjUxhjc9oJ6pukj4Lnk2b\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol\":{\"keccak256\":\"0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9\",\"dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165Checker.sol\":{\"keccak256\":\"0xa2a74d4098651d8729e7a83556077e0597d1ee6e2f03b7c94fe87cb5a3a9ee54\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://e389d1cd8e06a8885ca04033dc8008a4268b59aa6841db75349fb736ff227f2f\",\"dweb:/ipfs/QmfFp3Lmvv2d5qGhgTMW5v5msj6dq9rdcK4Yst4GrjFZ9b\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol\":{\"keccak256\":\"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e\",\"dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX\"]}},\"version\":1}"
+}

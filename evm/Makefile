@@ -5,7 +5,7 @@ SRC_DIR := src test scripts
 all: build generate
 
 build:
-	forge build
+	FOUNDRY_PROFILE=release forge build
 
 generate: build | abi
 	node export-abis.js

@@ -1,1 +1,227 @@
-{"abi":[{"inputs":[{"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"notify","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"notify","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"generator","type":"address"},{"indexed":true,"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"TasksAvailable","type":"event"}],"bytecode":{"linkReferences":{},"object":"0x60806040523461001f57610011610024565b610362610030823961036290f35b61002a565b60405190565b600080fdfe60806040526004361015610013575b6101d1565b61001e60003561004d565b806301ffc9a714610048578063138b1084146100435763899f58980361000e5761019e565b61015b565b6100da565b60e01c90565b60405190565b600080fd5b600080fd5b63ffffffff60e01b1690565b61007881610063565b0361007f57565b600080fd5b905035906100918261006f565b565b906020828203126100ad576100aa91600001610084565b90565b61005e565b151590565b6100c0906100b2565b9052565b91906100d8906000602085019401906100b7565b565b3461010a576101066100f56100f0366004610093565b6101db565b6100fd610053565b918291826100c4565b0390f35b610059565b90565b61011b8161010f565b0361012257565b600080fd5b9050359061013482610112565b565b906020828203126101505761014d91600001610127565b90565b61005e565b60000190565b346101895761017361016e366004610136565b610269565b61017b610053565b8061018581610155565b0390f35b610059565b600091031261019957565b61005e565b346101cc576101ae36600461018e565b6101b66102bb565b6101be610053565b806101c881610155565b0390f35b610059565b600080fd5b600090565b6101e36101d6565b50806101fe6101f8632685120760e21b610063565b91610063565b1490811561020b575b5090565b6102159150610306565b38610207565b60018060a01b031690565b90565b61023d6102386102429261021b565b610226565b61021b565b90565b61024e90610229565b90565b61025a90610245565b90565b6102669061010f565b90565b339061029e6102987fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc26093610251565b9161025d565b916102a7610053565b806102b181610155565b0390a3565b600090565b336102e67fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc26091610251565b6102ee6102b6565b916102f7610053565b8061030181610155565b0390a3565b61030e6101d6565b506103286103226301ffc9a760e01b610063565b91610063565b149056fea264697066735822122065c01b317246d948b62a1a5f7813edd2ad07faf4fe4a93312193c65fa197e1b364736f6c63430008170033","sourceMap":"320:510:14:-:0;;;;;;;;:::i;:::-;;;;;;;;;;:::i;:::-;;;;:::o;:::-;;;"},"deployedBytecode":{"linkReferences":{},"object":"0x60806040526004361015610013575b6101d1565b61001e60003561004d565b806301ffc9a714610048578063138b1084146100435763899f58980361000e5761019e565b61015b565b6100da565b60e01c90565b60405190565b600080fd5b600080fd5b63ffffffff60e01b1690565b61007881610063565b0361007f57565b600080fd5b905035906100918261006f565b565b906020828203126100ad576100aa91600001610084565b90565b61005e565b151590565b6100c0906100b2565b9052565b91906100d8906000602085019401906100b7565b565b3461010a576101066100f56100f0366004610093565b6101db565b6100fd610053565b918291826100c4565b0390f35b610059565b90565b61011b8161010f565b0361012257565b600080fd5b9050359061013482610112565b565b906020828203126101505761014d91600001610127565b90565b61005e565b60000190565b346101895761017361016e366004610136565b610269565b61017b610053565b8061018581610155565b0390f35b610059565b600091031261019957565b61005e565b346101cc576101ae36600461018e565b6101b66102bb565b6101be610053565b806101c881610155565b0390f35b610059565b600080fd5b600090565b6101e36101d6565b50806101fe6101f8632685120760e21b610063565b91610063565b1490811561020b575b5090565b6102159150610306565b38610207565b60018060a01b031690565b90565b61023d6102386102429261021b565b610226565b61021b565b90565b61024e90610229565b90565b61025a90610245565b90565b6102669061010f565b90565b339061029e6102987fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc26093610251565b9161025d565b916102a7610053565b806102b181610155565b0390a3565b600090565b336102e67fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc26091610251565b6102ee6102b6565b916102f7610053565b8061030181610155565b0390a3565b61030e6101d6565b506103286103226301ffc9a760e01b610063565b91610063565b149056fea264697066735822122065c01b317246d948b62a1a5f7813edd2ad07faf4fe4a93312193c65fa197e1b364736f6c63430008170033","sourceMap":"320:510:14:-:0;;;;;;;;;-1:-1:-1;320:510:14;:::i;:::-;;;;;:::i;:::-;;;;;;;;;;;;;;;;:::i;:::-;;:::i;:::-;;:::i;:::-;;;;:::o;:::-;;;;:::o;:::-;;;;;;;;;;;;;;:::o;:::-;;;;:::i;:::-;;;;:::o;:::-;;;;;;;;;;;;:::i;:::-;:::o;:::-;;;;;;;;;;;;;;:::i;:::-;;:::o;:::-;;:::i;:::-;;;;:::o;:::-;;;;:::i;:::-;;;:::o;:::-;;;;;;;;;;;;;:::i;:::-;:::o;:::-;;;;;;;;;;:::i;:::-;;:::i;:::-;;;:::i;:::-;;;;;;:::i;:::-;;;;;;:::i;:::-;;:::o;:::-;;;;:::i;:::-;;;;:::o;:::-;;;;;;;;;;;;:::i;:::-;:::o;:::-;;;;;;;;;;;;;;:::i;:::-;;:::o;:::-;;:::i;:::-;;;;:::o;:::-;;;;;;;;;:::i;:::-;;:::i;:::-;;;:::i;:::-;;;;;:::i;:::-;;;;;;:::i;:::-;;;;;;;:::o;:::-;;:::i;:::-;;;;;;;;:::i;:::-;;;:::i;:::-;;;:::i;:::-;;;;;:::i;:::-;;;;;;:::i;:::-;;;;;;;:::o;571:257::-;713:4;;:::i;:::-;740:11;;:41;;755:26;;;740:41;:::i;:::-;;;:::i;:::-;;:81;;;;;571:257;733:88;;:::o;740:81::-;785:36;809:11;;785:36;:::i;:::-;740:81;;;320:510;;;;;;;;:::o;:::-;;:::o;:::-;;;;;;:::i;:::-;;:::i;:::-;;:::i;:::-;;:::o;:::-;;;;:::i;:::-;;:::o;:::-;;;;:::i;:::-;;:::o;:::-;;;;:::i;:::-;;:::o;457:108::-;538:10;550:7;523:35;;;;;:::i;:::-;;;:::i;:::-;;;;:::i;:::-;;;;;:::i;:::-;;;;457:108::o;320:510::-;;;:::o;363:88::-;429:10;414:30;;;;:::i;:::-;;;:::i;:::-;;;;:::i;:::-;;;;;:::i;:::-;;;;363:88::o;763:146:45:-;839:4;;:::i;:::-;862:11;:40;;877:25;;;862:40;:::i;:::-;;;:::i;:::-;;855:47;:::o"},"id":14,"metadata":{"compiler":{"version":"0.8.23+commit.f704f362"},"language":"Solidity","output":{"abi":[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"generator","type":"address"},{"indexed":true,"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"TasksAvailable","type":"event"},{"inputs":[{"internalType":"bytes32","name":"context","type":"bytes32"}],"name":"notify","stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"notify","stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"}],"devdoc":{"kind":"dev","methods":{"notify(bytes32)":{"params":{"context":"Some indexed data to be emitted with the event for listeners to filter on."}}},"version":1},"userdoc":{"kind":"user","methods":{"notify()":{"notice":"Alerts any listening task runners that there are new tasks available."},"notify(bytes32)":{"notice":"Alerts any listening task runners that there are new tasks available."}},"version":1}},"settings":{"compilationTarget":{"contracts/tasks/v1/hub/TaskHub.sol":"TaskHub"},"evmVersion":"paris","libraries":{},"metadata":{"bytecodeHash":"ipfs"},"optimizer":{"enabled":false,"runs":200},"remappings":["@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/","@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/","ds-test/=lib/forge-std/lib/ds-test/src/","erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/","forge-std/=lib/forge-std/src/","openzeppelin-contracts/=lib/openzeppelin-contracts/","sapphire-paratime/=lib/sapphire-paratime/"],"viaIR":true},"sources":{"contracts/tasks/v1/hub/ITaskHub.sol":{"keccak256":"0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10","license":"MIT","urls":["bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c","dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL"]},"contracts/tasks/v1/hub/TaskHub.sol":{"keccak256":"0x3ffc6ef6f4af21a6ce557b4c120145092ea0c4989f19e7031e1c0f8808319134","license":"MIT","urls":["bzz-raw://fe037314f065ec7994380ca0b7542bbfc7f384d76724375c8020f28ee006c763","dweb:/ipfs/QmTPt9a18w4XoBciEWwThFBzGyvXyyLqG1CzAvUdjiwdCa"]},"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol":{"keccak256":"0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e","license":"MIT","urls":["bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9","dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf"]},"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol":{"keccak256":"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c","license":"MIT","urls":["bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e","dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX"]}},"version":1},"methodIdentifiers":{"notify()":"899f5898","notify(bytes32)":"138b1084","supportsInterface(bytes4)":"01ffc9a7"},"rawMetadata":"{\"compiler\":{\"version\":\"0.8.23+commit.f704f362\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"generator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"TasksAvailable\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"The methods in this contract are not marked with `override` are not guaranteed to be in the next version of the contract.\",\"kind\":\"dev\",\"methods\":{\"notify(bytes32)\":{\"params\":{\"context\":\"Some indexed data to be emitted with the event for listeners to filter on.\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"notify()\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"},\"notify(bytes32)\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/tasks/v1/hub/TaskHub.sol\":\"TaskHub\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[\":@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/\",\":@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-std/=lib/forge-std/src/\",\":openzeppelin-contracts/=lib/openzeppelin-contracts/\",\":sapphire-paratime/=lib/sapphire-paratime/\"],\"viaIR\":true},\"sources\":{\"contracts/tasks/v1/hub/ITaskHub.sol\":{\"keccak256\":\"0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c\",\"dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL\"]},\"contracts/tasks/v1/hub/TaskHub.sol\":{\"keccak256\":\"0x3ffc6ef6f4af21a6ce557b4c120145092ea0c4989f19e7031e1c0f8808319134\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fe037314f065ec7994380ca0b7542bbfc7f384d76724375c8020f28ee006c763\",\"dweb:/ipfs/QmTPt9a18w4XoBciEWwThFBzGyvXyyLqG1CzAvUdjiwdCa\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol\":{\"keccak256\":\"0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9\",\"dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol\":{\"keccak256\":\"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e\",\"dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX\"]}},\"version\":1}"}
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "context",
+          "type": "bytes32"
+        }
+      ],
+      "name": "notify",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "notify",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "generator",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "context",
+          "type": "bytes32"
+        }
+      ],
+      "name": "TasksAvailable",
+      "type": "event"
+    }
+  ],
+  "bytecode": {
+    "linkReferences": {},
+    "object": "0x60808060405234610016576101f3908161001c8239f35b600080fdfe608080604052600436101561001357600080fd5b600090813560e01c90816301ffc9a7146100f757508063138b10841461009c5763899f58981461004257600080fd5b3461009957807ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100995780337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608280a380f35b80fd5b50346100995760207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc36011261009957600435337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608380a380f35b9050346101b95760207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126101b9576004357fffffffff0000000000000000000000000000000000000000000000000000000081168091036101b557602092507f9a14481c00000000000000000000000000000000000000000000000000000000811490811561018b575b5015158152f35b7f01ffc9a70000000000000000000000000000000000000000000000000000000091501438610184565b8280fd5b5080fdfea2646970667358221220f4369ce9fd28f0ec2ce37ffefb34017025226c309d56932b194c37bdb719373864736f6c63430008170033",
+    "sourceMap": "320:510:14:-:0;;;;;;;;;;;;;;;;;"
+  },
+  "deployedBytecode": {
+    "linkReferences": {},
+    "object": "0x608080604052600436101561001357600080fd5b600090813560e01c90816301ffc9a7146100f757508063138b10841461009c5763899f58981461004257600080fd5b3461009957807ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100995780337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608280a380f35b80fd5b50346100995760207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc36011261009957600435337fab04395d906559e27643e4acf5cd0debe6a355247cd81c101bd0855d87dcc2608380a380f35b9050346101b95760207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126101b9576004357fffffffff0000000000000000000000000000000000000000000000000000000081168091036101b557602092507f9a14481c00000000000000000000000000000000000000000000000000000000811490811561018b575b5015158152f35b7f01ffc9a70000000000000000000000000000000000000000000000000000000091501438610184565b8280fd5b5080fdfea2646970667358221220f4369ce9fd28f0ec2ce37ffefb34017025226c309d56932b194c37bdb719373864736f6c63430008170033",
+    "sourceMap": "320:510:14:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;429:10;;414:30;;;;320:510;;;;;;;;;;;;;;;;;;;538:10;523:35;;;;320:510;;;;;;;;;;;;;;;;;;;;;;;;;;740:41;;755:26;740:41;;:81;;;;;320:510;;;;;;;740:81;877:25:45;862:40;;;740:81:14;;;320:510;;;;;;;"
+  },
+  "id": 14,
+  "metadata": {
+    "compiler": {
+      "version": "0.8.23+commit.f704f362"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "generator",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "context",
+              "type": "bytes32"
+            }
+          ],
+          "name": "TasksAvailable",
+          "type": "event"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "context",
+              "type": "bytes32"
+            }
+          ],
+          "name": "notify",
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "notify",
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes4",
+              "name": "interfaceId",
+              "type": "bytes4"
+            }
+          ],
+          "name": "supportsInterface",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {
+          "notify(bytes32)": {
+            "params": {
+              "context": "Some indexed data to be emitted with the event for listeners to filter on."
+            }
+          }
+        },
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {
+          "notify()": {
+            "notice": "Alerts any listening task runners that there are new tasks available."
+          },
+          "notify(bytes32)": {
+            "notice": "Alerts any listening task runners that there are new tasks available."
+          }
+        },
+        "version": 1
+      }
+    },
+    "settings": {
+      "compilationTarget": {
+        "contracts/tasks/v1/hub/TaskHub.sol": "TaskHub"
+      },
+      "evmVersion": "paris",
+      "libraries": {},
+      "metadata": {
+        "bytecodeHash": "ipfs"
+      },
+      "optimizer": {
+        "enabled": true,
+        "runs": 4294967295
+      },
+      "remappings": [
+        "@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/",
+        "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+        "ds-test/=lib/forge-std/lib/ds-test/src/",
+        "erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/",
+        "forge-std/=lib/forge-std/src/",
+        "openzeppelin-contracts/=lib/openzeppelin-contracts/",
+        "sapphire-paratime/=lib/sapphire-paratime/"
+      ],
+      "viaIR": true
+    },
+    "sources": {
+      "contracts/tasks/v1/hub/ITaskHub.sol": {
+        "keccak256": "0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c",
+          "dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL"
+        ]
+      },
+      "contracts/tasks/v1/hub/TaskHub.sol": {
+        "keccak256": "0x3ffc6ef6f4af21a6ce557b4c120145092ea0c4989f19e7031e1c0f8808319134",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://fe037314f065ec7994380ca0b7542bbfc7f384d76724375c8020f28ee006c763",
+          "dweb:/ipfs/QmTPt9a18w4XoBciEWwThFBzGyvXyyLqG1CzAvUdjiwdCa"
+        ]
+      },
+      "lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol": {
+        "keccak256": "0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9",
+          "dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf"
+        ]
+      },
+      "lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol": {
+        "keccak256": "0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c",
+        "license": "MIT",
+        "urls": [
+          "bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e",
+          "dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX"
+        ]
+      }
+    },
+    "version": 1
+  },
+  "methodIdentifiers": {
+    "notify()": "899f5898",
+    "notify(bytes32)": "138b1084",
+    "supportsInterface(bytes4)": "01ffc9a7"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.23+commit.f704f362\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"generator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"TasksAvailable\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"context\",\"type\":\"bytes32\"}],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"notify\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"The methods in this contract are not marked with `override` are not guaranteed to be in the next version of the contract.\",\"kind\":\"dev\",\"methods\":{\"notify(bytes32)\":{\"params\":{\"context\":\"Some indexed data to be emitted with the event for listeners to filter on.\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"notify()\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"},\"notify(bytes32)\":{\"notice\":\"Alerts any listening task runners that there are new tasks available.\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/tasks/v1/hub/TaskHub.sol\":\"TaskHub\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":4294967295},\"remappings\":[\":@oasisprotocol/sapphire-contracts/contracts/=lib/sapphire-paratime/contracts/contracts/\",\":@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-std/=lib/forge-std/src/\",\":openzeppelin-contracts/=lib/openzeppelin-contracts/\",\":sapphire-paratime/=lib/sapphire-paratime/\"],\"viaIR\":true},\"sources\":{\"contracts/tasks/v1/hub/ITaskHub.sol\":{\"keccak256\":\"0xdecfe734cae73f8635012b7b18d60552749a821c2c432f90feba423e71a32f10\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b61cab42a15c01fb08789e4bd2e505a2979c07783634c5f45f760013a92e4a9c\",\"dweb:/ipfs/Qmf7scppuaLisvHmVW1miT1sUM65Ktcw5nBovQxG7YS5oL\"]},\"contracts/tasks/v1/hub/TaskHub.sol\":{\"keccak256\":\"0x3ffc6ef6f4af21a6ce557b4c120145092ea0c4989f19e7031e1c0f8808319134\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://fe037314f065ec7994380ca0b7542bbfc7f384d76724375c8020f28ee006c763\",\"dweb:/ipfs/QmTPt9a18w4XoBciEWwThFBzGyvXyyLqG1CzAvUdjiwdCa\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol\":{\"keccak256\":\"0x6fac27fb1885a1d9fd2ce3f8fac4e44a6596ca4d44207c9ef2541ba8c941291e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://2079378abdb36baec15c23bc2353b73a3d28d1d0610b436b0c1c4e6fa61d65c9\",\"dweb:/ipfs/QmVZkRFMzKW7sLaugKSTbMNnUBKWF3QDsoMi5uoQFyVMjf\"]},\"lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol\":{\"keccak256\":\"0xc859863e3bda7ec3cddf6dafe2ffe91bcbe648d1395b856b839c32ee9617c44c\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://a9d5417888b873cf2225ed5d50b2a67be97c1504134a2a580512168d587ad82e\",\"dweb:/ipfs/QmNr5fTb2heFW658NZn7dDnofZgFvQTnNxKRJ3wdnR1skX\"]}},\"version\":1}"
+}

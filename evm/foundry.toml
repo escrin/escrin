@@ -9,15 +9,9 @@ remappings = [
   "@oasisprotocol/sapphire-contracts/contracts=lib/sapphire-paratime/contracts/contracts",
 ]
 
-[rpc_endpoints]
-emerald-testnet = "https://testnet.emerald.oasis.dev"
-emerald-mainnet = "https://emerald.oasis.dev"
-sapphire-testnet = "https://testnet.sapphire.oasis.dev"
-sapphire-mainnet = "https://sapphire.oasis.io"
-
 [fmt]
 line_length = 100
 
 [profile.release]
 optimizer = true
-optimizer_runs = 1_000_000_000
+optimizer_runs = 4294967295
