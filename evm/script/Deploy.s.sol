@@ -18,10 +18,10 @@ contract Setup is Script {
         returns (IdentityRegistry registry, SsssPermitter ssss)
     {
         registry = new IdentityRegistry{
-            salt: 0xe8b9c6b0f67561f7bd9414113e46cb43f117ad1bef1990f864c327caa35ef2de
+            salt: 0x02a1cc53de2aa4dee9cd7aab6be390fccf16cf4eeae806be5cb401890b1e2ef5
         }();
         ssss = new SsssPermitter{
-            salt: 0x8c2f1b8b9b47e64b3c1f5dbed4b4c4861e8e5403cf79be45d268251ca51e8783
+            salt: 0x2dff154b73951a9e570614c000575518af79837c0a311fb79fa728ba126ad19e
         }(address(registry));
     }
 }
