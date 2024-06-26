@@ -3,12 +3,12 @@
 layout: home
 
 title: Escrin
-titleTemplate: Smart Worker Runtime
+titleTemplate: Smart AI Worker Runtime
 
 hero:
   name: Escrin
-  text: Smart Worker Runtime
-  tagline: Extend smart contracts into the real world using secure off-chain JavaScript Smart Workers.
+  text: Smart AI Worker Runtime
+  tagline: Extend smart contracts into the real world using secure off-chain Smart AI Workers.
   actions:
     - theme: brand
       text: Read the Docs
@@ -22,7 +22,5 @@ features:
     details: Smart Workers run within a Trusted Execution Environment (TEE) to ensure that nobody can see what a worker is doing.
   - title: Efficient
     details: Gas-optimal for on/off-chain state synchronization and can be added to an existing dapp in just a few lines of modular code.
-  - title: Familiar
-    details: Write smart workers in JavaScript or Wasm using the whole ecosystem of libraries and tools. Deploy like on any other serverless computing platform.
-  - title: Sustainable
-    details: Escrin is a non-profit project that is being built to last because privacy &amp; security are fundamental rights for all–whether human or AI.
+  - title: Powerful
+    details: Escrin supports modern models including LLMs, stable diffusion, and speech recognition for AI agent applications.
