@@ -59,7 +59,9 @@ export type AcquireIdentityRequest = {
   response: void;
 };
 
-export type AcquireIdentityParams = {
+export type AcquireIdentityParams = BaseAcquireIdentityParams | SsssAcquireIdentityParams;
+
+export type BaseAcquireIdentityParams = {
   /** The network where the identity is registered. */
   network: Network;
   /** A pointer to the identity to acquire. */
@@ -90,19 +92,22 @@ export type AcquireIdentityParams = {
 
   /** An override for the gas key used to pay for identity acquisition. */
   gasKey?: Hex;
+};
 
-  /** @experimental */
-  ssss?: SsssParams;
+export type SsssAcquireIdentityParams = BaseAcquireIdentityParams & {
+  ssss: SsssParams;
+  nonce?: Hex;
+  pk?: Hex;
 };
 
 export type SsssParams = {
-  /** The address of the SSSSHub contract. */
-  hub: Address;
   /** The M in the M-of-N secret sharing scheme. */
   quorum: number;
   /** The URLs of the SSSSs to be contacted. */
-  urls: string[];
+  sssss: SsssSpec[];
 };
+
+type SsssSpec = string | { url: string; signer: Address };
 
 export function parseAcquireIdentityParams(params: Record<string, unknown>): AcquireIdentityParams {
   const {
@@ -143,39 +148,42 @@ export function parseAcquireIdentityParams(params: Record<string, unknown>): Acq
   };
 }
 
-export type GetKeyRequest = {
-  method: 'get-key';
-  params: GetKeyParams;
-  response: { key: Hex };
+export type GetSecretRequest = {
+  method: 'get-secret';
+  params: GetSecretParams;
+  response: { secret: Hex };
 };
 
 type EphemeralAccount = 'ephemeral-account';
 
-export type GetKeyParams =
-  | ({
-      keyId: 'omni';
-    } & EvmKeyStoreParams)
+export type GetSecretParams =
+  | (EvmSecretStoreParams | SsssSecretStoreParams)
   | {
-      keyId: EphemeralAccount;
+      secretName: EphemeralAccount;
     };
 
-export type EvmKeyStoreParams = {
+export type EvmSecretStoreParams = {
+  secretName: 'omni';
   network: Network;
   identity: {
     registry: Address;
     id: Hash;
   };
-  ssss?: SsssParams;
 };
 
-export function parseGetKeyParams(params: Record<string, unknown>): GetKeyParams {
-  const { keyId, ...providerParams } = params;
-  if (keyId !== 'omni') throw new ApiError(400, `unknown key id ${keyId}`);
+export type SsssSecretStoreParams = EvmSecretStoreParams & {
+  secretVersion: number;
+  ssss: SsssParams;
+};
+
+export function parseGetSecretParams(params: Record<string, unknown>): GetSecretParams {
+  const { secretName, ...providerParams } = params;
+  if (secretName !== 'omni') throw new ApiError(400, `unknown key id ${secretName}`);
 
   // There is only the one provider kind (EVM), so no guard is needed.
   const { network, identity, ssss } = providerParams;
   return {
-    keyId,
+    secretName,
     network: parseNetwork(network),
     identity: parseIdentity(identity),
     ssss: checkSsss(ssss),
@@ -184,27 +192,45 @@ export function parseGetKeyParams(params: Record<string, unknown>): GetKeyParams
 
 function checkSsss(ssss: unknown): SsssParams | undefined {
   if (ssss === undefined || ssss === null) return undefined;
-  const { urls, quorum, hub } = ssss as Record<string, unknown>;
+  const { sssss, quorum, hub } = ssss as Record<string, unknown>;
 
-  if (!Array.isArray(urls) || urls.length === 0)
-    throw new ApiError(400, 'invalid ssss: missing urls');
-  const normalizedUrls = urls.map((u) => {
-    try {
-      const url = new URL(u);
-      if (url.protocol !== 'http:' && url.protocol !== 'https:')
-        throw new Error(`unsupported protocol: ${url.protocol}`);
-      url.pathname = url.pathname.replace(/\/+$/, '');
-      if (!url.pathname.endsWith('/v1')) throw new Error('unsupported SSSS API version');
-      return url.toString();
-    } catch (e: any) {
-      throw new ApiError(400, `invalid ssss: invalid ssss url: ${e}`);
+  if (!Array.isArray(sssss) || sssss.length === 0)
+    throw new ApiError(400, 'invalid ssss: missing sssss');
+
+  const normalizedSssss: SsssSpec[] = sssss.map((urlOrSpec) => {
+    if (typeof urlOrSpec === 'string') {
+      return checkSsssUrl(urlOrSpec);
+    } else if (typeof urlOrSpec === 'object' && urlOrSpec !== null) {
+      const { url, signer } = urlOrSpec;
+      if (!stringIsAddress(signer)) throw new Error(`invalid sssss.signer: ${signer}`);
+      return { url: checkSsssUrl(url), signer };
+    } else {
+      throw new Error(`invalid ssss.sssss spec: ${urlOrSpec}`);
     }
   });
 
-  if (typeof quorum !== 'number' || quorum <= 0 || quorum % 1 > 0 || quorum > normalizedUrls.length)
+  if (
+    typeof quorum !== 'number' ||
+    quorum <= 0 ||
+    quorum % 1 > 0 ||
+    quorum > normalizedSssss.length
+  )
     throw new ApiError(400, 'invalid ssss: invalid quorum');
 
   if (!isAddress(hub)) throw new ApiError(400, 'invalid ssss: missing hub');
 
-  return { hub, quorum, urls: normalizedUrls };
+  return { quorum, sssss: normalizedSssss };
+}
+
+function checkSsssUrl(maybeUrl: string): string {
+  try {
+    const url = new URL(maybeUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:')
+      throw new Error(`unsupported protocol: ${url.protocol}`);
+    url.pathname = url.pathname.replace(/\/+$/, '');
+    if (!url.pathname.endsWith('/v1')) throw new Error('unsupported SSSS API version');
+    return url.toString();
+  } catch (e: any) {
+    throw new ApiError(400, `invalid ssss: invalid ssss url: ${e}`);
+  }
 }

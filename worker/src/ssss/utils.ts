@@ -1,4 +1,5 @@
-import { Address, Hex, PrivateKeyAccount, keccak256, zeroHash } from 'viem';
+import { Address, Hash, Hex, TypedDataDefinition, keccak256, zeroHash } from 'viem';
+import { RequireAtLeastOne } from 'type-fest';
 
 export type QuorumRequestParams = {
   url: string;
@@ -13,14 +14,14 @@ type Awaitable<T> = T | Promise<T>;
 
 export async function fetchAll<Upstream, Result>(
   upstreams: Upstream[],
-  makeReqParams: (upstream: Upstream) => Awaitable<QuorumRequestParams>,
+  makeReqParams: (upstream: Upstream, i: number) => Awaitable<QuorumRequestParams>,
   decodeResponse: (res: Response) => Awaitable<Result>,
   timeout = 60,
 ): Promise<Result[]> {
   const abort = new AbortController();
   // TODO: build in retrying as long as abort signal hasn't been raised
-  async function doFetch(upstream: Upstream): Promise<Result> {
-    const { url, headers, body } = await makeReqParams(upstream);
+  async function doFetch(upstream: Upstream, i: number): Promise<Result> {
+    const { url, headers, body } = await makeReqParams(upstream, i);
     const res = await fetch(url, {
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -30,7 +31,9 @@ export async function fetchAll<Upstream, Result>(
   }
 
   const fetchTimeout = setTimeout(() => abort.abort(), timeout * 1000);
-  const fetchResults = await Promise.allSettled(upstreams.map((upstream) => doFetch(upstream)));
+  const fetchResults = await Promise.allSettled(
+    upstreams.map((upstream, i) => doFetch(upstream, i)),
+  );
   clearTimeout(fetchTimeout);
 
   const results = [];
@@ -41,13 +44,20 @@ export async function fetchAll<Upstream, Result>(
   return results;
 }
 
+type SignerLike = {
+  signTypedData: (tdd: TypedDataDefinition) => Hash | Promise<Hash>;
+} & RequireAtLeastOne<{
+  address: Address;
+  account: { address: Address };
+}>;
+
 export async function escrin1(
-  account: PrivateKeyAccount,
+  signer: SignerLike,
   method: Method,
   url: string,
   body?: string | Uint8Array,
 ): Promise<{ requester: Address; signature: Hex }> {
-  const signature = await account.signTypedData({
+  const signature = await signer.signTypedData({
     domain: {
       name: 'SsssRequest',
       version: '1',
@@ -70,7 +80,7 @@ export async function escrin1(
         : zeroHash,
     },
   });
-  return { requester: account.address, signature };
+  return { requester: signer.address ?? signer.account?.address, signature };
 }
 
 export async function throwErrorResponse(res: Response): Promise<never> {

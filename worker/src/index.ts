@@ -157,8 +157,8 @@ class RunnerInterface implements Runner {
     const { network: networkNameOrNetwork, identity: identityIdOrIdentity, ssss } = params;
     const network = getNetwork(networkNameOrNetwork);
     const identity = getIdentity(identityIdOrIdentity, network);
-    const { key } = await rpc<iamTypes.GetKeyRequest>(this.#iam, 'get-key', {
-      keyId: 'omni',
+    const { secret: key } = await rpc<iamTypes.GetSecretRequest>(this.#iam, 'get-secret', {
+      secretName: 'omni',
       network,
       identity,
       ssss,
